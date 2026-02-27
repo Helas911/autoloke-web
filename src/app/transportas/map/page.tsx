@@ -114,9 +114,7 @@ export default function TransportMapPage() {
             mapContainerStyle={{ width: "100%", height: "70vh" }}
             center={LT_CENTER}
             zoom={6.6}
-            onLoad={(m) => {
-              mapRef.current = m;
-            }}
+            onLoad={(m) => (mapRef.current = m)}
             options={{
               clickableIcons: false,
               streetViewControl: false,

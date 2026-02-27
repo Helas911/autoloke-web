@@ -189,9 +189,7 @@ export default function HomeMarketplace() {
             mapContainerStyle={{ width: "100%", height: "46vh" }}
             center={LT_CENTER}
             zoom={6.6}
-            onLoad={(m) => {
-              mapRef.current = m;
-            }}
+            onLoad={(m) => (mapRef.current = m)}
             onIdle={() => {
               const b = mapRef.current?.getBounds() ?? null;
               setBounds(b);
