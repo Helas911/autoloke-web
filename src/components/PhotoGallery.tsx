@@ -112,3 +112,5 @@ export function PhotoGallery({ images }: { images: string[] }) {
     </>
   );
 }
+
+export default PhotoGallery;

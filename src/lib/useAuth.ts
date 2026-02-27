@@ -5,12 +5,12 @@ import { useEffect, useState } from "react";
 import { auth } from "./firebase";
 
 export function useAuth() {
-  // ✅ Important for Next.js (SSR/SSG on Vercel): never touch `auth.currentUser` during render.
-  // Some build/prerender paths can evaluate this code without a real Firebase Auth instance,
-  // which causes `Cannot read properties of null (reading 'currentUser')`.
-  // We always start with null and resolve the user only inside `useEffect` (client-only).
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  // During Next.js build/prerender, `auth` may be null (because window is undefined).
+  const initialUser: User | null =
+    typeof window !== "undefined" && auth ? (auth as any).currentUser ?? null : null;
+
+  const [user, setUser] = useState<User | null>(initialUser);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!auth) {
