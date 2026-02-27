@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { doc, onSnapshot } from "firebase/firestore";
 import { useParams } from "next/navigation";
 import { db } from "@/lib/firebase";
-import PhotoGallery from "@/components/gallery/PhotoGallery";
+import { PhotoGallery } from "@/components/PhotoGallery";
 
 type Ad = {
   id: string;
