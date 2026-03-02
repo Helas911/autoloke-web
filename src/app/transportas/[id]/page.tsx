@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { doc, onSnapshot, updateDoc, deleteDoc } from "firebase/firestore";
+import { deleteObject, ref } from "firebase/storage";
 import { useParams } from "next/navigation";
-import { db } from "@/lib/firebase";
+import { db, storage } from "@/lib/firebase";
 import { useAuth } from "@/lib/useAuth";
-import { deleteFolder, uploadImage } from "@/lib/upload";
+import { deleteFile, deleteFolder, uploadImage } from "@/lib/upload";
 import PhotoGallery from "@/components/gallery/PhotoGallery";
 
 type Ad = {
@@ -18,6 +19,8 @@ type Ad = {
   category?: string;
   type?: string;
   phone?: string;
+  lat?: number;
+  lng?: number;
   ownerUid?: string;
   ownerEmail?: string;
   description?: string;
@@ -128,6 +131,115 @@ export default function TransportDetailPage() {
     }
   }
 
+
+  async function setPrimaryPhoto(index: number) {
+  if (!id || !isOwner || !data?.imageUrls?.length) return;
+
+  const urls = [...(data.imageUrls || [])];
+  if (index <= 0 || index >= urls.length) return;
+
+  // move chosen url to front
+  const [u0] = urls.splice(index, 1);
+  urls.unshift(u0);
+
+  // paths are optional (older ads may not have them)
+  const pathsRaw = Array.isArray(data.imagePaths) ? [...data.imagePaths] : null;
+  const hasValidPaths = !!pathsRaw && pathsRaw.length === (data.imageUrls || []).length;
+
+  setSaving(true);
+  setErr(null);
+  try {
+    if (hasValidPaths) {
+      const paths = pathsRaw!;
+      const [p0] = paths.splice(index, 1);
+      paths.unshift(p0);
+      await updateDoc(doc(db, "ads", id), { imageUrls: urls, imagePaths: paths });
+    } else {
+      await updateDoc(doc(db, "ads", id), { imageUrls: urls });
+    }
+    setMsg("Pagrindinė nuotrauka pakeista ✅");
+  } catch (e: any) {
+    setErr(e?.message || "Klaida keičiant pagrindinę nuotrauką.");
+  } finally {
+    setSaving(false);
+  }
+}
+
+async function deleteOnePhoto(index: number) {
+  if (!id || !isOwner || !data?.imageUrls?.length) return;
+  if (!confirm("Ištrinti šią nuotrauką?")) return;
+
+  const urls = [...(data.imageUrls || [])];
+  const url = urls[index];
+  urls.splice(index, 1);
+
+  const pathsRaw = Array.isArray(data.imagePaths) ? [...data.imagePaths] : null;
+  const hasValidPaths = !!pathsRaw && pathsRaw.length === (data.imageUrls || []).length;
+
+  setSaving(true);
+  setErr(null);
+  try {
+    // try delete from Storage (works for both path + download URL)
+    if (hasValidPaths) {
+      const paths = pathsRaw!;
+      const path = paths[index];
+      paths.splice(index, 1);
+      if (path) await deleteFile(path);
+      await updateDoc(doc(db, "ads", id), { imageUrls: urls, imagePaths: paths });
+    } else {
+      if (url) {
+        try {
+          await deleteObject(ref(storage, url));
+        } catch {
+          // ignore if it's an external URL or already deleted
+        }
+      }
+      await updateDoc(doc(db, "ads", id), { imageUrls: urls });
+    }
+
+    setMsg("Nuotrauka ištrinta ✅");
+  } catch (e: any) {
+    setErr(e?.message || "Klaida trinant nuotrauką.");
+  } finally {
+    setSaving(false);
+  }
+}
+
+  async function copyPhone(index: number) {
+    if (!id || !isOwner || !data?.imageUrls?.length) return;
+    if (!confirm("Ištrinti šią nuotrauką?")) return;
+
+    const urls = [...(data.imageUrls || [])];
+    const paths = [...(data.imagePaths || [])];
+    const path = paths[index];
+
+    urls.splice(index, 1);
+    paths.splice(index, 1);
+
+    setSaving(true);
+    setErr(null);
+    try {
+      if (path) await deleteFile(path);
+      await updateDoc(doc(db, "ads", id), { imageUrls: urls, imagePaths: paths });
+      setMsg("Nuotrauka ištrinta ✅");
+    } catch (e: any) {
+      setErr(e?.message || "Klaida trinant nuotrauką.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function copyPhone() {
+    const p = (data?.phone || "").toString().trim();
+    if (!p) return;
+    try {
+      await navigator.clipboard.writeText(p);
+      setMsg("Telefono numeris nukopijuotas ✅");
+    } catch {
+      // ignore
+    }
+  }
+
   async function deleteListing() {
     if (!id || !isOwner) return;
     if (!confirm("Tikrai ištrinti skelbimą?")) return;
@@ -221,13 +333,49 @@ export default function TransportDetailPage() {
             <div className="text-xs font-extrabold text-white/60">Kontaktai</div>
             <div className="mt-2 text-sm text-white/75">{data.ownerEmail ?? "—"}</div>
 
+            {typeof data.lat === "number" && typeof data.lng === "number" ? (
+              <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.02] p-3">
+                <div className="text-xs font-extrabold text-white/60">Vieta</div>
+                <div className="mt-2 overflow-hidden rounded-xl border border-white/10">
+                  <iframe
+                    title="map"
+                    className="h-36 w-full"
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                    src={`https://www.google.com/maps?q=${data.lat},${data.lng}&z=12&output=embed`}
+                  />
+                </div>
+                <a
+                  className="mt-3 inline-flex w-full items-center justify-center rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-sm font-extrabold text-white/90 hover:bg-white/[0.08]"
+                  href={`https://www.google.com/maps/dir/?api=1&destination=${data.lat},${data.lng}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  🧭 Naviguoti
+                </a>
+              </div>
+            ) : null}
+
             {data.phone ? (
-              <a
-                href={`tel:${data.phone}`}
-                className="mt-3 inline-flex w-full items-center justify-center rounded-2xl bg-white px-4 py-3 text-sm font-extrabold text-black hover:bg-white/90"
-              >
-                📞 Skambinti
-              </a>
+              <div className="mt-3 space-y-2">
+                <div className="flex items-center justify-between gap-2 rounded-2xl border border-white/12 bg-white/5 px-4 py-3">
+                  <div className="text-sm font-extrabold text-white/90">{data.phone}</div>
+                  <button
+                    type="button"
+                    onClick={copyPhone}
+                    className="rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-xs font-extrabold text-white/90 hover:bg-white/[0.08]"
+                  >
+                    Kopijuoti
+                  </button>
+                </div>
+
+                <a
+                  href={`tel:${data.phone}`}
+                  className="inline-flex w-full items-center justify-center rounded-2xl bg-white px-4 py-3 text-sm font-extrabold text-black hover:bg-white/90"
+                >
+                  📞 Skambinti
+                </a>
+              </div>
             ) : (
               <div className="mt-3 rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-center text-sm text-white/55">
                 Telefono nėra

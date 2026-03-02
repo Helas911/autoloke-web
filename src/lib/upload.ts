@@ -19,3 +19,9 @@ export async function deleteFolder(path: string): Promise<void> {
   const listed = await listAll(folderRef);
   await Promise.allSettled(listed.items.map((it) => deleteObject(it)));
 }
+
+
+export async function deleteFile(path: string): Promise<void> {
+  const r = ref(storage, path);
+  await deleteObject(r);
+}
