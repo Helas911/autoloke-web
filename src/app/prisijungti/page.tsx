@@ -1,15 +1,29 @@
 "use client";
 
 import Link from "next/link";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
 import { useState } from "react";
-import { auth } from "@/lib/firebase";
+import { auth, googleProvider } from "@/lib/firebase";
 
 export default function PrisijungtiPage() {
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  async function loginWithGoogle() {
+    setErr(null);
+    setBusy(true);
+    try {
+      if (!auth || !googleProvider) throw new Error("Google prisijungimas neparuoštas");
+      await signInWithPopup(auth as any, googleProvider as any);
+      window.location.href = "/mano";
+    } catch (e: any) {
+      setErr(e?.message ?? "Nepavyko prisijungti su Google");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -51,6 +65,17 @@ export default function PrisijungtiPage() {
         </Field>
 
         {err ? <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{err}</div> : null}
+
+        <button
+          type="button"
+          onClick={loginWithGoogle}
+          disabled={busy}
+          className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm font-extrabold text-white hover:bg-white/10 disabled:opacity-60"
+        >
+          {busy ? "Jungiasi..." : "Prisijungti su Google"}
+        </button>
+
+        <div className="text-center text-xs font-extrabold text-white/40">arba</div>
 
         <button
           disabled={busy}

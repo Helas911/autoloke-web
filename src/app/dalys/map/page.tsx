@@ -1,11 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { collection, onSnapshot } from "firebase/firestore";
 import { GoogleMap, Marker, useLoadScript } from "@react-google-maps/api";
 import { useRouter } from "next/navigation";
+
 import { db } from "@/lib/firebase";
+import { cls } from "@/lib/format";
 
 type Part = {
   id: string;
@@ -16,6 +17,7 @@ type Part = {
   lat?: number;
   lng?: number;
   city?: string;
+  imageUrls?: string[];
 };
 
 const LT_CENTER = { lat: 55.1694, lng: 23.8813 };
@@ -30,6 +32,15 @@ export default function PartsMapPage() {
   const [items, setItems] = useState<Part[]>([]);
   const mapRef = useRef<google.maps.Map | null>(null);
 
+  const [brand, setBrand] = useState("");
+  const [model, setModel] = useState("");
+  const [city, setCity] = useState("");
+  const [priceFrom, setPriceFrom] = useState("");
+  const [priceTo, setPriceTo] = useState("");
+
+  const [filterByMap, setFilterByMap] = useState(true);
+  const [bounds, setBounds] = useState<google.maps.LatLngBounds | null>(null);
+
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "parts"), (snap) => {
       setItems(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })));
@@ -37,17 +48,42 @@ export default function PartsMapPage() {
     return () => unsub();
   }, []);
 
-  const markers = useMemo(() => {
+  const filtered = useMemo(() => {
     const t = qText.trim().toLowerCase();
-    return items
-      .filter((a) => typeof a.lat === "number" && typeof a.lng === "number")
-      .filter((a) => {
-        if (!t) return true;
+    const b = brand.trim().toLowerCase();
+    const m = model.trim().toLowerCase();
+    const c = city.trim().toLowerCase();
+    const pMin = priceFrom.trim() ? Number(priceFrom) : null;
+    const pMax = priceTo.trim() ? Number(priceTo) : null;
+
+    return items.filter((a) => {
+      if (t) {
         const s = `${a.title ?? ""} ${a.brand ?? ""} ${a.model ?? ""} ${a.city ?? ""}`.toLowerCase();
-        return s.includes(t);
-      })
-      .slice(0, 700);
-  }, [items, qText]);
+        if (!s.includes(t)) return false;
+      }
+      if (b && !(a.brand ?? "").toLowerCase().includes(b)) return false;
+      if (m && !(a.model ?? "").toLowerCase().includes(m)) return false;
+      if (c && !(a.city ?? "").toLowerCase().includes(c)) return false;
+
+      if (pMin !== null || pMax !== null) {
+        if (typeof a.price !== "number") return false;
+        if (pMin !== null && a.price < pMin) return false;
+        if (pMax !== null && a.price > pMax) return false;
+      }
+
+      if (filterByMap && bounds && typeof a.lat === "number" && typeof a.lng === "number") {
+        if (!bounds.contains(new google.maps.LatLng(a.lat, a.lng))) return false;
+      }
+
+      return true;
+    });
+  }, [items, qText, brand, model, city, priceFrom, priceTo, filterByMap, bounds]);
+
+  const markers = useMemo(() => {
+    return filtered
+      .filter((a) => typeof a.lat === "number" && typeof a.lng === "number")
+      .slice(0, 800);
+  }, [filtered]);
 
   async function centerOnMe() {
     const m = mapRef.current;
@@ -65,95 +101,125 @@ export default function PartsMapPage() {
   }
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-6">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-black">Dalys žemėlapyje</h1>
-          <div className="mt-1 text-sm font-extrabold text-white/60">
-            Markeriai iš Firestore kolekcijos: <b>parts</b>
-          </div>
-        </div>
-        <nav className="flex items-center gap-2">
-          <Link
-            href="/dalys"
-            className="rounded-full border border-white/12 bg-white/[0.04] px-4 py-2 text-sm font-extrabold text-white/85 hover:bg-white/[0.08]"
-          >
-            ← Sąrašas
-          </Link>
-          <Link
-            href="/"
-            className="rounded-full border border-white/12 bg-white/[0.04] px-4 py-2 text-sm font-extrabold text-white/85 hover:bg-white/[0.08]"
-          >
-            Home
-          </Link>
-        </nav>
-      </div>
-
-      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-        <input
-          value={qText}
-          onChange={(e) => setQText(e.target.value)}
-          placeholder="Ieškoti žemėlapyje (pavadinimas, markė, miestas...)"
-          className="w-full rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm font-extrabold text-white/90 outline-none placeholder:text-white/40"
-        />
+    <main className="mx-auto max-w-7xl px-3 py-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="text-sm font-black text-white/80">Dalys • Žemėlapis</div>
         <button
           type="button"
-          onClick={centerOnMe}
-          className="rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm font-extrabold text-white/85 hover:bg-white/[0.08]"
+          onClick={() => setFilterByMap((v) => !v)}
+          className={cls(
+            "rounded-xl px-3 py-2 text-xs font-extrabold transition",
+            filterByMap ? "bg-blue-500 text-white" : "border border-white/15 bg-white/5 text-white/80 hover:bg-white/10"
+          )}
         >
-          📍 Aplink mane
+          Filtruoti pagal žemėlapį: {filterByMap ? "ON" : "OFF"}
         </button>
       </div>
 
-      <div className="mt-4 overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03]">
-        {!isLoaded ? (
-          <div className="grid h-[70vh] place-items-center text-sm font-extrabold text-white/60">
-            Kraunasi žemėlapis…
-          </div>
-        ) : (
-          <GoogleMap
-            mapContainerStyle={{ width: "100%", height: "70vh" }}
-            center={LT_CENTER}
-            zoom={6.6}
-            onLoad={(m) => {
-              mapRef.current = m;
-            }}
-            options={{
-              clickableIcons: false,
-              streetViewControl: false,
-              mapTypeControl: false,
-              fullscreenControl: false,
-              gestureHandling: "greedy", // ✅ be CTRL
-            }}
-          >
-            {markers.map((m) => (
-              <Marker
-                key={m.id}
-                position={{ lat: m.lat as number, lng: m.lng as number }}
-                title={(m.title ?? `${m.brand ?? ""} ${m.model ?? ""}`).trim()}
-                label={
-                  typeof m.price === "number"
-                    ? { text: `${m.price}€`, className: "priceLabel" }
-                    : undefined
-                }
-                onClick={() => router.push(`/dalys/${m.id}`)}
-              />
-            ))}
-          </GoogleMap>
-        )}
-      </div>
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.45fr_0.95fr]">
+        <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03]">
+          {!isLoaded ? (
+            <div className="grid h-[58vh] lg:h-[76vh] place-items-center text-sm font-extrabold text-white/60">
+              Kraunasi žemėlapis…
+            </div>
+          ) : (
+            <GoogleMap
+              mapContainerStyle={{ width: "100%", height: "76vh" }}
+              center={LT_CENTER}
+              zoom={6.6}
+              onLoad={(m) => (mapRef.current = m)}
+              onBoundsChanged={() => {
+                const m = mapRef.current;
+                if (!m) return;
+                setBounds(m.getBounds() ?? null);
+              }}
+              options={{
+                clickableIcons: false,
+                streetViewControl: false,
+                mapTypeControl: false,
+                fullscreenControl: false,
+                gestureHandling: "greedy",
+              }}
+            >
+              {markers.map((m) => (
+                <Marker
+                  key={m.id}
+                  position={{ lat: m.lat as number, lng: m.lng as number }}
+                  title={m.title ?? `${m.brand ?? ""} ${m.model ?? ""}`.trim()}
+                  label={typeof m.price === "number" ? { text: `${m.price}€`, className: "priceLabel" } : undefined}
+                  onClick={() => router.push(`/dalys/${m.id}`)}
+                />
+              ))}
+            </GoogleMap>
+          )}
+        </div>
 
-      <style jsx global>{`
-        .priceLabel {
-          font-weight: 900;
-          font-size: 12px;
-          padding: 4px 6px;
-          border-radius: 999px;
-          border: 1px solid rgba(255, 255, 255, 0.35);
-          background: rgba(0, 0, 0, 0.55);
-          color: #fff;
-        }
-      `}</style>
+        <aside className="rounded-3xl border border-white/10 bg-white/[0.03] p-3">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <div className="text-sm font-black">Filtrai</div>
+              <div className="text-xs font-extrabold text-white/55">{filtered.length} skelb.</div>
+            </div>
+            <button
+              type="button"
+              onClick={centerOnMe}
+              className="rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-xs font-extrabold text-white/85 hover:bg-white/[0.08]"
+            >
+              📍 Aplink mane
+            </button>
+          </div>
+
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <input
+              value={qText}
+              onChange={(e) => setQText(e.target.value)}
+              placeholder="Paieška (stabdžiai, žibintas...)"
+              className="col-span-2 rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-sm font-extrabold text-white/90 outline-none placeholder:text-white/40"
+            />
+            <input value={brand} onChange={(e) => setBrand(e.target.value)} className="rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-sm font-extrabold outline-none placeholder:text-white/40" placeholder="Markė" />
+            <input value={model} onChange={(e) => setModel(e.target.value)} className="rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-sm font-extrabold outline-none placeholder:text-white/40" placeholder="Modelis" />
+            <input value={priceFrom} onChange={(e) => setPriceFrom(e.target.value)} inputMode="numeric" className="rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-sm font-extrabold outline-none placeholder:text-white/40" placeholder="Kaina nuo" />
+            <input value={priceTo} onChange={(e) => setPriceTo(e.target.value)} inputMode="numeric" className="rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-sm font-extrabold outline-none placeholder:text-white/40" placeholder="Kaina iki" />
+            <input value={city} onChange={(e) => setCity(e.target.value)} className="col-span-2 rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-sm font-extrabold outline-none placeholder:text-white/40" placeholder="Miestas" />
+          </div>
+
+          <div className="mt-3 flex gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setQText("");
+                setBrand("");
+                setModel("");
+                setCity("");
+                setPriceFrom("");
+                setPriceTo("");
+              }}
+              className="flex-1 rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-sm font-extrabold text-white/85 hover:bg-white/[0.08]"
+            >
+              Išvalyti
+            </button>
+          </div>
+
+          <div className="mt-3 max-h-[46vh] overflow-auto rounded-2xl border border-white/10">
+            {filtered.slice(0, 80).map((a) => (
+              <button
+                key={a.id}
+                onClick={() => router.push(`/dalys/${a.id}`)}
+                className="flex w-full items-center gap-3 border-b border-white/10 p-3 text-left hover:bg-white/[0.04]"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={a.imageUrls?.[0] || "/favicon.ico"} alt="" className="h-10 w-14 rounded-xl object-cover" />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-black">{a.title ?? "Detalė"}</div>
+                  <div className="truncate text-xs font-semibold text-white/55">{[a.city, a.brand, a.model].filter(Boolean).join(" • ")}</div>
+                </div>
+                <div className="text-sm font-black">{typeof a.price === "number" ? `${a.price}€` : "—"}</div>
+              </button>
+            ))}
+            {filtered.length === 0 ? <div className="p-4 text-sm font-semibold text-white/60">Nieko nerasta.</div> : null}
+          </div>
+        </aside>
+      </div>
     </main>
   );
 }

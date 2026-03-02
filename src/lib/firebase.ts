@@ -3,7 +3,7 @@
 // when env vars are not available.
 
 import { initializeApp, getApp, getApps } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
@@ -33,3 +33,6 @@ export const app = getFirebaseApp();
 export const auth = canInit() ? getAuth(app) : (null as any);
 export const db = canInit() ? getFirestore(app) : (null as any);
 export const storage = canInit() ? getStorage(app) : (null as any);
+
+// Google provider (Client Components only)
+export const googleProvider = canInit() ? new GoogleAuthProvider() : (null as any);

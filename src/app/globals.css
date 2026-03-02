@@ -1,26 +1,44 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+:root{
+  --background:#0b0b0d;
+  --foreground:#ffffff;
 }
 
-@theme inline {
+@theme inline{
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-body {
+body{
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Controls: make native select/options readable in dark UI */
+select, option{
+  background-color:#0b0b10;
+  color: rgba(255,255,255,0.95);
+}
+
+/* Placeholder readability */
+input::placeholder, textarea::placeholder{
+  color: rgba(255,255,255,0.45);
+}
+
+/* Marker label helper */
+.priceLabel{
+  background:#2563eb;
+  color:#ffffff;
+  padding:6px 10px;
+  border-radius:999px;
+  font-weight:900;
+  font-size:12px;
+  box-shadow:0 10px 30px rgba(0,0,0,0.35);
+  border:1px solid rgba(255,255,255,0.25);
+  transform: translateY(-6px);
+  white-space:nowrap;
 }
