@@ -205,29 +205,8 @@ async function deleteOnePhoto(index: number) {
   }
 }
 
-  async function copyPhone(index: number) {
-    if (!id || !isOwner || !data?.imageUrls?.length) return;
-    if (!confirm("Ištrinti šią nuotrauką?")) return;
 
-    const urls = [...(data.imageUrls || [])];
-    const paths = [...(data.imagePaths || [])];
-    const path = paths[index];
 
-    urls.splice(index, 1);
-    paths.splice(index, 1);
-
-    setSaving(true);
-    setErr(null);
-    try {
-      if (path) await deleteFile(path);
-      await updateDoc(doc(db, "ads", id), { imageUrls: urls, imagePaths: paths });
-      setMsg("Nuotrauka ištrinta ✅");
-    } catch (e: any) {
-      setErr(e?.message || "Klaida trinant nuotrauką.");
-    } finally {
-      setSaving(false);
-    }
-  }
 
   async function copyPhone() {
     const p = (data?.phone || "").toString().trim();
