@@ -156,7 +156,7 @@ export default function IkeltiPage() {
       if (year.trim() && !Number.isFinite(y)) throw new Error("Metai turi būti skaičius.");
 
       const imageUrls: string[] = [];
-      for (const f of files) imageUrls.push(await uploadImage(f));
+      for (const f of files) imageUrls.push(await uploadImage({ path: f.name, file: f }));
 
       const finalBrand = (brand === OTHER ? brandOther : brand).trim() || undefined;
       const finalModel = (model === OTHER ? modelOther : model).trim() || undefined;
