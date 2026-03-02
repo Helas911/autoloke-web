@@ -2,10 +2,11 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { addDoc, collection, serverTimestamp, doc, updateDoc } from "firebase/firestore";
 import { GoogleMap, Marker, useLoadScript } from "@react-google-maps/api";
 
 import { db } from "@/lib/firebase";
+import { useAuth } from "@/lib/useAuth";
 import { uploadImage } from "@/lib/upload";
 import { cls } from "@/lib/format";
 import { VEHICLE_CATEGORIES, VEHICLE_TYPES, type VehicleCategory } from "@/lib/categories";
@@ -34,6 +35,7 @@ function toBrandCategory(cat: VehicleCategory): BrandCategory {
 const OTHER = "__other__";
 
 export default function IkeltiPage() {
+  const { user } = useAuth();
   const { isLoaded } = useLoadScript({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
   });
@@ -155,14 +157,14 @@ export default function IkeltiPage() {
       if (!Number.isFinite(la) || !Number.isFinite(ln)) throw new Error("Koordinatės turi būti skaičiai.");
       if (year.trim() && !Number.isFinite(y)) throw new Error("Metai turi būti skaičius.");
 
-      const imageUrls: string[] = [];
-      for (const f of files) imageUrls.push(await uploadImage({ path: f.name, file: f }));
-
       const finalBrand = (brand === OTHER ? brandOther : brand).trim() || undefined;
       const finalModel = (model === OTHER ? modelOther : model).trim() || undefined;
 
+      if (!user) throw new Error("Prisijunk, kad galėtum įkelti skelbimą.");
+
       if (mode === "transportas") {
-        await addDoc(collection(db, "ads"), {
+        // 1) sukuriam dokumentą (be nuotraukų), kad turėtume id
+        const docRef = await addDoc(collection(db, "ads"), {
           category,
           type: type.trim() || undefined,
           brand: finalBrand,
@@ -174,12 +176,30 @@ export default function IkeltiPage() {
           description: description.trim() || undefined,
           lat: la,
           lng: ln,
-          imageUrls,
+          imageUrls: [],
+          imagePaths: [],
+          ownerUid: user.uid,
+          ownerEmail: user.email ?? undefined,
           createdAt: serverTimestamp(),
         });
+
+        // 2) įkeliam nuotraukas į storage: ads/<uid>/<docId>/...
+        const imageUrls: string[] = [];
+        const imagePaths: string[] = [];
+        for (const f of files) {
+          const safeName = (f.name || "foto.jpg").replace(/[^a-zA-Z0-9._-]/g, "_");
+          const path = `ads/${user.uid}/${docRef.id}/${crypto.randomUUID?.() ?? Date.now()}-${safeName}`;
+          const url = await uploadImage({ path, file: f });
+          imageUrls.push(url);
+          imagePaths.push(path);
+        }
+
+        // 3) atnaujinam dokumentą su nuotraukom
+        await updateDoc(doc(db, "ads", docRef.id), { imageUrls, imagePaths });
+
         setOkMsg("Skelbimas įkeltas ✅");
       } else {
-        await addDoc(collection(db, "parts"), {
+        const docRef = await addDoc(collection(db, "parts"), {
           title: title.trim() || undefined,
           brand: finalBrand,
           model: finalModel,
@@ -189,9 +209,25 @@ export default function IkeltiPage() {
           description: description.trim() || undefined,
           lat: la,
           lng: ln,
-          imageUrls,
+          imageUrls: [],
+          imagePaths: [],
+          ownerUid: user.uid,
+          ownerEmail: user.email ?? undefined,
           createdAt: serverTimestamp(),
         });
+
+        const imageUrls: string[] = [];
+        const imagePaths: string[] = [];
+        for (const f of files) {
+          const safeName = (f.name || "foto.jpg").replace(/[^a-zA-Z0-9._-]/g, "_");
+          const path = `parts/${user.uid}/${docRef.id}/${crypto.randomUUID?.() ?? Date.now()}-${safeName}`;
+          const url = await uploadImage({ path, file: f });
+          imageUrls.push(url);
+          imagePaths.push(path);
+        }
+
+        await updateDoc(doc(db, "parts", docRef.id), { imageUrls, imagePaths });
+
         setOkMsg("Dalys įkeltos ✅");
       }
 

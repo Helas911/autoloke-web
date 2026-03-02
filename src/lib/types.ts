@@ -23,6 +23,7 @@ export type Ad = {
   lng?: number;
 
   imageUrls?: string[];
+  imagePaths?: string[];
 
   ownerUid?: string;
   ownerEmail?: string;
@@ -46,6 +47,7 @@ export type Part = {
   lng?: number;
 
   imageUrls?: string[];
+  imagePaths?: string[];
 
   ownerUid?: string;
   ownerEmail?: string;
