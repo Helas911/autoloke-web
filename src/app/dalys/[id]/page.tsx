@@ -201,6 +201,70 @@ async function deleteOnePhoto(index: number) {
     setSaving(false);
   }
 }
+  async function movePhoto(index: number, dir: -1 | 1) {
+    if (!id || !isOwner) return;
+    const next = index + dir;
+    if (next < 0 || next >= images.length) return;
+
+    const urls = [...images];
+    const tmp = urls[index];
+    urls[index] = urls[next];
+    urls[next] = tmp;
+
+    const pathsSrc = Array.isArray(data?.imagePaths) ? (data?.imagePaths as any[]) : [];
+    let paths: any[] | undefined = undefined;
+    if (pathsSrc.length === images.length) {
+      paths = [...pathsSrc];
+      const t2 = paths[index];
+      paths[index] = paths[next];
+      paths[next] = t2;
+    }
+
+    await updateDoc(doc(db, 'parts', id), {
+      imageUrls: urls,
+      ...(paths ? { imagePaths: paths } : {}),
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  async function replaceOnePhoto(index: number, file: File) {
+    if (!id || !isOwner || !user) return;
+    if (!file) return;
+
+    const urls = [...images];
+    if (!urls[index]) return;
+
+    const newPath = `parts/${user.uid}/${id}/${Date.now()}_${file.name}`;
+    const newUrl = await uploadImage({ path: newPath, file });
+
+    try {
+      const pathsSrc = Array.isArray(data?.imagePaths) ? (data?.imagePaths as any[]) : [];
+      if (pathsSrc.length === images.length && pathsSrc[index]) {
+        await deleteObject(ref(storage, String(pathsSrc[index])));
+      } else {
+        await deleteObject(ref(storage, urls[index]));
+      }
+    } catch {}
+
+    urls[index] = newUrl;
+
+    const pathsSrc = Array.isArray(data?.imagePaths) ? (data?.imagePaths as any[]) : [];
+    let paths: any[] | undefined = undefined;
+    if (pathsSrc.length === images.length) {
+      paths = [...pathsSrc];
+      paths[index] = newPath;
+    } else {
+      paths = new Array(images.length).fill(null);
+      paths[index] = newPath;
+    }
+
+    await updateDoc(doc(db, 'parts', id), {
+      imageUrls: urls,
+      imagePaths: paths,
+      updatedAt: serverTimestamp(),
+    });
+  }
+
 
 
 
@@ -277,7 +341,7 @@ async function deleteOnePhoto(index: number) {
 
       <div className="mt-4 grid grid-cols-1 gap-5 lg:grid-cols-[1.3fr_0.7fr]">
         <div className="space-y-4">
-          <PhotoGallery images={images} />
+          <PhotoGallery images={images} editable={isOwner} onSetPrimary={setPrimaryPhoto} onDelete={deleteOnePhoto} onMove={movePhoto} onReplace={replaceOnePhoto} />
 
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
             <div className="flex flex-wrap items-start justify-between gap-3">

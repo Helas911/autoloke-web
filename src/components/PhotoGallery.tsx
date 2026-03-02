@@ -1,116 +1,268 @@
-"use client";
+'use client';
 
-import { useEffect, useMemo, useState } from "react";
-import { cls } from "@/lib/format";
+import { useEffect, useMemo, useRef, useState } from 'react';
 
-export function PhotoGallery({ images }: { images: string[] }) {
-  const imgs = useMemo(() => images.filter(Boolean), [images]);
+type MoveDir = -1 | 1;
+
+export default function PhotoGallery({
+  images,
+  editable = false,
+  onSetPrimary,
+  onDelete,
+  onMove,
+  onReplace,
+}: {
+  images: string[];
+  editable?: boolean;
+  onSetPrimary?: (index: number) => void | Promise<void>;
+  onDelete?: (index: number) => void | Promise<void>;
+  onMove?: (index: number, dir: MoveDir) => void | Promise<void>;
+  onReplace?: (index: number, file: File) => void | Promise<void>;
+}) {
+  const list = useMemo(() => (Array.isArray(images) ? images.filter(Boolean) : []), [images]);
   const [open, setOpen] = useState(false);
   const [idx, setIdx] = useState(0);
+  const replaceInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (!open) return;
-      if (e.key === "Escape") setOpen(false);
-      if (e.key === "ArrowRight") next();
-      if (e.key === "ArrowLeft") prev();
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, idx, imgs.length]);
+    if (!list.length) setOpen(false);
+    if (idx > list.length - 1) setIdx(Math.max(0, list.length - 1));
+  }, [list.length, idx]);
 
-  function next() {
-    setIdx((v) => (v + 1) % imgs.length);
-  }
-  function prev() {
-    setIdx((v) => (v - 1 + imgs.length) % imgs.length);
-  }
-
-  if (!imgs.length) {
+  if (!list.length) {
     return (
-      <div className="grid aspect-[16/10] place-items-center rounded-2xl border border-white/10 bg-white/5 text-white/50">
-        Nuotraukų nėra
+      <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 text-white/70">
+        Nuotraukų nėra.
       </div>
     );
   }
 
+  const current = list[idx];
+
+  const canMoveLeft = editable && idx > 0 && !!onMove;
+  const canMoveRight = editable && idx < list.length - 1 && !!onMove;
+
+  function nav(d: MoveDir) {
+    setIdx((v) => {
+      const next = v + d;
+      if (next < 0) return 0;
+      if (next > list.length - 1) return list.length - 1;
+      return next;
+    });
+  }
+
+  async function doPrimary() {
+    if (!editable || !onSetPrimary) return;
+    await onSetPrimary(idx);
+    // after making primary, most implementations move it to index 0
+    setIdx(0);
+  }
+
+  async function doDelete() {
+    if (!editable || !onDelete) return;
+    await onDelete(idx);
+    setIdx((v) => Math.max(0, Math.min(v, list.length - 2)));
+  }
+
+  async function doMove(dir: MoveDir) {
+    if (!editable || !onMove) return;
+    const next = idx + dir;
+    if (next < 0 || next > list.length - 1) return;
+    await onMove(idx, dir);
+    setIdx(next);
+  }
+
+  function pickReplace() {
+    if (!editable || !onReplace) return;
+    replaceInputRef.current?.click();
+  }
+
+  async function onReplacePicked(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f || !editable || !onReplace) return;
+    // reset input so selecting same file again triggers change
+    e.target.value = '';
+    await onReplace(idx, f);
+  }
+
   return (
-    <>
+    <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-4">
       <button
-        onClick={() => {
-          setIdx(0);
-          setOpen(true);
-        }}
-        className="group relative w-full overflow-hidden rounded-2xl border border-white/10 bg-white/5"
+        className="relative block w-full overflow-hidden rounded-2xl border border-white/10 bg-black/40"
+        onClick={() => setOpen(true)}
+        title="Atidaryti"
       >
-        <div className="aspect-[16/10]">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={imgs[0]} alt="" className="h-full w-full object-cover transition group-hover:scale-[1.02]" />
-        </div>
-        <div className="absolute bottom-3 left-3 rounded-full border border-white/20 bg-black/45 px-3 py-1 text-xs font-extrabold text-white">
-          {imgs.length} nuotr.
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={current} alt="Nuotrauka" className="aspect-[16/9] w-full object-cover" />
+        <div className="absolute left-3 top-3 rounded-full bg-black/60 px-3 py-1 text-xs font-extrabold text-white/90">
+          {idx + 1}/{list.length}
         </div>
       </button>
 
-      {open ? (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm">
-          <div className="mx-auto flex h-full max-w-6xl flex-col px-3 py-3">
-            <div className="flex items-center justify-between gap-3">
-              <button
-                onClick={() => setOpen(false)}
-                className="rounded-full border border-white/15 bg-white/5 px-3 py-2 text-sm font-extrabold text-white hover:bg-white/10"
-              >
-                ← Atgal
-              </button>
-              <div className="text-sm font-extrabold text-white/80">
-                {idx + 1} / {imgs.length}
+      {/* thumbnails */}
+      <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+        {list.map((u, i) => (
+          <button
+            key={u + i}
+            onClick={() => setIdx(i)}
+            className={
+              'relative h-16 w-24 flex-none overflow-hidden rounded-xl border ' +
+              (i === idx ? 'border-white/50' : 'border-white/10 hover:border-white/30')
+            }
+            title={i === 0 ? 'Pagrindinė' : 'Pasirinkti'}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={u} alt={'Nuotrauka ' + (i + 1)} className="h-full w-full object-cover" />
+            {i === 0 && (
+              <div className="absolute left-1 top-1 rounded-md bg-black/70 px-1.5 py-0.5 text-[10px] font-extrabold text-white">
+                ★
               </div>
-              <div className="w-20" />
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* edit toolbar */}
+      {editable && (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <button
+            onClick={doPrimary}
+            disabled={!onSetPrimary || idx === 0}
+            className="rounded-full border border-white/12 bg-white/[0.04] px-4 py-2 text-xs font-extrabold text-white/85 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-40"
+            title="Padaryti pagrindine"
+          >
+            ★ Pagrindinė
+          </button>
+
+          <button
+            onClick={pickReplace}
+            disabled={!onReplace}
+            className="rounded-full border border-white/12 bg-white/[0.04] px-4 py-2 text-xs font-extrabold text-white/85 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Keisti
+          </button>
+
+          <button
+            onClick={doDelete}
+            disabled={!onDelete}
+            className="rounded-full border border-red-500/30 bg-red-500/10 px-4 py-2 text-xs font-extrabold text-red-100 hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Ištrinti
+          </button>
+
+          <div className="flex-1" />
+
+          <button
+            onClick={() => doMove(-1)}
+            disabled={!canMoveLeft}
+            className="rounded-full border border-white/12 bg-white/[0.04] px-3 py-2 text-xs font-extrabold text-white/85 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-40"
+            title="Perkelti kairėn"
+          >
+            ←
+          </button>
+          <button
+            onClick={() => doMove(1)}
+            disabled={!canMoveRight}
+            className="rounded-full border border-white/12 bg-white/[0.04] px-3 py-2 text-xs font-extrabold text-white/85 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-40"
+            title="Perkelti dešinėn"
+          >
+            →
+          </button>
+
+          <input
+            ref={replaceInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={onReplacePicked}
+          />
+        </div>
+      )}
+
+      {/* lightbox */}
+      {open && (
+        <div
+          className="fixed inset-0 z-[999] flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setOpen(false)}
+        >
+          <div
+            className="relative w-full max-w-5xl overflow-hidden rounded-3xl border border-white/10 bg-black"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className="absolute right-3 top-3 rounded-full bg-black/60 px-3 py-2 text-xs font-extrabold text-white/90 hover:bg-black/75"
+              onClick={() => setOpen(false)}
+            >
+              Uždaryti
+            </button>
+
+            <div className="absolute left-3 top-3 rounded-full bg-black/60 px-3 py-2 text-xs font-extrabold text-white/90">
+              {idx + 1}/{list.length}
             </div>
 
-            <div className="mt-3 grid flex-1 place-items-center">
-              <div className="relative w-full">
-                <button
-                  onClick={prev}
-                  className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full border border-white/15 bg-black/50 px-4 py-3 text-xl text-white hover:bg-black/70"
-                >
-                  ‹
-                </button>
-                <button
-                  onClick={next}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full border border-white/15 bg-black/50 px-4 py-3 text-xl text-white hover:bg-black/70"
-                >
-                  ›
-                </button>
+            <button
+              className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full bg-black/60 px-3 py-3 text-white/90 hover:bg-black/75 disabled:opacity-30"
+              onClick={() => nav(-1)}
+              disabled={idx === 0}
+            >
+              ‹
+            </button>
+            <button
+              className="absolute right-16 top-1/2 -translate-y-1/2 rounded-full bg-black/60 px-3 py-3 text-white/90 hover:bg-black/75 disabled:opacity-30"
+              onClick={() => nav(1)}
+              disabled={idx === list.length - 1}
+            >
+              ›
+            </button>
 
-                <div className="mx-auto max-h-[70vh] overflow-hidden rounded-2xl border border-white/10 bg-black">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={imgs[idx]} alt="" className="max-h-[70vh] w-full object-contain" />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={current} alt="Nuotrauka" className="max-h-[80vh] w-full object-contain" />
+
+            {editable && (
+              <div className="border-t border-white/10 bg-black/70 p-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={doPrimary}
+                    disabled={!onSetPrimary || idx === 0}
+                    className="rounded-full border border-white/12 bg-white/[0.04] px-4 py-2 text-xs font-extrabold text-white/85 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    ★ Pagrindinė
+                  </button>
+                  <button
+                    onClick={pickReplace}
+                    disabled={!onReplace}
+                    className="rounded-full border border-white/12 bg-white/[0.04] px-4 py-2 text-xs font-extrabold text-white/85 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Keisti
+                  </button>
+                  <button
+                    onClick={doDelete}
+                    disabled={!onDelete}
+                    className="rounded-full border border-red-500/30 bg-red-500/10 px-4 py-2 text-xs font-extrabold text-red-100 hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Ištrinti
+                  </button>
+                  <div className="flex-1" />
+                  <button
+                    onClick={() => doMove(-1)}
+                    disabled={!canMoveLeft}
+                    className="rounded-full border border-white/12 bg-white/[0.04] px-3 py-2 text-xs font-extrabold text-white/85 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    ←
+                  </button>
+                  <button
+                    onClick={() => doMove(1)}
+                    disabled={!canMoveRight}
+                    className="rounded-full border border-white/12 bg-white/[0.04] px-3 py-2 text-xs font-extrabold text-white/85 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    →
+                  </button>
                 </div>
               </div>
-
-              <div className="no-scrollbar mt-3 flex w-full gap-2 overflow-x-auto pb-1">
-                {imgs.map((src, i) => (
-                  <button
-                    key={src + i}
-                    onClick={() => setIdx(i)}
-                    className={cls(
-                      "relative h-16 w-24 shrink-0 overflow-hidden rounded-xl border",
-                      i === idx ? "border-white/50" : "border-white/10 opacity-80 hover:opacity-100"
-                    )}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={src} alt="" className="h-full w-full object-cover" />
-                  </button>
-                ))}
-              </div>
-            </div>
+            )}
           </div>
         </div>
-      ) : null}
-    </>
+      )}
+    </div>
   );
 }
-
-export default PhotoGallery;
