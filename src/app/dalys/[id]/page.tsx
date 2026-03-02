@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { doc, onSnapshot, updateDoc, deleteDoc } from "firebase/firestore";
+import { doc, onSnapshot, updateDoc, deleteDoc, serverTimestamp} from "firebase/firestore";
 import { deleteObject, ref } from "firebase/storage";
 import { useParams } from "next/navigation";
 import { db, storage } from "@/lib/firebase";
