@@ -127,7 +127,9 @@ export default function PartsMapPage() {
               mapContainerStyle={{ width: "100%", height: "76vh" }}
               center={LT_CENTER}
               zoom={6.6}
-              onLoad={(m) => (mapRef.current = m)}
+              onLoad={(m) => {
+        mapRef.current = m;
+      }}
               onBoundsChanged={() => {
                 const m = mapRef.current;
                 if (!m) return;
