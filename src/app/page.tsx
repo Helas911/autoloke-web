@@ -310,7 +310,9 @@ export default function Home() {
 
               {isLoaded ? (
                 <GoogleMap
-                  onLoad={(m) => (mapRef.current = m)}
+                  onLoad={(m) => {
+              mapRef.current = m;
+            }}
                   onIdle={() => {
                     const m = mapRef.current;
                     if (!m) return;
