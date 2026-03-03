@@ -110,10 +110,6 @@ export default function Home() {
   const [city, setCity] = useState("");
   const [priceMin, setPriceMin] = useState("");
   const [priceMax, setPriceMax] = useState("");
-  const [mileageMin, setMileageMin] = useState("");
-  const [mileageMax, setMileageMax] = useState("");
-  const [fuel, setFuel] = useState("");
-  const [drive, setDrive] = useState("");
   const [yearMin, setYearMin] = useState("");
   const [yearMax, setYearMax] = useState("");
   const [filterByMap, setFilterByMap] = useState(true);
@@ -376,10 +372,6 @@ export default function Home() {
                   setCity("");
                   setPriceMin("");
                   setPriceMax("");
-                  setMileageMin("");
-                  setMileageMax("");
-                  setFuel("");
-                  setDrive("");
                   setYearMin("");
                   setYearMax("");
                   setType("");
@@ -479,7 +471,6 @@ export default function Home() {
               </div>
 
               {tab === "transportas" ? (
-                <>
                 <div className="grid grid-cols-2 gap-2">
                   <input
                     value={yearMin}
@@ -496,46 +487,6 @@ export default function Home() {
                     className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
                   />
                 </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <input
-                    value={mileageMin}
-                    onChange={(e) => setMileageMin(e.target.value)}
-                    placeholder="Rida nuo (km)"
-                    inputMode="numeric"
-                    className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
-                  />
-                  <input
-                    value={mileageMax}
-                    onChange={(e) => setMileageMax(e.target.value)}
-                    placeholder="Rida iki (km)"
-                    inputMode="numeric"
-                    className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
-                  />
-                </div>
-
-                <select
-                  value={fuel}
-                  onChange={(e) => setFuel(e.target.value)}
-                  className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none"
-                >
-                  <option value="" style={optStyle}>Kuro tipas (visi)</option>
-                  {["Benzinas","Dyzelis","Benzinas+dujos","Dujos","Hibridas","Plug-in hibridas","Elektra","Kita"].map((f) => (
-                    <option key={f} value={f} style={optStyle}>{f}</option>
-                  ))}
-                </select>
-
-                <select
-                  value={drive}
-                  onChange={(e) => setDrive(e.target.value)}
-                  className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none"
-                >
-                  <option value="" style={optStyle}>Varomieji ratai (visi)</option>
-                  {["Priekis","Galas","4x4"].map((d) => (
-                    <option key={d} value={d} style={optStyle}>{d}</option>
-                  ))}
-                </select>
-                </>
               ) : null}
 
               <div className="mt-1 rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-xs font-bold text-white/70">

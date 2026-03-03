@@ -52,6 +52,11 @@ export default function IkeltiPage() {
   const [year, setYear] = useState("");
   const [price, setPrice] = useState("");
 
+  // papildomi transporto laukai
+  const [mileage, setMileage] = useState("");
+  const [fuelType, setFuelType] = useState("");
+  const [driveWheels, setDriveWheels] = useState("");
+
   // parts
   const [title, setTitle] = useState("");
 
@@ -157,6 +162,12 @@ export default function IkeltiPage() {
       if (!Number.isFinite(la) || !Number.isFinite(ln)) throw new Error("Koordinatės turi būti skaičiai.");
       if (year.trim() && !Number.isFinite(y)) throw new Error("Metai turi būti skaičius.");
 
+      // papildomi transporto laukai
+      const km = mileage.trim() ? Number(mileage) : undefined;
+      if (tab === "transportas" && mileage.trim() && !Number.isFinite(km)) {
+        throw new Error("Rida turi būti skaičius.");
+      }
+
       const finalBrand = (brand === OTHER ? brandOther : brand).trim() || undefined;
       const finalModel = (model === OTHER ? modelOther : model).trim() || undefined;
 
@@ -171,6 +182,9 @@ export default function IkeltiPage() {
           model: finalModel,
           year: y,
           price: p,
+          mileageKm: km ?? null,
+          fuelType: fuelType.trim() || null,
+          driveWheels: driveWheels.trim() || null,
           city: city.trim(),
           phone: phone.trim() || undefined,
           description: description.trim() || undefined,
@@ -367,6 +381,39 @@ export default function IkeltiPage() {
                     inputMode="numeric"
                     className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
                   />
+
+                  <input
+                    value={mileage}
+                    onChange={(e) => setMileage(e.target.value)}
+                    placeholder="Rida (km)"
+                    inputMode="numeric"
+                    className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
+                  />
+
+                  <select
+                    value={fuelType}
+                    onChange={(e) => setFuelType(e.target.value)}
+                    className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none"
+                  >
+                    <option value="" style={{ ...optStyle }}>Kuro tipas (pasirinkti)</option>
+                    <option value="Benzinas" style={{ ...optStyle }}>Benzinas</option>
+                    <option value="Dyzelis" style={{ ...optStyle }}>Dyzelis</option>
+                    <option value="Benzinas/dujos" style={{ ...optStyle }}>Benzinas/dujos</option>
+                    <option value="Elektra" style={{ ...optStyle }}>Elektra</option>
+                    <option value="Hibridas" style={{ ...optStyle }}>Hibridas</option>
+                    <option value="Kita" style={{ ...optStyle }}>Kita</option>
+                  </select>
+
+                  <select
+                    value={driveWheels}
+                    onChange={(e) => setDriveWheels(e.target.value)}
+                    className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none"
+                  >
+                    <option value="" style={{ ...optStyle }}>Varomieji ratai (pasirinkti)</option>
+                    <option value="FWD" style={{ ...optStyle }}>FWD (priekis)</option>
+                    <option value="RWD" style={{ ...optStyle }}>RWD (galas)</option>
+                    <option value="AWD" style={{ ...optStyle }}>AWD/4x4</option>
+                  </select>
                 </div>
               </div>
             ) : (
