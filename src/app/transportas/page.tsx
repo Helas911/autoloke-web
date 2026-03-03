@@ -1,6 +1,6 @@
 "use client";
 
-import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
+import { collection, onSnapshot, orderBy, query, where } from "firebase/firestore";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { db } from "@/lib/firebase";
@@ -12,6 +12,9 @@ type Ad = {
   model?: string;
   city?: string;
   price?: number;
+  mileage?: number;
+  fuel?: string;
+  drive?: string;
   imageUrls?: string[];
   category?: string;
   type?: string;
@@ -20,14 +23,28 @@ type Ad = {
 export default function TransportasPage() {
   const [items, setItems] = useState<Ad[]>([]);
   const [qText, setQText] = useState("");
+  const [mileageMin, setMileageMin] = useState("");
+  const [mileageMax, setMileageMax] = useState("");
+  const [fuel, setFuel] = useState("");
+  const [drive, setDrive] = useState("");
 
   useEffect(() => {
-    const q = query(collection(db, "ads"), orderBy("createdAt", "desc"));
+    const col = collection(db, "ads");
+    const cons: any[] = [];
+    const miMin = Number(mileageMin || 0) || 0;
+    const miMax = Number(mileageMax || 99999999) || 99999999;
+
+    if (fuel) cons.push(where("fuel", "==", fuel));
+    if (drive) cons.push(where("drive", "==", drive));
+    if (mileageMin) cons.push(where("mileage", ">=", miMin));
+    if (mileageMax) cons.push(where("mileage", "<=", miMax));
+
+    const q = query(col, ...cons, orderBy("createdAt", "desc"));
     const unsub = onSnapshot(q, (snap) => {
       setItems(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })));
     });
     return () => unsub();
-  }, []);
+  }, [mileageMin, mileageMax, fuel, drive]);
 
   const filtered = useMemo(() => {
     const t = qText.trim().toLowerCase();
@@ -55,14 +72,36 @@ export default function TransportasPage() {
         </nav>
       </div>
 
-      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="mt-4 grid gap-3 sm:grid-cols-5 sm:items-end">
+        <div className="sm:col-span-2">
         <input
           value={qText}
           onChange={(e) => setQText(e.target.value)}
           placeholder="Ieškoti (markė, modelis, miestas...)"
           className="w-full rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm font-extrabold text-white/90 outline-none placeholder:text-white/40"
         />
-        <div className="text-xs font-extrabold text-white/55">{filtered.length} skelb.</div>
+        </div>
+        <div className="sm:col-span-1">
+          <select value={fuel} onChange={(e) => setFuel(e.target.value)} className="w-full rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm font-extrabold text-white/90 outline-none">
+            <option value="" style={{ background: "#0b0b10", color: "rgba(255,255,255,0.95)" }}>Kuras (visi)</option>
+            {["Benzinas","Dyzelis","Benzinas+dujos","Dujos","Hibridas","Plug-in hibridas","Elektra","Kita"].map((f) => (
+              <option key={f} value={f} style={{ background: "#0b0b10", color: "rgba(255,255,255,0.95)" }}>{f}</option>
+            ))}
+          </select>
+        </div>
+        <div className="sm:col-span-1">
+          <select value={drive} onChange={(e) => setDrive(e.target.value)} className="w-full rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm font-extrabold text-white/90 outline-none">
+            <option value="" style={{ background: "#0b0b10", color: "rgba(255,255,255,0.95)" }}>Varomi (visi)</option>
+            {["Priekis","Galas","4x4"].map((d) => (
+              <option key={d} value={d} style={{ background: "#0b0b10", color: "rgba(255,255,255,0.95)" }}>{d}</option>
+            ))}
+          </select>
+        </div>
+        <div className="sm:col-span-1 grid grid-cols-2 gap-2">
+          <input value={mileageMin} onChange={(e) => setMileageMin(e.target.value)} placeholder="Rida nuo" inputMode="numeric" className="w-full rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm font-extrabold text-white/90 outline-none placeholder:text-white/40" />
+          <input value={mileageMax} onChange={(e) => setMileageMax(e.target.value)} placeholder="Rida iki" inputMode="numeric" className="w-full rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm font-extrabold text-white/90 outline-none placeholder:text-white/40" />
+        </div>
+        <div className="text-xs font-extrabold text-white/55 sm:text-right">{filtered.length} skelb.</div>
       </div>
 
       <section className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">

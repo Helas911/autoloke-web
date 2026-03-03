@@ -16,12 +16,12 @@ export function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-white/10 bg-black/70 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
         <Link href="/" className="flex items-center gap-3">
           <span className="grid h-11 w-11 place-items-center rounded-2xl bg-white/10 text-xl">🚗</span>
           <div className="leading-tight">
-            <div className="text-xl font-black tracking-tight sm:text-2xl">Autoloke</div>
-            <div className="hidden text-[11px] font-semibold text-white/60 sm:block">
+            <div className="text-2xl font-black tracking-tight">Autoloke</div>
+            <div className="text-[11px] font-semibold text-white/60">
               Autoloke- lengvai rask transporta ir dalis aplink save
             </div>
           </div>
@@ -32,9 +32,7 @@ export function SiteHeader() {
             <>
               <Link
                 href="/mano"
-                aria-label="Mano skelbimai"
-                title="Mano skelbimai"
-                className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-2 text-sm font-extrabold text-white/90 hover:bg-white/10"
+                className="hidden sm:inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-2 text-sm font-extrabold text-white/90 hover:bg-white/10"
               >
                 {user.photoURL ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -42,7 +40,7 @@ export function SiteHeader() {
                 ) : (
                   <span className="grid h-6 w-6 place-items-center rounded-full bg-white/10 text-xs">👤</span>
                 )}
-                <span className="hidden max-w-[160px] truncate sm:block">
+                <span className="max-w-[160px] truncate">
                   {user.displayName || user.email || "Mano"}
                 </span>
               </Link>
