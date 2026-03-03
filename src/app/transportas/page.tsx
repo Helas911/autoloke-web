@@ -6,6 +6,9 @@ import { useEffect, useMemo, useState } from "react";
 import { db } from "@/lib/firebase";
 
 type Ad = {
+  mileageKm?: number;
+  gearbox?: string;
+  drive?: string;
   id: string;
   title?: string;
   brand?: string;
@@ -20,6 +23,10 @@ type Ad = {
 export default function TransportasPage() {
   const [items, setItems] = useState<Ad[]>([]);
   const [qText, setQText] = useState("");
+  const [mFrom, setMFrom] = useState("");
+  const [mTo, setMTo] = useState("");
+  const [gearbox, setGearbox] = useState("");
+  const [drive, setDrive] = useState("");
 
   useEffect(() => {
     const q = query(collection(db, "ads"), orderBy("createdAt", "desc"));
@@ -31,12 +38,34 @@ export default function TransportasPage() {
 
   const filtered = useMemo(() => {
     const t = qText.trim().toLowerCase();
-    if (!t) return items;
+    const mf = mFrom.trim() ? Number(mFrom) : null;
+    const mt = mTo.trim() ? Number(mTo) : null;
+    const gb = gearbox.trim().toLowerCase();
+    const dr = drive.trim().toLowerCase();
+
     return items.filter((a) => {
-      const s = `${a.title ?? ""} ${a.brand ?? ""} ${a.model ?? ""} ${a.city ?? ""} ${a.category ?? ""} ${a.type ?? ""}`.toLowerCase();
-      return s.includes(t);
+      if (t) {
+        const s = `${a.title ?? ""} ${a.brand ?? ""} ${a.model ?? ""} ${a.city ?? ""} ${a.category ?? ""} ${a.type ?? ""}`.toLowerCase();
+        if (!s.includes(t)) return false;
+      }
+
+      if (typeof mf === "number") {
+        if (typeof a.mileageKm !== "number" || a.mileageKm < mf) return false;
+      }
+      if (typeof mt === "number") {
+        if (typeof a.mileageKm !== "number" || a.mileageKm > mt) return false;
+      }
+
+      if (gb) {
+        if ((a.gearbox || "").toLowerCase() !== gb) return false;
+      }
+      if (dr) {
+        if ((a.drive || "").toLowerCase() !== dr) return false;
+      }
+
+      return true;
     });
-  }, [items, qText]);
+  }, [items, qText, mFrom, mTo, gearbox, drive]);
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-6">
@@ -62,6 +91,25 @@ export default function TransportasPage() {
           placeholder="Ieškoti (markė, modelis, miestas...)"
           className="w-full rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm font-extrabold text-white/90 outline-none placeholder:text-white/40"
         />
+        <div className="mt-2 grid w-full grid-cols-2 gap-2 sm:mt-0 sm:grid-cols-4">
+          <input value={mFrom} onChange={(e) => setMFrom(e.target.value)} inputMode="numeric" placeholder="Rida nuo" className="w-full rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm font-extrabold text-white/90 outline-none placeholder:text-white/40" />
+          <input value={mTo} onChange={(e) => setMTo(e.target.value)} inputMode="numeric" placeholder="Rida iki" className="w-full rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm font-extrabold text-white/90 outline-none placeholder:text-white/40" />
+          <select value={gearbox} onChange={(e) => setGearbox(e.target.value)} className="w-full rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm font-extrabold text-white/90 outline-none">
+            <option value="">Pavarų dėžė</option>
+            <option value="Mechaninė">Mechaninė</option>
+            <option value="Automatinė">Automatinė</option>
+            <option value="Pusiau automatinė">Pusiau automatinė</option>
+            <option value="CVT">CVT</option>
+            <option value="Kita">Kita</option>
+          </select>
+          <select value={drive} onChange={(e) => setDrive(e.target.value)} className="w-full rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm font-extrabold text-white/90 outline-none">
+            <option value="">Varomieji</option>
+            <option value="Priekis">Priekis</option>
+            <option value="Galas">Galas</option>
+            <option value="4x4">4x4</option>
+            <option value="Kita">Kita</option>
+          </select>
+        </div>
         <div className="text-xs font-extrabold text-white/55">{filtered.length} skelb.</div>
       </div>
 

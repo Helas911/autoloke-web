@@ -25,6 +25,9 @@ type Item = {
   lng?: number;
   category?: string; // VehicleCategory
   type?: string;
+  mileageKm?: number;
+  gearbox?: string;
+  drive?: string;
   year?: number;
   createdAt?: any;
 };
@@ -112,6 +115,10 @@ export default function Home() {
   const [priceMax, setPriceMax] = useState("");
   const [yearMin, setYearMin] = useState("");
   const [yearMax, setYearMax] = useState("");
+  const [mileageMin, setMileageMin] = useState("");
+  const [mileageMax, setMileageMax] = useState("");
+  const [gearbox, setGearbox] = useState("");
+  const [drive, setDrive] = useState("");
   const [filterByMap, setFilterByMap] = useState(true);
 
   useEffect(() => {
@@ -155,6 +162,10 @@ export default function Home() {
     const pMax = priceMax.trim() ? Number(priceMax) : null;
     const yMin = yearMin.trim() ? Number(yearMin) : null;
     const yMax = yearMax.trim() ? Number(yearMax) : null;
+    const mMin = mileageMin.trim() ? Number(mileageMin) : null;
+    const mMax = mileageMax.trim() ? Number(mileageMax) : null;
+    const gb = gearbox.trim().toLowerCase();
+    const dr = drive.trim().toLowerCase();
 
     return items.filter((it) => {
       if (tab === "transportas") {
@@ -175,13 +186,28 @@ export default function Home() {
       if (typeof yMin === "number" && typeof it.year === "number" && it.year < yMin) return false;
       if (typeof yMax === "number" && typeof it.year === "number" && it.year > yMax) return false;
 
+      if (tab === "transportas") {
+        if (typeof mMin === "number") {
+          if (typeof it.mileageKm !== "number" || it.mileageKm < mMin) return false;
+        }
+        if (typeof mMax === "number") {
+          if (typeof it.mileageKm !== "number" || it.mileageKm > mMax) return false;
+        }
+        if (gb) {
+          if ((it.gearbox || "").toLowerCase() !== gb) return false;
+        }
+        if (dr) {
+          if ((it.drive || "").toLowerCase() !== dr) return false;
+        }
+      }
+
       if (filterByMap && bounds && typeof it.lat === "number" && typeof it.lng === "number") {
         if (!bounds.contains(new google.maps.LatLng(it.lat, it.lng))) return false;
       }
 
       return true;
     });
-  }, [items, qText, brand, model, city, priceMin, priceMax, yearMin, yearMax, filterByMap, bounds, tab, cat, type]);
+  }, [items, qText, brand, model, city, priceMin, priceMax, yearMin, yearMax, mileageMin, mileageMax, gearbox, drive, filterByMap, bounds, tab, cat, type]);
 
   // simple "grouping" by zoom: show count if close
   const markers = useMemo(() => {
@@ -486,6 +512,48 @@ export default function Home() {
                     inputMode="numeric"
                     className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
                   />
+                </div>
+              ) : null}
+
+              {tab === "transportas" ? (
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    value={mileageMin}
+                    onChange={(e) => setMileageMin(e.target.value)}
+                    placeholder="Rida nuo"
+                    inputMode="numeric"
+                    className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
+                  />
+                  <input
+                    value={mileageMax}
+                    onChange={(e) => setMileageMax(e.target.value)}
+                    placeholder="Rida iki"
+                    inputMode="numeric"
+                    className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
+                  />
+                  <select
+                    value={gearbox}
+                    onChange={(e) => setGearbox(e.target.value)}
+                    className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none"
+                  >
+                    <option value="">Pavarų dėžė (visi)</option>
+                    <option value="Mechaninė">Mechaninė</option>
+                    <option value="Automatinė">Automatinė</option>
+                    <option value="Pusiau automatinė">Pusiau automatinė</option>
+                    <option value="CVT">CVT</option>
+                    <option value="Kita">Kita</option>
+                  </select>
+                  <select
+                    value={drive}
+                    onChange={(e) => setDrive(e.target.value)}
+                    className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none"
+                  >
+                    <option value="">Varomieji ratai (visi)</option>
+                    <option value="Priekis">Priekis</option>
+                    <option value="Galas">Galas</option>
+                    <option value="4x4">4x4</option>
+                    <option value="Kita">Kita</option>
+                  </select>
                 </div>
               ) : null}
 
