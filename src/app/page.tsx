@@ -25,10 +25,11 @@ type Item = {
   lng?: number;
   category?: string; // VehicleCategory
   type?: string;
-  mileageKm?: number;
-  gearbox?: string;
-  drive?: string;
   year?: number;
+  mileage?: number;
+  fuel?: string;
+  drive?: string;
+  gearbox?: string;
   createdAt?: any;
 };
 
@@ -113,12 +114,13 @@ export default function Home() {
   const [city, setCity] = useState("");
   const [priceMin, setPriceMin] = useState("");
   const [priceMax, setPriceMax] = useState("");
-  const [yearMin, setYearMin] = useState("");
-  const [yearMax, setYearMax] = useState("");
   const [mileageMin, setMileageMin] = useState("");
   const [mileageMax, setMileageMax] = useState("");
-  const [gearbox, setGearbox] = useState("");
+  const [fuel, setFuel] = useState("");
   const [drive, setDrive] = useState("");
+  const [gearbox, setGearbox] = useState("");
+  const [yearMin, setYearMin] = useState("");
+  const [yearMax, setYearMax] = useState("");
   const [filterByMap, setFilterByMap] = useState(true);
 
   useEffect(() => {
@@ -162,10 +164,11 @@ export default function Home() {
     const pMax = priceMax.trim() ? Number(priceMax) : null;
     const yMin = yearMin.trim() ? Number(yearMin) : null;
     const yMax = yearMax.trim() ? Number(yearMax) : null;
-    const mMin = mileageMin.trim() ? Number(mileageMin) : null;
-    const mMax = mileageMax.trim() ? Number(mileageMax) : null;
-    const gb = gearbox.trim().toLowerCase();
-    const dr = drive.trim().toLowerCase();
+    const miMin = mileageMin.trim() ? Number(mileageMin) : null;
+    const miMax = mileageMax.trim() ? Number(mileageMax) : null;
+    const f = fuel.trim().toLowerCase();
+    const d = drive.trim().toLowerCase();
+    const g = gearbox.trim().toLowerCase();
 
     return items.filter((it) => {
       if (tab === "transportas") {
@@ -186,20 +189,18 @@ export default function Home() {
       if (typeof yMin === "number" && typeof it.year === "number" && it.year < yMin) return false;
       if (typeof yMax === "number" && typeof it.year === "number" && it.year > yMax) return false;
 
-      if (tab === "transportas") {
-        if (typeof mMin === "number") {
-          if (typeof it.mileageKm !== "number" || it.mileageKm < mMin) return false;
-        }
-        if (typeof mMax === "number") {
-          if (typeof it.mileageKm !== "number" || it.mileageKm > mMax) return false;
-        }
-        if (gb) {
-          if ((it.gearbox || "").toLowerCase() !== gb) return false;
-        }
-        if (dr) {
-          if ((it.drive || "").toLowerCase() !== dr) return false;
-        }
+      if (typeof miMin === "number") {
+        if (typeof it.mileage !== "number") return false;
+        if (it.mileage < miMin) return false;
       }
+      if (typeof miMax === "number") {
+        if (typeof it.mileage !== "number") return false;
+        if (it.mileage > miMax) return false;
+      }
+
+      if (f && (it.fuel || "").toLowerCase() !== f) return false;
+      if (d && (it.drive || "").toLowerCase() !== d) return false;
+      if (g && (it.gearbox || "").toLowerCase() !== g) return false;
 
       if (filterByMap && bounds && typeof it.lat === "number" && typeof it.lng === "number") {
         if (!bounds.contains(new google.maps.LatLng(it.lat, it.lng))) return false;
@@ -207,7 +208,7 @@ export default function Home() {
 
       return true;
     });
-  }, [items, qText, brand, model, city, priceMin, priceMax, yearMin, yearMax, mileageMin, mileageMax, gearbox, drive, filterByMap, bounds, tab, cat, type]);
+  }, [items, qText, brand, model, city, priceMin, priceMax, mileageMin, mileageMax, fuel, drive, gearbox, yearMin, yearMax, filterByMap, bounds, tab, cat, type]);
 
   // simple "grouping" by zoom: show count if close
   const markers = useMemo(() => {
@@ -398,6 +399,11 @@ export default function Home() {
                   setCity("");
                   setPriceMin("");
                   setPriceMax("");
+                  setMileageMin("");
+                  setMileageMax("");
+                  setFuel("");
+                  setDrive("");
+                  setGearbox("");
                   setYearMin("");
                   setYearMax("");
                   setType("");
@@ -497,6 +503,7 @@ export default function Home() {
               </div>
 
               {tab === "transportas" ? (
+                <>
                 <div className="grid grid-cols-2 gap-2">
                   <input
                     value={yearMin}
@@ -513,48 +520,58 @@ export default function Home() {
                     className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
                   />
                 </div>
-              ) : null}
 
-              {tab === "transportas" ? (
                 <div className="grid grid-cols-2 gap-2">
                   <input
                     value={mileageMin}
                     onChange={(e) => setMileageMin(e.target.value)}
-                    placeholder="Rida nuo"
+                    placeholder="Rida nuo (km)"
                     inputMode="numeric"
                     className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
                   />
                   <input
                     value={mileageMax}
                     onChange={(e) => setMileageMax(e.target.value)}
-                    placeholder="Rida iki"
+                    placeholder="Rida iki (km)"
                     inputMode="numeric"
                     className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
                   />
-                  <select
-                    value={gearbox}
-                    onChange={(e) => setGearbox(e.target.value)}
-                    className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none"
-                  >
-                    <option value="">Pavarų dėžė (visi)</option>
-                    <option value="Mechaninė">Mechaninė</option>
-                    <option value="Automatinė">Automatinė</option>
-                    <option value="Pusiau automatinė">Pusiau automatinė</option>
-                    <option value="CVT">CVT</option>
-                    <option value="Kita">Kita</option>
-                  </select>
-                  <select
-                    value={drive}
-                    onChange={(e) => setDrive(e.target.value)}
-                    className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none"
-                  >
-                    <option value="">Varomieji ratai (visi)</option>
-                    <option value="Priekis">Priekis</option>
-                    <option value="Galas">Galas</option>
-                    <option value="4x4">4x4</option>
-                    <option value="Kita">Kita</option>
-                  </select>
                 </div>
+
+                <select
+                  value={fuel}
+                  onChange={(e) => setFuel(e.target.value)}
+                  className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none"
+                >
+                  <option value="" style={optStyle}>Kuro tipas (visi)</option>
+                  {["Benzinas","Dyzelis","Benzinas+dujos","Dujos","Hibridas","Plug-in hibridas","Elektra","Kita"].map((f) => (
+                    <option key={f} value={f} style={optStyle}>{f}</option>
+                  ))}
+                </select>
+
+                <select
+                  value={drive}
+                  onChange={(e) => setDrive(e.target.value)}
+                  className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none"
+                >
+                  <option value="" style={optStyle}>Varomieji ratai (visi)</option>
+                  {["Priekis","Galas","4x4"].map((d) => (
+                    <option key={d} value={d} style={optStyle}>{d}</option>
+                  ))}
+                </select>
+
+
+                <select
+                  value={gearbox}
+                  onChange={(e) => setGearbox(e.target.value)}
+                  className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none"
+                >
+                  <option value="" style={optStyle}>Pavarų dėžė (visi)</option>
+                  {["Mechaninė","Automatinė","Robotizuota","Kita"].map((g) => (
+                    <option key={g} value={g} style={optStyle}>{g}</option>
+                  ))}
+                </select>
+                </>
               ) : null}
 
               <div className="mt-1 rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-xs font-bold text-white/70">

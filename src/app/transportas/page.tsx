@@ -1,20 +1,20 @@
 "use client";
 
-import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
+import { collection, onSnapshot, orderBy, query, where } from "firebase/firestore";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { db } from "@/lib/firebase";
 
 type Ad = {
-  mileageKm?: number;
-  gearbox?: string;
-  drive?: string;
   id: string;
   title?: string;
   brand?: string;
   model?: string;
   city?: string;
   price?: number;
+  mileage?: number;
+  fuel?: string;
+  drive?: string;
   imageUrls?: string[];
   category?: string;
   type?: string;
@@ -23,49 +23,37 @@ type Ad = {
 export default function TransportasPage() {
   const [items, setItems] = useState<Ad[]>([]);
   const [qText, setQText] = useState("");
-  const [mFrom, setMFrom] = useState("");
-  const [mTo, setMTo] = useState("");
-  const [gearbox, setGearbox] = useState("");
+  const [mileageMin, setMileageMin] = useState("");
+  const [mileageMax, setMileageMax] = useState("");
+  const [fuel, setFuel] = useState("");
   const [drive, setDrive] = useState("");
 
   useEffect(() => {
-    const q = query(collection(db, "ads"), orderBy("createdAt", "desc"));
+    const col = collection(db, "ads");
+    const cons: any[] = [];
+    const miMin = Number(mileageMin || 0) || 0;
+    const miMax = Number(mileageMax || 99999999) || 99999999;
+
+    if (fuel) cons.push(where("fuel", "==", fuel));
+    if (drive) cons.push(where("drive", "==", drive));
+    if (mileageMin) cons.push(where("mileage", ">=", miMin));
+    if (mileageMax) cons.push(where("mileage", "<=", miMax));
+
+    const q = query(col, ...cons, orderBy("createdAt", "desc"));
     const unsub = onSnapshot(q, (snap) => {
       setItems(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })));
     });
     return () => unsub();
-  }, []);
+  }, [mileageMin, mileageMax, fuel, drive]);
 
   const filtered = useMemo(() => {
     const t = qText.trim().toLowerCase();
-    const mf = mFrom.trim() ? Number(mFrom) : null;
-    const mt = mTo.trim() ? Number(mTo) : null;
-    const gb = gearbox.trim().toLowerCase();
-    const dr = drive.trim().toLowerCase();
-
+    if (!t) return items;
     return items.filter((a) => {
-      if (t) {
-        const s = `${a.title ?? ""} ${a.brand ?? ""} ${a.model ?? ""} ${a.city ?? ""} ${a.category ?? ""} ${a.type ?? ""}`.toLowerCase();
-        if (!s.includes(t)) return false;
-      }
-
-      if (typeof mf === "number") {
-        if (typeof a.mileageKm !== "number" || a.mileageKm < mf) return false;
-      }
-      if (typeof mt === "number") {
-        if (typeof a.mileageKm !== "number" || a.mileageKm > mt) return false;
-      }
-
-      if (gb) {
-        if ((a.gearbox || "").toLowerCase() !== gb) return false;
-      }
-      if (dr) {
-        if ((a.drive || "").toLowerCase() !== dr) return false;
-      }
-
-      return true;
+      const s = `${a.title ?? ""} ${a.brand ?? ""} ${a.model ?? ""} ${a.city ?? ""} ${a.category ?? ""} ${a.type ?? ""}`.toLowerCase();
+      return s.includes(t);
     });
-  }, [items, qText, mFrom, mTo, gearbox, drive]);
+  }, [items, qText]);
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-6">
@@ -84,33 +72,36 @@ export default function TransportasPage() {
         </nav>
       </div>
 
-      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="mt-4 grid gap-3 sm:grid-cols-5 sm:items-end">
+        <div className="sm:col-span-2">
         <input
           value={qText}
           onChange={(e) => setQText(e.target.value)}
           placeholder="Ieškoti (markė, modelis, miestas...)"
           className="w-full rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm font-extrabold text-white/90 outline-none placeholder:text-white/40"
         />
-        <div className="mt-2 grid w-full grid-cols-2 gap-2 sm:mt-0 sm:grid-cols-4">
-          <input value={mFrom} onChange={(e) => setMFrom(e.target.value)} inputMode="numeric" placeholder="Rida nuo" className="w-full rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm font-extrabold text-white/90 outline-none placeholder:text-white/40" />
-          <input value={mTo} onChange={(e) => setMTo(e.target.value)} inputMode="numeric" placeholder="Rida iki" className="w-full rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm font-extrabold text-white/90 outline-none placeholder:text-white/40" />
-          <select value={gearbox} onChange={(e) => setGearbox(e.target.value)} className="w-full rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm font-extrabold text-white/90 outline-none">
-            <option value="">Pavarų dėžė</option>
-            <option value="Mechaninė">Mechaninė</option>
-            <option value="Automatinė">Automatinė</option>
-            <option value="Pusiau automatinė">Pusiau automatinė</option>
-            <option value="CVT">CVT</option>
-            <option value="Kita">Kita</option>
-          </select>
-          <select value={drive} onChange={(e) => setDrive(e.target.value)} className="w-full rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm font-extrabold text-white/90 outline-none">
-            <option value="">Varomieji</option>
-            <option value="Priekis">Priekis</option>
-            <option value="Galas">Galas</option>
-            <option value="4x4">4x4</option>
-            <option value="Kita">Kita</option>
+        </div>
+        <div className="sm:col-span-1">
+          <select value={fuel} onChange={(e) => setFuel(e.target.value)} className="w-full rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm font-extrabold text-white/90 outline-none">
+            <option value="" style={{ background: "#0b0b10", color: "rgba(255,255,255,0.95)" }}>Kuras (visi)</option>
+            {["Benzinas","Dyzelis","Benzinas+dujos","Dujos","Hibridas","Plug-in hibridas","Elektra","Kita"].map((f) => (
+              <option key={f} value={f} style={{ background: "#0b0b10", color: "rgba(255,255,255,0.95)" }}>{f}</option>
+            ))}
           </select>
         </div>
-        <div className="text-xs font-extrabold text-white/55">{filtered.length} skelb.</div>
+        <div className="sm:col-span-1">
+          <select value={drive} onChange={(e) => setDrive(e.target.value)} className="w-full rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm font-extrabold text-white/90 outline-none">
+            <option value="" style={{ background: "#0b0b10", color: "rgba(255,255,255,0.95)" }}>Varomi (visi)</option>
+            {["Priekis","Galas","4x4"].map((d) => (
+              <option key={d} value={d} style={{ background: "#0b0b10", color: "rgba(255,255,255,0.95)" }}>{d}</option>
+            ))}
+          </select>
+        </div>
+        <div className="sm:col-span-1 grid grid-cols-2 gap-2">
+          <input value={mileageMin} onChange={(e) => setMileageMin(e.target.value)} placeholder="Rida nuo" inputMode="numeric" className="w-full rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm font-extrabold text-white/90 outline-none placeholder:text-white/40" />
+          <input value={mileageMax} onChange={(e) => setMileageMax(e.target.value)} placeholder="Rida iki" inputMode="numeric" className="w-full rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm font-extrabold text-white/90 outline-none placeholder:text-white/40" />
+        </div>
+        <div className="text-xs font-extrabold text-white/55 sm:text-right">{filtered.length} skelb.</div>
       </div>
 
       <section className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">

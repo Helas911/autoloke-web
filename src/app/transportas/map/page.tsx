@@ -21,9 +21,6 @@ type Ad = {
   imageUrls?: string[];
   category?: string; // automobiliai / motociklai / sunkvezimiai / vandens / zu_technika
   type?: string;
-  mileageKm?: number;
-  gearbox?: string;
-  drive?: string;
 };
 
 const LT_CENTER = { lat: 55.1694, lng: 23.8813 };
@@ -54,10 +51,6 @@ export default function TransportMapPage() {
   const [priceTo, setPriceTo] = useState("");
   const [yearFrom, setYearFrom] = useState("");
   const [yearTo, setYearTo] = useState("");
-  const [mileageFrom, setMileageFrom] = useState("");
-  const [mileageTo, setMileageTo] = useState("");
-  const [gearbox, setGearbox] = useState("");
-  const [drive, setDrive] = useState("");
 
   const [filterByMap, setFilterByMap] = useState(true);
   const [bounds, setBounds] = useState<google.maps.LatLngBounds | null>(null);
@@ -91,10 +84,6 @@ export default function TransportMapPage() {
     const pMax = priceTo.trim() ? Number(priceTo) : null;
     const yMin = yearFrom.trim() ? Number(yearFrom) : null;
     const yMax = yearTo.trim() ? Number(yearTo) : null;
-    const mMin = mileageFrom.trim() ? Number(mileageFrom) : null;
-    const mMax = mileageTo.trim() ? Number(mileageTo) : null;
-    const gb = gearbox.trim().toLowerCase();
-    const dr = drive.trim().toLowerCase();
 
     return items.filter((a) => {
       // category filter (only if ad has category)
@@ -276,23 +265,6 @@ export default function TransportMapPage() {
             <input value={priceTo} onChange={(e) => setPriceTo(e.target.value)} inputMode="numeric" className="rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-sm font-extrabold outline-none placeholder:text-white/40" placeholder="Kaina iki" />
             <input value={yearFrom} onChange={(e) => setYearFrom(e.target.value)} inputMode="numeric" className="rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-sm font-extrabold outline-none placeholder:text-white/40" placeholder="Metai nuo" />
             <input value={yearTo} onChange={(e) => setYearTo(e.target.value)} inputMode="numeric" className="rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-sm font-extrabold outline-none placeholder:text-white/40" placeholder="Metai iki" />
-            <input value={mileageFrom} onChange={(e) => setMileageFrom(e.target.value)} inputMode="numeric" className="rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-sm font-extrabold outline-none placeholder:text-white/40" placeholder="Rida nuo" />
-            <input value={mileageTo} onChange={(e) => setMileageTo(e.target.value)} inputMode="numeric" className="rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-sm font-extrabold outline-none placeholder:text-white/40" placeholder="Rida iki" />
-            <select value={gearbox} onChange={(e) => setGearbox(e.target.value)} className="rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-sm font-extrabold outline-none">
-              <option value="">Pavarų dėžė</option>
-              <option value="Mechaninė">Mechaninė</option>
-              <option value="Automatinė">Automatinė</option>
-              <option value="Pusiau automatinė">Pusiau automatinė</option>
-              <option value="CVT">CVT</option>
-              <option value="Kita">Kita</option>
-            </select>
-            <select value={drive} onChange={(e) => setDrive(e.target.value)} className="rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-sm font-extrabold outline-none">
-              <option value="">Varomieji</option>
-              <option value="Priekis">Priekis</option>
-              <option value="Galas">Galas</option>
-              <option value="4x4">4x4</option>
-              <option value="Kita">Kita</option>
-            </select>
             <input value={city} onChange={(e) => setCity(e.target.value)} className="col-span-2 rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-sm font-extrabold outline-none placeholder:text-white/40" placeholder="Miestas" />
           </div>
 

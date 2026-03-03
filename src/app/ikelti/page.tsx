@@ -50,10 +50,11 @@ export default function IkeltiPage() {
   const [model, setModel] = useState("");
   const [modelOther, setModelOther] = useState("");
   const [year, setYear] = useState("");
-  const [mileageKm, setMileageKm] = useState("");
-  const [gearbox, setGearbox] = useState("");
-  const [drive, setDrive] = useState("");
   const [price, setPrice] = useState("");
+  const [mileage, setMileage] = useState("");
+  const [fuel, setFuel] = useState("");
+  const [drive, setDrive] = useState("");
+  const [gearbox, setGearbox] = useState("");
 
   // parts
   const [title, setTitle] = useState("");
@@ -153,18 +154,14 @@ export default function IkeltiPage() {
     try {
       const p = Number(price);
       const y = year.trim() ? Number(year) : undefined;
+      const mi = mileage.trim() ? Number(mileage) : undefined;
       const la = Number(lat);
       const ln = Number(lng);
 
       if (!Number.isFinite(p)) throw new Error("Kaina turi būti skaičius.");
       if (!Number.isFinite(la) || !Number.isFinite(ln)) throw new Error("Koordinatės turi būti skaičiai.");
       if (year.trim() && !Number.isFinite(y)) throw new Error("Metai turi būti skaičius.");
-
-      const km = mileageKm.trim() ? Number(mileageKm.replace(",", ".")) : undefined;
-      if (mileageKm.trim() && !Number.isFinite(km)) throw new Error("Rida turi būti skaičius.");
-      const gb = gearbox.trim() || undefined;
-      const dr = drive.trim() || undefined;
-
+      if (mileage.trim() && !Number.isFinite(mi)) throw new Error("Rida turi būti skaičius.");
 
       const finalBrand = (brand === OTHER ? brandOther : brand).trim() || undefined;
       const finalModel = (model === OTHER ? modelOther : model).trim() || undefined;
@@ -180,6 +177,10 @@ export default function IkeltiPage() {
           model: finalModel,
           year: y,
           price: p,
+          mileage: mi,
+          fuel: fuel.trim() || undefined,
+          drive: drive.trim() || undefined,
+          gearbox: gearbox.trim() || undefined,
           city: city.trim(),
           phone: phone.trim() || undefined,
           description: description.trim() || undefined,
@@ -376,43 +377,59 @@ export default function IkeltiPage() {
                     inputMode="numeric"
                     className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
                   />
+                </div>
 
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <input
+                    value={mileage}
+                    onChange={(e) => setMileage(e.target.value)}
+                    placeholder="Rida (km)"
+                    inputMode="numeric"
+                    className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
+                  />
+                  <select
+                    value={gearbox}
+                    onChange={(e) => setGearbox(e.target.value)}
+                    className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none"
+                  >
+                    <option value="" style={optStyle}>Pavarų dėžė (pasirinkti)</option>
+                    {["Mechaninė", "Automatinė", "Robotizuota", "Kita"].map((g) => (
+                      <option key={g} value={g} style={optStyle}>{g}</option>
+                    ))}
+                  </select>
+                </div>
 
-                  {tab === "transportas" ? (
-                    <>
-                      <input
-                        value={mileageKm}
-                        onChange={(e) => setMileageKm(e.target.value)}
-                        placeholder="Rida (km)"
-                        inputMode="numeric"
-                        className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
-                      />
-                      <select
-                        value={gearbox}
-                        onChange={(e) => setGearbox(e.target.value)}
-                        className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none"
-                      >
-                        <option value="">Pavarų dėžė (visi)</option>
-                        <option value="Mechaninė">Mechaninė</option>
-                        <option value="Automatinė">Automatinė</option>
-                        <option value="Pusiau automatinė">Pusiau automatinė</option>
-                        <option value="CVT">CVT</option>
-                        <option value="Kita">Kita</option>
-                      </select>
-                      <select
-                        value={drive}
-                        onChange={(e) => setDrive(e.target.value)}
-                        className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none"
-                      >
-                        <option value="">Varomieji ratai (visi)</option>
-                        <option value="Priekis">Priekis</option>
-                        <option value="Galas">Galas</option>
-                        <option value="4x4">4x4</option>
-                        <option value="Kita">Kita</option>
-                      </select>
-                    </>
-                  ) : null}
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <select
+                    value={fuel}
+                    onChange={(e) => setFuel(e.target.value)}
+                    className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none"
+                  >
+                    <option value="" style={optStyle}>Kuro tipas (pasirinkti)</option>
+                    {[
+                      "Benzinas",
+                      "Dyzelis",
+                      "Benzinas+dujos",
+                      "Dujos",
+                      "Hibridas",
+                      "Plug-in hibridas",
+                      "Elektra",
+                      "Kita",
+                    ].map((f) => (
+                      <option key={f} value={f} style={optStyle}>{f}</option>
+                    ))}
+                  </select>
 
+                  <select
+                    value={drive}
+                    onChange={(e) => setDrive(e.target.value)}
+                    className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none"
+                  >
+                    <option value="" style={optStyle}>Varomieji ratai (pasirinkti)</option>
+                    {["Priekis", "Galas", "4x4"].map((d) => (
+                      <option key={d} value={d} style={optStyle}>{d}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
             ) : (
