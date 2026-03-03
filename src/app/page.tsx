@@ -277,7 +277,7 @@ export default function Home() {
           </div>
         ) : null}
 
-        <section className="grid items-start gap-3 md:grid-cols-[1fr_360px]">
+        <section className="grid gap-3 md:grid-cols-[1fr_360px]">
           {/* MAP */}
           <div className="overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.03]">
             <div className="relative h-[62vh] min-h-[420px]">
