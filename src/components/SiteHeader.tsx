@@ -27,12 +27,12 @@ export function SiteHeader() {
           </div>
         </Link>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           {loading ? null : user ? (
             <>
               <Link
                 href="/mano"
-                className="hidden sm:inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-2 text-sm font-extrabold text-white/90 hover:bg-white/10"
+                className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-2 text-sm font-extrabold text-white/90 hover:bg-white/10"
               >
                 {user.photoURL ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -40,7 +40,7 @@ export function SiteHeader() {
                 ) : (
                   <span className="grid h-6 w-6 place-items-center rounded-full bg-white/10 text-xs">👤</span>
                 )}
-                <span className="max-w-[160px] truncate">
+                <span className="hidden max-w-[160px] truncate sm:inline">
                   {user.displayName || user.email || "Mano"}
                 </span>
               </Link>
