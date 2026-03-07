@@ -284,31 +284,6 @@ export default function IkeltiPage() {
           <div className="rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
             {mode === "transportas" ? (
               <div className="grid gap-3">
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <select
-                    value={category}
-                    onChange={(e) => {
-                      setCategory(e.target.value as VehicleCategory);
-                      setType("");
-                    }}
-                    className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none"
-                  >
-                    {VEHICLE_CATEGORIES.map((c) => (
-                      <option key={c.id} value={c.id} style={optStyle}>{c.label}</option>
-                    ))}
-                  </select>
-
-                  <select
-                    value={type}
-                    onChange={(e) => setType(e.target.value)}
-                    className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none"
-                  >
-                    <option value="" style={optStyle}>Tipas (pasirinkti)</option>
-                    {VEHICLE_TYPES[category].map((t) => (
-                      <option key={t} value={t} style={optStyle}>{t}</option>
-                    ))}
-                  </select>
-                </div>
 
                 <div className="grid gap-2 sm:grid-cols-2">
                   <select
