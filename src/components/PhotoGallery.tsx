@@ -93,7 +93,7 @@ export default function PhotoGallery({
         title="Atidaryti"
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={current} alt="Nuotrauka" className="aspect-[16/9] w-full object-cover" />
+        <img src={current} alt="Nuotrauka" loading="eager" decoding="async" className="aspect-[16/9] w-full object-cover" />
         <div className="absolute left-3 top-3 rounded-full bg-black/60 px-3 py-1 text-xs font-extrabold text-white/90">
           {idx + 1}/{list.length}
         </div>
@@ -112,7 +112,7 @@ export default function PhotoGallery({
             title={i === 0 ? 'Pagrindinė' : 'Pasirinkti'}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={u} alt={'Nuotrauka ' + (i + 1)} className="h-full w-full object-cover" />
+            <img src={u} alt={'Nuotrauka ' + (i + 1)} loading="lazy" decoding="async" className="h-full w-full object-cover" />
             {i === 0 && (
               <div className="absolute left-1 top-1 rounded-md bg-black/70 px-1.5 py-0.5 text-[10px] font-extrabold text-white">
                 ★
@@ -216,7 +216,7 @@ export default function PhotoGallery({
             </button>
 
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={current} alt="Nuotrauka" className="max-h-[80vh] w-full object-contain" />
+            <img src={current} alt="Nuotrauka" loading="eager" decoding="async" className="max-h-[80vh] w-full object-contain" />
 
             {editable && (
               <div className="border-t border-white/10 bg-black/70 p-3">

@@ -24,7 +24,7 @@ export function ListingCard({
       <div className="relative aspect-[16/10] bg-white/5">
         {img ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={img} alt="" className="h-full w-full object-cover transition group-hover:scale-[1.02]" />
+          <img src={img} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover transition group-hover:scale-[1.02]" />
         ) : (
           <div className="grid h-full w-full place-items-center text-white/45">Be nuotraukos</div>
         )}

@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
 import { ListingCard } from "@/components/ListingCard";
 import { cls, eur } from "@/lib/format";
+import { bubbleIcon, groupMarkers } from "@/lib/mapMarkers";
 import { VEHICLE_CATEGORIES, VEHICLE_TYPES, type VehicleCategory } from "@/lib/categories";
 import { brandsForCategory, modelsForBrand, type BrandCategory } from "@/lib/brands_models";
 
@@ -54,28 +55,6 @@ function toBrandCategory(cat: VehicleCategory): BrandCategory {
 }
 
 const OTHER = "__other__";
-
-function bubbleIcon(text: string, kind: "price" | "count") {
-  const pad = 14;
-  const fontSize = kind === "count" ? 14 : 12;
-  const t = String(text);
-  const w = Math.max(38, t.length * 8 + pad);
-  const h = 30;
-  const bg = kind === "count" ? "#0b1220" : "#0b3bff";
-  const stroke = "rgba(255,255,255,0.35)";
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
-      <rect x="1" y="1" rx="14" ry="14" width="${w-2}" height="${h-2}" fill="${bg}" stroke="${stroke}" />
-      <text x="${w/2}" y="${h/2+fontSize/3}" text-anchor="middle"
-            font-family="Arial, sans-serif" font-size="${fontSize}" font-weight="800" fill="#fff">${t}</text>
-    </svg>`;
-  const url = "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg);
-  return {
-    url,
-    scaledSize: new google.maps.Size(w, h),
-    anchor: new google.maps.Point(w/2, h/2),
-  } as google.maps.Icon;
-}
 
 function buildTitle(i: Item, tab: Tab) {
   if (tab === "dalys") return i.title?.trim() || "Dalys";
@@ -210,26 +189,8 @@ export default function Home() {
     });
   }, [items, qText, brand, model, city, priceMin, priceMax, mileageMin, mileageMax, fuel, drive, gearbox, yearMin, yearMax, filterByMap, bounds, tab, cat, type]);
 
-  // simple "grouping" by zoom: show count if close
   const markers = useMemo(() => {
-    const withPos = filtered.filter((i) => typeof i.lat === "number" && typeof i.lng === "number");
-    const z = zoom || 7;
-    const decimals = z <= 7 ? 2 : z <= 10 ? 3 : 4;
-    const keyOf = (i: Item) => `${i.lat!.toFixed(decimals)}:${i.lng!.toFixed(decimals)}`;
-
-    const groups = new Map<string, Item[]>();
-    for (const it of withPos) {
-      const k = keyOf(it);
-      const arr = groups.get(k) || [];
-      arr.push(it);
-      groups.set(k, arr);
-    }
-
-    return [...groups.entries()].map(([k, arr]) => {
-      const [laS, lnS] = k.split(":");
-      const la = Number(laS), ln = Number(lnS);
-      return { key: k, items: arr, pos: { lat: la, lng: ln } };
-    });
+    return groupMarkers(filtered, zoom).slice(0, 500);
   }, [filtered, zoom]);
 
   function goNearMe() {
@@ -382,7 +343,7 @@ export default function Home() {
                   })}
                 </GoogleMap>
               ) : (
-                <div className="grid h-full place-items-center text-sm text-white/70">Kraunamas žemėlapis...</div>
+                <div className="grid h-full place-items-center text-sm text-white/70">Kraunamas žemėlapis…</div>
               )}
             </div>
           </div>

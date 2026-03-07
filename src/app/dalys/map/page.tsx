@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 
 import { db } from "@/lib/firebase";
 import { cls } from "@/lib/format";
+import { bubbleIcon, groupMarkers } from "@/lib/mapMarkers";
 
 type Part = {
   id: string;
@@ -40,6 +41,7 @@ export default function PartsMapPage() {
 
   const [filterByMap, setFilterByMap] = useState(true);
   const [bounds, setBounds] = useState<google.maps.LatLngBounds | null>(null);
+  const [zoom, setZoom] = useState(6.6);
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "parts"), (snap) => {
@@ -80,10 +82,8 @@ export default function PartsMapPage() {
   }, [items, qText, brand, model, city, priceFrom, priceTo, filterByMap, bounds]);
 
   const markers = useMemo(() => {
-    return filtered
-      .filter((a) => typeof a.lat === "number" && typeof a.lng === "number")
-      .slice(0, 800);
-  }, [filtered]);
+    return groupMarkers(filtered, zoom).slice(0, 500);
+  }, [filtered, zoom]);
 
   async function centerOnMe() {
     const m = mapRef.current;
@@ -130,10 +130,11 @@ export default function PartsMapPage() {
               onLoad={(m) => {
         mapRef.current = m;
       }}
-              onBoundsChanged={() => {
+              onIdle={() => {
                 const m = mapRef.current;
                 if (!m) return;
                 setBounds(m.getBounds() ?? null);
+                setZoom(m.getZoom() ?? 6.6);
               }}
               options={{
                 clickableIcons: false,
@@ -143,15 +144,27 @@ export default function PartsMapPage() {
                 gestureHandling: "greedy",
               }}
             >
-              {markers.map((m) => (
-                <Marker
-                  key={m.id}
-                  position={{ lat: m.lat as number, lng: m.lng as number }}
-                  title={m.title ?? `${m.brand ?? ""} ${m.model ?? ""}`.trim()}
-                  label={typeof m.price === "number" ? { text: `${m.price}€`, className: "priceLabel" } : undefined}
-                  onClick={() => router.push(`/dalys/${m.id}`)}
-                />
-              ))}
+              {markers.map((g) => {
+                const count = g.items.length;
+                const first = g.items[0];
+                const label = count > 1 ? String(count) : typeof first.price === "number" ? `${Math.round(first.price)}€` : "•";
+                const icon = bubbleIcon(label, count > 1 ? "count" : "price");
+                return (
+                  <Marker
+                    key={g.key}
+                    position={g.pos}
+                    icon={icon}
+                    onClick={() => {
+                      if (count === 1) {
+                        router.push(`/dalys/${first.id}`);
+                      } else {
+                        mapRef.current?.panTo(g.pos);
+                        mapRef.current?.setZoom(Math.min(14, (zoom || 6.6) + 2));
+                      }
+                    }}
+                  />
+                );
+              })}
             </GoogleMap>
           )}
         </div>
@@ -160,7 +173,7 @@ export default function PartsMapPage() {
           <div className="flex items-center justify-between gap-2">
             <div>
               <div className="text-sm font-black">Filtrai</div>
-              <div className="text-xs font-extrabold text-white/55">{filtered.length} skelb.</div>
+              <div className="text-xs font-extrabold text-white/55">{filtered.length} skelb. • arti rodo atskirai</div>
             </div>
             <button
               type="button"
@@ -210,7 +223,7 @@ export default function PartsMapPage() {
                 className="flex w-full items-center gap-3 border-b border-white/10 p-3 text-left hover:bg-white/[0.04]"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={a.imageUrls?.[0] || "/favicon.ico"} alt="" className="h-10 w-14 rounded-xl object-cover" />
+                <img src={a.imageUrls?.[0] || "/favicon.ico"} alt="" loading="lazy" decoding="async" className="h-10 w-14 rounded-xl object-cover" />
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-black">{a.title ?? "Detalė"}</div>
                   <div className="truncate text-xs font-semibold text-white/55">{[a.city, a.brand, a.model].filter(Boolean).join(" • ")}</div>
