@@ -86,7 +86,7 @@ export default function PhotoGallery({
   }
 
   return (
-    <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-4">
+    <div className="min-w-0 overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] p-4">
       <button
         className="relative block w-full overflow-hidden rounded-2xl border border-white/10 bg-black/40"
         onClick={() => setOpen(true)}
@@ -100,7 +100,7 @@ export default function PhotoGallery({
       </button>
 
       {/* thumbnails */}
-      <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+      <div className="mt-3 flex max-w-full gap-2 overflow-x-auto pb-1">
         {list.map((u, i) => (
           <button
             key={u + i}
@@ -124,7 +124,7 @@ export default function PhotoGallery({
 
       {/* edit toolbar */}
       {editable && (
-        <div className="mt-3 flex flex-wrap items-center gap-2">
+        <div className="mt-3 flex w-full flex-wrap items-center gap-2">
           <button
             onClick={doPrimary}
             disabled={!onSetPrimary || idx === 0}
