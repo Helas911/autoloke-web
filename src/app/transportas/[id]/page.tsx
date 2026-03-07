@@ -382,7 +382,7 @@ async function deleteOnePhoto(index: number) {
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="mt-4 grid grid-cols-1 gap-5 2xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0 space-y-4">
           <PhotoGallery images={images} editable={isOwner} onSetPrimary={setPrimaryPhoto} onDelete={deleteOnePhoto} onMove={movePhoto} onReplace={replaceOnePhoto} />
 
@@ -405,7 +405,7 @@ async function deleteOnePhoto(index: number) {
               </div>
             </div>
 
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               <Spec label="Metai" value={data.year} />
               <Spec label="Rida" value={typeof data.mileage === "number" ? `${data.mileage} km` : undefined} />
               <Spec label="Kuro tipas" value={data.fuel} />
@@ -424,7 +424,7 @@ async function deleteOnePhoto(index: number) {
           </div>
         </div>
 
-        <aside className="min-w-0 space-y-4 xl:sticky xl:top-4 self-start">
+        <aside className="min-w-0 space-y-4 2xl:sticky 2xl:top-4 self-start">
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
             <div className="text-xs font-extrabold text-white/60">Kontaktai</div>
                         {typeof data.lat === "number" && typeof data.lng === "number" ? (

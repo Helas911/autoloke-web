@@ -42,3 +42,8 @@ input::placeholder, textarea::placeholder{
   transform: translateY(-6px);
   white-space:nowrap;
 }
+
+
+html, body {
+  overflow-x: hidden;
+}

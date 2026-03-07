@@ -339,8 +339,8 @@ async function deleteOnePhoto(index: number) {
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-5 lg:grid-cols-[1.3fr_0.7fr]">
-        <div className="space-y-4">
+      <div className="mt-4 grid grid-cols-1 gap-5 2xl:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="min-w-0 space-y-4">
           <PhotoGallery images={images} editable={isOwner} onSetPrimary={setPrimaryPhoto} onDelete={deleteOnePhoto} onMove={movePhoto} onReplace={replaceOnePhoto} />
 
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
@@ -366,10 +366,9 @@ async function deleteOnePhoto(index: number) {
           </div>
         </div>
 
-        <aside className="space-y-4">
+        <aside className="min-w-0 space-y-4 2xl:sticky 2xl:top-4 self-start">
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
             <div className="text-xs font-extrabold text-white/60">Kontaktai</div>
-            <div className="mt-2 text-sm text-white/75">{data.ownerEmail ?? "—"}</div>
 
             {typeof data.lat === "number" && typeof data.lng === "number" ? (
               <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.02] p-3">
