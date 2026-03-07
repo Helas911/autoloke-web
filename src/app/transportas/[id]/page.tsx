@@ -16,6 +16,7 @@ type Ad = {
   model?: string;
   city?: string;
   price?: number;
+  year?: number;
   category?: string;
   type?: string;
   phone?: string;
@@ -23,17 +24,26 @@ type Ad = {
   lng?: number;
   ownerUid?: string;
   ownerEmail?: string;
-  year?: number;
+  description?: string;
   mileage?: number;
   fuel?: string;
-  gearbox?: string;
   drive?: string;
-  engine?: number;
-  description?: string;
+  gearbox?: string;
+  engineCapacity?: number;
+  powerKw?: number;
   desc?: string;
   imageUrls?: string[];
   imagePaths?: string[];
 };
+
+function Spec({ label, value }: { label: string; value?: string | number }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
+      <div className="text-xs font-extrabold text-white/55">{label}</div>
+      <div className="mt-1 text-base font-black text-white">{value ?? "—"}</div>
+    </div>
+  );
+}
 
 export default function TransportDetailPage() {
   const { user } = useAuth();
@@ -53,6 +63,12 @@ export default function TransportDetailPage() {
   const [ePrice, setEPrice] = useState("");
   const [ePhone, setEPhone] = useState("");
   const [eDesc, setEDesc] = useState("");
+  const [eMileage, setEMileage] = useState("");
+  const [eFuel, setEFuel] = useState("");
+  const [eDrive, setEDrive] = useState("");
+  const [eGearbox, setEGearbox] = useState("");
+  const [eEngineCapacity, setEEngineCapacity] = useState("");
+  const [ePowerKw, setEPowerKw] = useState("");
 
   const [newFiles, setNewFiles] = useState<File[]>([]);
 
@@ -74,6 +90,12 @@ export default function TransportDetailPage() {
     setEPrice(typeof data.price === "number" ? String(data.price) : "");
     setEPhone(data.phone ?? "");
     setEDesc((data.description ?? data.desc ?? "") as any);
+    setEMileage(typeof data.mileage === "number" ? String(data.mileage) : "");
+    setEFuel(data.fuel ?? "");
+    setEDrive(data.drive ?? "");
+    setEGearbox(data.gearbox ?? "");
+    setEEngineCapacity(typeof data.engineCapacity === "number" ? String(data.engineCapacity) : "");
+    setEPowerKw(typeof data.powerKw === "number" ? String(data.powerKw) : "");
   }, [data]);
 
 
@@ -98,8 +120,14 @@ export default function TransportDetailPage() {
         city: eCity.trim() || undefined,
         phone: ePhone.trim() || undefined,
         description: eDesc.trim() || undefined,
+        fuel: eFuel.trim() || undefined,
+        drive: eDrive.trim() || undefined,
+        gearbox: eGearbox.trim() || undefined,
       };
       if (ePrice.trim()) next.price = Number(ePrice);
+      next.mileage = eMileage.trim() ? Number(eMileage) : undefined;
+      next.engineCapacity = eEngineCapacity.trim() ? Number(eEngineCapacity.replace(",", ".")) : undefined;
+      next.powerKw = ePowerKw.trim() ? Number(ePowerKw) : undefined;
       await updateDoc(doc(db, "ads", id), next);
       setMsg("Išsaugota ✅");
     } catch (e: any) {
@@ -354,60 +382,52 @@ async function deleteOnePhoto(index: number) {
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="mt-4 grid grid-cols-1 gap-5 lg:grid-cols-[1.3fr_0.7fr]">
         <div className="space-y-4">
           <PhotoGallery images={images} editable={isOwner} onSetPrimary={setPrimaryPhoto} onDelete={deleteOnePhoto} onMove={movePhoto} onReplace={replaceOnePhoto} />
 
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="min-w-0">
+              <div>
                 <div className="text-sm font-extrabold text-white/60">🚗 Transportas</div>
-                <h1 className="mt-1 break-words text-2xl font-black sm:text-3xl">
+                <h1 className="mt-1 text-2xl font-black">
                   {(data.brand ?? "").toString()} {(data.model ?? "").toString()}
                 </h1>
-                <div className="mt-2 break-words text-sm text-white/65">
+                <div className="mt-2 text-sm text-white/65">
                   {[data.city, [data.category, data.type].filter(Boolean).join(" • ")].filter(Boolean).join(" • ")}
                 </div>
               </div>
-              <div className="w-full sm:w-auto sm:text-right">
+              <div className="text-right">
                 <div className="text-xs font-extrabold text-white/60">Kaina</div>
-                <div className="text-2xl font-black sm:text-3xl">
+                <div className="text-2xl font-black">
                   {typeof data.price === "number" ? `${data.price} €` : "—"}
                 </div>
               </div>
             </div>
 
-            <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {[
-                ["Metai", data.year],
-                ["Rida", typeof data.mileage === "number" ? `${data.mileage} km` : undefined],
-                ["Kuro tipas", data.fuel],
-                ["Pavarų dėžė", data.gearbox],
-                ["Varomieji ratai", data.drive],
-                ["Variklio tūris", typeof data.engine === "number" ? `${String(data.engine).replace(/\.0$/, "")} l` : undefined],
-              ]
-                .filter(([, value]) => value !== undefined && value !== null && String(value).trim() !== "")
-                .map(([label, value]) => (
-                  <div key={String(label)} className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
-                    <div className="text-xs font-extrabold text-white/55">{label}</div>
-                    <div className="mt-1 text-sm font-bold text-white/90">{String(value)}</div>
-                  </div>
-                ))}
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <Spec label="Metai" value={data.year} />
+              <Spec label="Rida" value={typeof data.mileage === "number" ? `${data.mileage} km` : undefined} />
+              <Spec label="Kuro tipas" value={data.fuel} />
+              <Spec label="Pavarų dėžė" value={data.gearbox} />
+              <Spec label="Varomieji ratai" value={data.drive} />
+              <Spec label="Variklio tūris" value={typeof data.engineCapacity === "number" ? `${data.engineCapacity} l` : undefined} />
+              <Spec label="Galia" value={typeof data.powerKw === "number" ? `${data.powerKw} kW` : undefined} />
             </div>
 
             <div className="mt-5">
-              <div className="text-xs font-extrabold uppercase tracking-wide text-white/55">Aprašymas</div>
-              <div className="mt-2 whitespace-pre-wrap break-words text-sm text-white/80">
+              <div className="text-sm font-extrabold uppercase tracking-wide text-white/55">Aprašymas</div>
+              <div className="mt-2 whitespace-pre-wrap text-sm text-white/80">
                 {(data.description ?? data.desc ?? "").toString() || "—"}
               </div>
             </div>
           </div>
         </div>
 
-        <aside className="space-y-4 xl:sticky xl:top-24 self-start">
+        <aside className="space-y-4">
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
             <div className="text-xs font-extrabold text-white/60">Kontaktai</div>
-            {typeof data.lat === "number" && typeof data.lng === "number" ? (
+                        {typeof data.lat === "number" && typeof data.lng === "number" ? (
               <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.02] p-3">
                 <div className="text-xs font-extrabold text-white/60">Vieta</div>
                 <div className="mt-2 overflow-hidden rounded-xl border border-white/10">
@@ -464,12 +484,18 @@ async function deleteOnePhoto(index: number) {
               {err ? <div className="mt-2 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">{err}</div> : null}
               {msg ? <div className="mt-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">{msg}</div> : null}
 
-              <div className="mt-3 grid grid-cols-1 gap-2 2xl:grid-cols-2">
+              <div className="mt-3 grid grid-cols-1 gap-2">
                 <input value={eBrand} onChange={(e) => setEBrand(e.target.value)} placeholder="Markė" className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/20" />
                 <input value={eModel} onChange={(e) => setEModel(e.target.value)} placeholder="Modelis" className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/20" />
                 <input value={eType} onChange={(e) => setEType(e.target.value)} placeholder="Tipas" className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/20" />
                 <input value={eCity} onChange={(e) => setECity(e.target.value)} placeholder="Miestas" className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/20" />
                 <input value={ePrice} onChange={(e) => setEPrice(e.target.value)} placeholder="Kaina" inputMode="numeric" className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/20" />
+                <input value={eMileage} onChange={(e) => setEMileage(e.target.value)} placeholder="Rida (km)" inputMode="numeric" className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/20" />
+                <input value={eEngineCapacity} onChange={(e) => setEEngineCapacity(e.target.value)} placeholder="Variklio tūris (l)" inputMode="decimal" className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/20" />
+                <input value={ePowerKw} onChange={(e) => setEPowerKw(e.target.value)} placeholder="Galia (kW)" inputMode="numeric" className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/20" />
+                <input value={eFuel} onChange={(e) => setEFuel(e.target.value)} placeholder="Kuro tipas" className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/20" />
+                <input value={eGearbox} onChange={(e) => setEGearbox(e.target.value)} placeholder="Pavarų dėžė" className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/20" />
+                <input value={eDrive} onChange={(e) => setEDrive(e.target.value)} placeholder="Varomieji ratai" className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/20" />
                 <input value={ePhone} onChange={(e) => setEPhone(e.target.value)} placeholder="Telefonas" className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/20" />
                 <textarea value={eDesc} onChange={(e) => setEDesc(e.target.value)} placeholder="Aprašymas" rows={4} className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/20" />
               </div>

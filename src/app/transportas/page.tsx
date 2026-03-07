@@ -1,6 +1,6 @@
 "use client";
 
-import { collection, onSnapshot, orderBy, query, where } from "firebase/firestore";
+import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { db } from "@/lib/firebase";
@@ -15,6 +15,9 @@ type Ad = {
   mileage?: number;
   fuel?: string;
   drive?: string;
+  gearbox?: string;
+  engineCapacity?: number;
+  powerKw?: number;
   imageUrls?: string[];
   category?: string;
   type?: string;
@@ -27,33 +30,45 @@ export default function TransportasPage() {
   const [mileageMax, setMileageMax] = useState("");
   const [fuel, setFuel] = useState("");
   const [drive, setDrive] = useState("");
+  const [gearbox, setGearbox] = useState("");
+  const [engineFrom, setEngineFrom] = useState("");
+  const [engineTo, setEngineTo] = useState("");
+  const [powerFrom, setPowerFrom] = useState("");
+  const [powerTo, setPowerTo] = useState("");
 
   useEffect(() => {
     const col = collection(db, "ads");
-    const cons: any[] = [];
-    const miMin = Number(mileageMin || 0) || 0;
-    const miMax = Number(mileageMax || 99999999) || 99999999;
-
-    if (fuel) cons.push(where("fuel", "==", fuel));
-    if (drive) cons.push(where("drive", "==", drive));
-    if (mileageMin) cons.push(where("mileage", ">=", miMin));
-    if (mileageMax) cons.push(where("mileage", "<=", miMax));
-
-    const q = query(col, ...cons, orderBy("createdAt", "desc"));
+    const q = query(col, orderBy("createdAt", "desc"));
     const unsub = onSnapshot(q, (snap) => {
       setItems(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })));
     });
     return () => unsub();
-  }, [mileageMin, mileageMax, fuel, drive]);
+  }, []);
 
   const filtered = useMemo(() => {
     const t = qText.trim().toLowerCase();
-    if (!t) return items;
+    const miMin = Number(mileageMin || 0) || 0;
+    const miMax = Number(mileageMax || 99999999) || 99999999;
+    const enMin = Number(engineFrom.replace(",", ".") || 0) || 0;
+    const enMax = Number(engineTo.replace(",", ".") || 99) || 99;
+    const pwMin = Number(powerFrom || 0) || 0;
+    const pwMax = Number(powerTo || 99999999) || 99999999;
+
     return items.filter((a) => {
       const s = `${a.title ?? ""} ${a.brand ?? ""} ${a.model ?? ""} ${a.city ?? ""} ${a.category ?? ""} ${a.type ?? ""}`.toLowerCase();
-      return s.includes(t);
+      if (t && !s.includes(t)) return false;
+      if (fuel && a.fuel !== fuel) return false;
+      if (drive && a.drive !== drive) return false;
+      if (gearbox && a.gearbox !== gearbox) return false;
+      if (mileageMin && (typeof a.mileage !== "number" || a.mileage < miMin)) return false;
+      if (mileageMax && (typeof a.mileage !== "number" || a.mileage > miMax)) return false;
+      if (engineFrom && (typeof a.engineCapacity !== "number" || a.engineCapacity < enMin)) return false;
+      if (engineTo && (typeof a.engineCapacity !== "number" || a.engineCapacity > enMax)) return false;
+      if (powerFrom && (typeof a.powerKw !== "number" || a.powerKw < pwMin)) return false;
+      if (powerTo && (typeof a.powerKw !== "number" || a.powerKw > pwMax)) return false;
+      return true;
     });
-  }, [items, qText]);
+  }, [items, qText, mileageMin, mileageMax, fuel, drive, gearbox, engineFrom, engineTo, powerFrom, powerTo]);
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-6">
@@ -72,7 +87,7 @@ export default function TransportasPage() {
         </nav>
       </div>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-5 sm:items-end">
+      <div className="mt-4 grid gap-3 sm:grid-cols-6 sm:items-end">
         <div className="sm:col-span-2">
         <input
           value={qText}
@@ -97,9 +112,26 @@ export default function TransportasPage() {
             ))}
           </select>
         </div>
+
+        <div className="sm:col-span-1">
+          <select value={gearbox} onChange={(e) => setGearbox(e.target.value)} className="w-full rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm font-extrabold text-white/90 outline-none">
+            <option value="" style={{ background: "#0b0b10", color: "rgba(255,255,255,0.95)" }}>Pavarų dėžė (visos)</option>
+            {["Mechaninė","Automatinė","Robotizuota","Kita"].map((g) => (
+              <option key={g} value={g} style={{ background: "#0b0b10", color: "rgba(255,255,255,0.95)" }}>{g}</option>
+            ))}
+          </select>
+        </div>
         <div className="sm:col-span-1 grid grid-cols-2 gap-2">
           <input value={mileageMin} onChange={(e) => setMileageMin(e.target.value)} placeholder="Rida nuo" inputMode="numeric" className="w-full rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm font-extrabold text-white/90 outline-none placeholder:text-white/40" />
           <input value={mileageMax} onChange={(e) => setMileageMax(e.target.value)} placeholder="Rida iki" inputMode="numeric" className="w-full rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm font-extrabold text-white/90 outline-none placeholder:text-white/40" />
+        </div>
+        <div className="sm:col-span-1 grid grid-cols-2 gap-2">
+          <input value={engineFrom} onChange={(e) => setEngineFrom(e.target.value)} placeholder="Tūris nuo" inputMode="decimal" className="w-full rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm font-extrabold text-white/90 outline-none placeholder:text-white/40" />
+          <input value={engineTo} onChange={(e) => setEngineTo(e.target.value)} placeholder="Tūris iki" inputMode="decimal" className="w-full rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm font-extrabold text-white/90 outline-none placeholder:text-white/40" />
+        </div>
+        <div className="sm:col-span-1 grid grid-cols-2 gap-2">
+          <input value={powerFrom} onChange={(e) => setPowerFrom(e.target.value)} placeholder="kW nuo" inputMode="numeric" className="w-full rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm font-extrabold text-white/90 outline-none placeholder:text-white/40" />
+          <input value={powerTo} onChange={(e) => setPowerTo(e.target.value)} placeholder="kW iki" inputMode="numeric" className="w-full rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm font-extrabold text-white/90 outline-none placeholder:text-white/40" />
         </div>
         <div className="text-xs font-extrabold text-white/55 sm:text-right">{filtered.length} skelb.</div>
       </div>

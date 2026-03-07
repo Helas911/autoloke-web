@@ -55,7 +55,8 @@ export default function IkeltiPage() {
   const [fuel, setFuel] = useState("");
   const [drive, setDrive] = useState("");
   const [gearbox, setGearbox] = useState("");
-  const [engine, setEngine] = useState("");
+  const [engineCapacity, setEngineCapacity] = useState("");
+  const [powerKw, setPowerKw] = useState("");
 
   // parts
   const [title, setTitle] = useState("");
@@ -156,15 +157,17 @@ export default function IkeltiPage() {
       const p = Number(price);
       const y = year.trim() ? Number(year) : undefined;
       const mi = mileage.trim() ? Number(mileage) : undefined;
+      const ec = engineCapacity.trim() ? Number(engineCapacity.replace(",", ".")) : undefined;
+      const pk = powerKw.trim() ? Number(powerKw) : undefined;
       const la = Number(lat);
       const ln = Number(lng);
-      const en = engine.trim() ? Number(engine.replace(",", ".")) : undefined;
 
       if (!Number.isFinite(p)) throw new Error("Kaina turi būti skaičius.");
       if (!Number.isFinite(la) || !Number.isFinite(ln)) throw new Error("Koordinatės turi būti skaičiai.");
       if (year.trim() && !Number.isFinite(y)) throw new Error("Metai turi būti skaičius.");
       if (mileage.trim() && !Number.isFinite(mi)) throw new Error("Rida turi būti skaičius.");
-      if (engine.trim() && !Number.isFinite(en)) throw new Error("Variklio tūris turi būti skaičius.");
+      if (engineCapacity.trim() && !Number.isFinite(ec)) throw new Error("Variklio tūris turi būti skaičius.");
+      if (powerKw.trim() && !Number.isFinite(pk)) throw new Error("Galia turi būti skaičius.");
 
       const finalBrand = (brand === OTHER ? brandOther : brand).trim() || undefined;
       const finalModel = (model === OTHER ? modelOther : model).trim() || undefined;
@@ -184,7 +187,8 @@ export default function IkeltiPage() {
           fuel: fuel.trim() || undefined,
           drive: drive.trim() || undefined,
           gearbox: gearbox.trim() || undefined,
-          engine: en,
+          engineCapacity: ec,
+          powerKw: pk,
           city: city.trim(),
           phone: phone.trim() || undefined,
           description: description.trim() || undefined,
@@ -405,13 +409,22 @@ export default function IkeltiPage() {
 
                 <div className="grid gap-2 sm:grid-cols-2">
                   <input
-                    value={engine}
-                    onChange={(e) => setEngine(e.target.value)}
+                    value={engineCapacity}
+                    onChange={(e) => setEngineCapacity(e.target.value)}
                     placeholder="Variklio tūris (l)"
                     inputMode="decimal"
                     className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
                   />
+                  <input
+                    value={powerKw}
+                    onChange={(e) => setPowerKw(e.target.value)}
+                    placeholder="Galia (kW)"
+                    inputMode="numeric"
+                    className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
+                  />
+                </div>
 
+                <div className="grid gap-2 sm:grid-cols-2">
                   <select
                     value={fuel}
                     onChange={(e) => setFuel(e.target.value)}

@@ -15,6 +15,12 @@ export type Ad = {
 
   year?: number;
   price?: number;
+  mileage?: number;
+  fuel?: string;
+  drive?: string;
+  gearbox?: string;
+  engineCapacity?: number;
+  powerKw?: number;
 
   city?: string;
   phone?: string;
