@@ -18,6 +18,12 @@ type Ad = {
   price?: number;
   category?: string;
   type?: string;
+  year?: number;
+  mileage?: number;
+  fuel?: string;
+  drive?: string;
+  gearbox?: string;
+  engine?: number;
   phone?: string;
   lat?: number;
   lng?: number;
@@ -348,8 +354,8 @@ async function deleteOnePhoto(index: number) {
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-5 lg:grid-cols-[1.3fr_0.7fr]">
-        <div className="space-y-4">
+      <div className="mt-4 grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
+        <div className="min-w-0 space-y-4">
           <PhotoGallery images={images} editable={isOwner} onSetPrimary={setPrimaryPhoto} onDelete={deleteOnePhoto} onMove={movePhoto} onReplace={replaceOnePhoto} />
 
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
@@ -371,8 +377,27 @@ async function deleteOnePhoto(index: number) {
               </div>
             </div>
 
-            <div className="mt-4 whitespace-pre-wrap text-sm text-white/80">
-              {(data.description ?? data.desc ?? "").toString() || "—"}
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {[
+                ["Metai", data.year ? String(data.year) : "—"],
+                ["Rida", typeof data.mileage === "number" ? `${data.mileage} km` : "—"],
+                ["Kuro tipas", data.fuel || "—"],
+                ["Pavarų dėžė", data.gearbox || "—"],
+                ["Varomieji ratai", data.drive || "—"],
+                ["Variklio tūris", typeof data.engine === "number" ? `${data.engine} l` : "—"],
+              ].map(([label, value]) => (
+                <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.025] px-4 py-3">
+                  <div className="text-xs font-extrabold text-white/55">{label}</div>
+                  <div className="mt-1 text-sm font-bold text-white/95">{value}</div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-5">
+              <div className="text-sm font-extrabold text-white/60">Aprašymas</div>
+              <div className="mt-2 whitespace-pre-wrap text-sm text-white/80">
+                {(data.description ?? data.desc ?? "").toString().trim() || "—"}
+              </div>
             </div>
           </div>
         </div>

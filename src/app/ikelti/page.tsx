@@ -55,6 +55,7 @@ export default function IkeltiPage() {
   const [fuel, setFuel] = useState("");
   const [drive, setDrive] = useState("");
   const [gearbox, setGearbox] = useState("");
+  const [engine, setEngine] = useState("");
 
   // parts
   const [title, setTitle] = useState("");
@@ -155,6 +156,7 @@ export default function IkeltiPage() {
       const p = Number(price);
       const y = year.trim() ? Number(year) : undefined;
       const mi = mileage.trim() ? Number(mileage) : undefined;
+      const en = engine.trim() ? Number(engine.replace(",", ".")) : undefined;
       const la = Number(lat);
       const ln = Number(lng);
 
@@ -162,6 +164,7 @@ export default function IkeltiPage() {
       if (!Number.isFinite(la) || !Number.isFinite(ln)) throw new Error("Koordinatės turi būti skaičiai.");
       if (year.trim() && !Number.isFinite(y)) throw new Error("Metai turi būti skaičius.");
       if (mileage.trim() && !Number.isFinite(mi)) throw new Error("Rida turi būti skaičius.");
+      if (engine.trim() && !Number.isFinite(en)) throw new Error("Variklio tūris turi būti skaičius.");
 
       const finalBrand = (brand === OTHER ? brandOther : brand).trim() || undefined;
       const finalModel = (model === OTHER ? modelOther : model).trim() || undefined;
@@ -181,6 +184,7 @@ export default function IkeltiPage() {
           fuel: fuel.trim() || undefined,
           drive: drive.trim() || undefined,
           gearbox: gearbox.trim() || undefined,
+          engine: en,
           city: city.trim(),
           phone: phone.trim() || undefined,
           description: description.trim() || undefined,
