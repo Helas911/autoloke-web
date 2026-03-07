@@ -156,9 +156,9 @@ export default function IkeltiPage() {
       const p = Number(price);
       const y = year.trim() ? Number(year) : undefined;
       const mi = mileage.trim() ? Number(mileage) : undefined;
-      const en = engine.trim() ? Number(engine.replace(",", ".")) : undefined;
       const la = Number(lat);
       const ln = Number(lng);
+      const en = engine.trim() ? Number(engine.replace(",", ".")) : undefined;
 
       if (!Number.isFinite(p)) throw new Error("Kaina turi būti skaičius.");
       if (!Number.isFinite(la) || !Number.isFinite(ln)) throw new Error("Koordinatės turi būti skaičiai.");
@@ -288,6 +288,31 @@ export default function IkeltiPage() {
           <div className="rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
             {mode === "transportas" ? (
               <div className="grid gap-3">
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <select
+                    value={category}
+                    onChange={(e) => {
+                      setCategory(e.target.value as VehicleCategory);
+                      setType("");
+                    }}
+                    className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none"
+                  >
+                    {VEHICLE_CATEGORIES.map((c) => (
+                      <option key={c.id} value={c.id} style={optStyle}>{c.label}</option>
+                    ))}
+                  </select>
+
+                  <select
+                    value={type}
+                    onChange={(e) => setType(e.target.value)}
+                    className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none"
+                  >
+                    <option value="" style={optStyle}>Tipas (pasirinkti)</option>
+                    {VEHICLE_TYPES[category].map((t) => (
+                      <option key={t} value={t} style={optStyle}>{t}</option>
+                    ))}
+                  </select>
+                </div>
 
                 <div className="grid gap-2 sm:grid-cols-2">
                   <select
@@ -379,6 +404,14 @@ export default function IkeltiPage() {
                 </div>
 
                 <div className="grid gap-2 sm:grid-cols-2">
+                  <input
+                    value={engine}
+                    onChange={(e) => setEngine(e.target.value)}
+                    placeholder="Variklio tūris (l)"
+                    inputMode="decimal"
+                    className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
+                  />
+
                   <select
                     value={fuel}
                     onChange={(e) => setFuel(e.target.value)}
@@ -493,23 +526,6 @@ export default function IkeltiPage() {
                 >
                   📍 Paimti mano vietą
                 </button>
-              </div>
-
-              <div className="grid gap-2 sm:grid-cols-2">
-                <input
-                  value={lat}
-                  onChange={(e) => setLat(e.target.value)}
-                  placeholder="lat"
-                  inputMode="decimal"
-                  className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-2 text-sm text-white outline-none placeholder:text-white/45"
-                />
-                <input
-                  value={lng}
-                  onChange={(e) => setLng(e.target.value)}
-                  placeholder="lng"
-                  inputMode="decimal"
-                  className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-2 text-sm text-white outline-none placeholder:text-white/45"
-                />
               </div>
 
               <div className="mt-3 overflow-hidden rounded-2xl border border-white/10 bg-white/5">

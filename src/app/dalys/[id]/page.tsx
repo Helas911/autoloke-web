@@ -369,8 +369,6 @@ async function deleteOnePhoto(index: number) {
         <aside className="space-y-4">
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
             <div className="text-xs font-extrabold text-white/60">Kontaktai</div>
-            <div className="mt-2 text-sm text-white/75">{data.ownerEmail ?? "—"}</div>
-
             {typeof data.lat === "number" && typeof data.lng === "number" ? (
               <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.02] p-3">
                 <div className="text-xs font-extrabold text-white/60">Vieta</div>

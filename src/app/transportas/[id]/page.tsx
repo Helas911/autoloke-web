@@ -18,17 +18,17 @@ type Ad = {
   price?: number;
   category?: string;
   type?: string;
-  year?: number;
-  mileage?: number;
-  fuel?: string;
-  drive?: string;
-  gearbox?: string;
-  engine?: number;
   phone?: string;
   lat?: number;
   lng?: number;
   ownerUid?: string;
   ownerEmail?: string;
+  year?: number;
+  mileage?: number;
+  fuel?: string;
+  gearbox?: string;
+  drive?: string;
+  engine?: number;
   description?: string;
   desc?: string;
   imageUrls?: string[];
@@ -354,59 +354,59 @@ async function deleteOnePhoto(index: number) {
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
-        <div className="min-w-0 space-y-4">
+      <div className="mt-4 grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="space-y-4">
           <PhotoGallery images={images} editable={isOwner} onSetPrimary={setPrimaryPhoto} onDelete={deleteOnePhoto} onMove={movePhoto} onReplace={replaceOnePhoto} />
 
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
+              <div className="min-w-0">
                 <div className="text-sm font-extrabold text-white/60">🚗 Transportas</div>
-                <h1 className="mt-1 text-2xl font-black">
+                <h1 className="mt-1 break-words text-2xl font-black sm:text-3xl">
                   {(data.brand ?? "").toString()} {(data.model ?? "").toString()}
                 </h1>
-                <div className="mt-2 text-sm text-white/65">
+                <div className="mt-2 break-words text-sm text-white/65">
                   {[data.city, [data.category, data.type].filter(Boolean).join(" • ")].filter(Boolean).join(" • ")}
                 </div>
               </div>
-              <div className="text-right">
+              <div className="w-full sm:w-auto sm:text-right">
                 <div className="text-xs font-extrabold text-white/60">Kaina</div>
-                <div className="text-2xl font-black">
+                <div className="text-2xl font-black sm:text-3xl">
                   {typeof data.price === "number" ? `${data.price} €` : "—"}
                 </div>
               </div>
             </div>
 
-            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {[
-                ["Metai", data.year ? String(data.year) : "—"],
-                ["Rida", typeof data.mileage === "number" ? `${data.mileage} km` : "—"],
-                ["Kuro tipas", data.fuel || "—"],
-                ["Pavarų dėžė", data.gearbox || "—"],
-                ["Varomieji ratai", data.drive || "—"],
-                ["Variklio tūris", typeof data.engine === "number" ? `${data.engine} l` : "—"],
-              ].map(([label, value]) => (
-                <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.025] px-4 py-3">
-                  <div className="text-xs font-extrabold text-white/55">{label}</div>
-                  <div className="mt-1 text-sm font-bold text-white/95">{value}</div>
-                </div>
-              ))}
+                ["Metai", data.year],
+                ["Rida", typeof data.mileage === "number" ? `${data.mileage} km` : undefined],
+                ["Kuro tipas", data.fuel],
+                ["Pavarų dėžė", data.gearbox],
+                ["Varomieji ratai", data.drive],
+                ["Variklio tūris", typeof data.engine === "number" ? `${String(data.engine).replace(/\.0$/, "")} l` : undefined],
+              ]
+                .filter(([, value]) => value !== undefined && value !== null && String(value).trim() !== "")
+                .map(([label, value]) => (
+                  <div key={String(label)} className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
+                    <div className="text-xs font-extrabold text-white/55">{label}</div>
+                    <div className="mt-1 text-sm font-bold text-white/90">{String(value)}</div>
+                  </div>
+                ))}
             </div>
 
             <div className="mt-5">
-              <div className="text-sm font-extrabold text-white/60">Aprašymas</div>
-              <div className="mt-2 whitespace-pre-wrap text-sm text-white/80">
-                {(data.description ?? data.desc ?? "").toString().trim() || "—"}
+              <div className="text-xs font-extrabold uppercase tracking-wide text-white/55">Aprašymas</div>
+              <div className="mt-2 whitespace-pre-wrap break-words text-sm text-white/80">
+                {(data.description ?? data.desc ?? "").toString() || "—"}
               </div>
             </div>
           </div>
         </div>
 
-        <aside className="space-y-4">
+        <aside className="space-y-4 xl:sticky xl:top-24 self-start">
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
             <div className="text-xs font-extrabold text-white/60">Kontaktai</div>
-            <div className="mt-2 text-sm text-white/75"></div>
-
             {typeof data.lat === "number" && typeof data.lng === "number" ? (
               <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.02] p-3">
                 <div className="text-xs font-extrabold text-white/60">Vieta</div>
@@ -464,7 +464,7 @@ async function deleteOnePhoto(index: number) {
               {err ? <div className="mt-2 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">{err}</div> : null}
               {msg ? <div className="mt-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">{msg}</div> : null}
 
-              <div className="mt-3 grid grid-cols-1 gap-2">
+              <div className="mt-3 grid grid-cols-1 gap-2 2xl:grid-cols-2">
                 <input value={eBrand} onChange={(e) => setEBrand(e.target.value)} placeholder="Markė" className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/20" />
                 <input value={eModel} onChange={(e) => setEModel(e.target.value)} placeholder="Modelis" className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/20" />
                 <input value={eType} onChange={(e) => setEType(e.target.value)} placeholder="Tipas" className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/20" />
