@@ -36,8 +36,6 @@ export type Ad = {
 
   country?: string;
 
-  country?: string;
-
   createdAt?: any;
 };
 
@@ -61,6 +59,8 @@ export type Part = {
 
   ownerUid?: string;
   ownerEmail?: string;
+
+  country?: string;
 
   createdAt?: any;
 };
