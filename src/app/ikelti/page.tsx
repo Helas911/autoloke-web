@@ -555,8 +555,8 @@ export default function IkeltiPage() {
                 <div className="h-[260px]">
                   {isLoaded ? (
                     <GoogleMap
-                      defaultZoom={markerPos ? 13 : 7}
-                      defaultCenter={mapCenter}
+                      zoom={markerPos ? 13 : 7}
+                      center={mapCenter}
                       key={`${siteCountry}-${markerPos?.lat ?? "x"}-${markerPos?.lng ?? "y"}`}
                       mapContainerStyle={{ width: "100%", height: "100%" }}
                       options={{
