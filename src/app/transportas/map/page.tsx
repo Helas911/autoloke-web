@@ -167,8 +167,9 @@ export default function TransportMapPage() {
           ) : (
             <GoogleMap
               mapContainerStyle={{ width: "100%", height: "76vh" }}
-              center={getSiteCenter(siteCountry)}
-              zoom={6.6}
+              defaultZoom={6.6}
+              defaultCenter={getSiteCenter(siteCountry)}
+              key={siteCountry}
               onLoad={(m) => {
                 mapRef.current = m;
               }}

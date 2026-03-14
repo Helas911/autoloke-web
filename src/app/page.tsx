@@ -314,8 +314,9 @@ export default function Home() {
                     setZoom(m.getZoom() || 7);
                     setBounds(m.getBounds() || null);
                   }}
-                  zoom={7}
-                  center={mapCenter}
+                  defaultZoom={7}
+                  defaultCenter={mapCenter}
+                  key={siteCountry}
                   mapContainerStyle={{ width: "100%", height: "100%" }}
                   options={{
                     disableDefaultUI: true,
