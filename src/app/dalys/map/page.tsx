@@ -43,6 +43,7 @@ export default function PartsMapPage() {
   const [filterByMap, setFilterByMap] = useState(true);
   const [bounds, setBounds] = useState<google.maps.LatLngBounds | null>(null);
   const [zoom, setZoom] = useState(6.6);
+  const initialCenter = useMemo(() => getSiteCenter(siteCountry), [siteCountry]);
 
   useEffect(() => {
     setSiteCountry(getSiteCountry());
@@ -128,8 +129,8 @@ export default function PartsMapPage() {
           ) : (
             <GoogleMap
               mapContainerStyle={{ width: "100%", height: "76vh" }}
-              defaultZoom={6.6}
-              defaultCenter={getSiteCenter(siteCountry)}
+              zoom={6.6}
+              center={initialCenter}
               key={siteCountry}
               onLoad={(m) => {
         mapRef.current = m;
