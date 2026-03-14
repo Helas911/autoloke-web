@@ -4,6 +4,8 @@ import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { db } from "@/lib/firebase";
+import { formatPrice } from "@/lib/format";
+import { getSiteCountry, normalizeItemCountry, type SiteCountry } from "@/lib/site";
 
 type Ad = {
   id: string;
@@ -21,10 +23,12 @@ type Ad = {
   imageUrls?: string[];
   category?: string;
   type?: string;
+  country?: string;
 };
 
 export default function TransportasPage() {
   const [items, setItems] = useState<Ad[]>([]);
+  const [siteCountry, setSiteCountry] = useState<SiteCountry>("LT");
   const [qText, setQText] = useState("");
   const [mileageMin, setMileageMin] = useState("");
   const [mileageMax, setMileageMax] = useState("");
@@ -37,6 +41,7 @@ export default function TransportasPage() {
   const [powerTo, setPowerTo] = useState("");
 
   useEffect(() => {
+    setSiteCountry(getSiteCountry());
     const col = collection(db, "ads");
     const q = query(col, orderBy("createdAt", "desc"));
     const unsub = onSnapshot(q, (snap) => {
@@ -55,6 +60,7 @@ export default function TransportasPage() {
     const pwMax = Number(powerTo || 99999999) || 99999999;
 
     return items.filter((a) => {
+      if (normalizeItemCountry(a.country) !== siteCountry) return false;
       const s = `${a.title ?? ""} ${a.brand ?? ""} ${a.model ?? ""} ${a.city ?? ""} ${a.category ?? ""} ${a.type ?? ""}`.toLowerCase();
       if (t && !s.includes(t)) return false;
       if (fuel && a.fuel !== fuel) return false;
@@ -68,7 +74,7 @@ export default function TransportasPage() {
       if (powerTo && (typeof a.powerKw !== "number" || a.powerKw > pwMax)) return false;
       return true;
     });
-  }, [items, qText, mileageMin, mileageMax, fuel, drive, gearbox, engineFrom, engineTo, powerFrom, powerTo]);
+  }, [items, qText, mileageMin, mileageMax, fuel, drive, gearbox, engineFrom, engineTo, powerFrom, powerTo, siteCountry]);
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-6">
@@ -159,7 +165,7 @@ export default function TransportasPage() {
                 {(a.city ?? "").toString() || "—"} • {(a.category ?? "").toString()} {a.type ? `• ${a.type}` : ""}
               </div>
               <div className="mt-3 text-lg font-black">
-                {typeof a.price === "number" ? `${a.price} €` : "Kaina nenurodyta"}
+                {typeof a.price === "number" ? formatPrice(a.price, siteCountry) : "Kaina nenurodyta"}
               </div>
             </div>
           </Link>

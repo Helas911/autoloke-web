@@ -10,11 +10,11 @@ import { useAuth } from "@/lib/useAuth";
 import { uploadImage } from "@/lib/upload";
 import { cls } from "@/lib/format";
 import { VEHICLE_CATEGORIES, VEHICLE_TYPES, type VehicleCategory } from "@/lib/categories";
+import { citySuggestions, getSiteCenter, getSiteCountry, getSiteCurrency, type SiteCountry } from "@/lib/site";
 import { brandsForCategory, modelsForBrand, type BrandCategory } from "@/lib/brands_models";
 
 type Mode = "transportas" | "dalys";
 
-const LT_CENTER = { lat: 55.1694, lng: 23.8813 };
 const optStyle: CSSProperties = { background: "#0b0b10", color: "rgba(255,255,255,0.95)" };
 
 function toBrandCategory(cat: VehicleCategory): BrandCategory {
@@ -41,6 +41,7 @@ export default function IkeltiPage() {
   });
 
   const [mode, setMode] = useState<Mode>("transportas");
+  const [siteCountry, setSiteCountry] = useState<SiteCountry>("LT");
 
   // transport
   const [category, setCategory] = useState<VehicleCategory>("automobiliai");
@@ -76,6 +77,10 @@ export default function IkeltiPage() {
   const [err, setErr] = useState<string | null>(null);
   const [okMsg, setOkMsg] = useState<string | null>(null);
 
+  useEffect(() => {
+    setSiteCountry(getSiteCountry());
+  }, []);
+
   const brandCat = toBrandCategory(category);
   const brands = useMemo(() => brandsForCategory(brandCat), [brandCat]);
   const effectiveBrand = brand === OTHER ? brandOther : brand;
@@ -98,7 +103,9 @@ export default function IkeltiPage() {
     return { lat: la, lng: ln };
   }, [picked, lat, lng]);
 
-  const mapCenter = markerPos ?? LT_CENTER;
+  const mapCenter = markerPos ?? getSiteCenter(siteCountry);
+  const cities = useMemo(() => citySuggestions(siteCountry), [siteCountry]);
+  const currency = getSiteCurrency(siteCountry);
 
   const canSubmit = useMemo(() => {
     if (!city.trim()) return false;
@@ -198,6 +205,7 @@ export default function IkeltiPage() {
           imagePaths: [],
           ownerUid: user.uid,
           ownerEmail: user.email ?? undefined,
+          country: siteCountry,
           createdAt: serverTimestamp(),
         });
 
@@ -231,6 +239,7 @@ export default function IkeltiPage() {
           imagePaths: [],
           ownerUid: user.uid,
           ownerEmail: user.email ?? undefined,
+          country: siteCountry,
           createdAt: serverTimestamp(),
         });
 
@@ -374,7 +383,7 @@ export default function IkeltiPage() {
                   <input
                     value={price}
                     onChange={(e) => setPrice(e.target.value)}
-                    placeholder="Kaina (€)"
+                    placeholder={`Kaina (${currency})`}
                     inputMode="numeric"
                     className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
                   />
@@ -500,7 +509,7 @@ export default function IkeltiPage() {
                 <input
                   value={price}
                   onChange={(e) => setPrice(e.target.value)}
-                  placeholder="Kaina (€)"
+                  placeholder={`Kaina (${currency})`}
                   inputMode="numeric"
                   className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
                 />
@@ -511,7 +520,8 @@ export default function IkeltiPage() {
               <input
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
-                placeholder="Miestas"
+                placeholder={siteCountry === "DK" ? "By" : "Miestas"}
+                list="city-suggestions"
                 className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
               />
               <input

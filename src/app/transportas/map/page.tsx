@@ -6,9 +6,10 @@ import { GoogleMap, Marker, useLoadScript } from "@react-google-maps/api";
 import { useRouter } from "next/navigation";
 
 import { db } from "@/lib/firebase";
-import { cls } from "@/lib/format";
+import { cls, formatPrice } from "@/lib/format";
 import { bubbleIcon, groupMarkers } from "@/lib/mapMarkers";
 import { brandsForCategory, modelsForBrand, type BrandCategory } from "@/lib/brands_models";
+import { getSiteCenter, getSiteCountry, normalizeItemCountry, priceShort, type SiteCountry } from "@/lib/site";
 
 type Ad = {
   id: string;
@@ -22,9 +23,8 @@ type Ad = {
   imageUrls?: string[];
   category?: string; // automobiliai / motociklai / sunkvezimiai / vandens / zu_technika
   type?: string;
+  country?: string;
 };
-
-const LT_CENTER = { lat: 55.1694, lng: 23.8813 };
 
 const CAT_OPTIONS: Array<{ id: BrandCategory; label: string }> = [
   { id: "automobiliai", label: "Auto" },
@@ -41,6 +41,7 @@ export default function TransportMapPage() {
   });
 
   const [qText, setQText] = useState("");
+  const [siteCountry, setSiteCountry] = useState<SiteCountry>("LT");
   const [items, setItems] = useState<Ad[]>([]);
   const mapRef = useRef<google.maps.Map | null>(null);
 
@@ -58,6 +59,7 @@ export default function TransportMapPage() {
   const [zoom, setZoom] = useState(6.6);
 
   useEffect(() => {
+    setSiteCountry(getSiteCountry());
     const unsub = onSnapshot(collection(db, "ads"), (snap) => {
       setItems(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })));
     });
@@ -88,6 +90,7 @@ export default function TransportMapPage() {
     const yMax = yearTo.trim() ? Number(yearTo) : null;
 
     return items.filter((a) => {
+      if (normalizeItemCountry(a.country) !== siteCountry) return false;
       // category filter (only if ad has category)
       if (a.category && a.category !== cat) return false;
 
@@ -117,7 +120,7 @@ export default function TransportMapPage() {
 
       return true;
     });
-  }, [items, qText, cat, brand, model, city, priceFrom, priceTo, yearFrom, yearTo, filterByMap, bounds]);
+  }, [items, qText, cat, brand, model, city, priceFrom, priceTo, yearFrom, yearTo, filterByMap, bounds, siteCountry]);
 
   const markers = useMemo(() => {
     return groupMarkers(filtered, zoom).slice(0, 500);
@@ -164,7 +167,7 @@ export default function TransportMapPage() {
           ) : (
             <GoogleMap
               mapContainerStyle={{ width: "100%", height: "76vh" }}
-              center={LT_CENTER}
+              center={getSiteCenter(siteCountry)}
               zoom={6.6}
               onLoad={(m) => {
                 mapRef.current = m;
@@ -186,7 +189,7 @@ export default function TransportMapPage() {
               {markers.map((g) => {
                 const count = g.items.length;
                 const first = g.items[0];
-                const label = count > 1 ? String(count) : typeof first.price === "number" ? `${Math.round(first.price)}€` : "•";
+                const label = count > 1 ? String(count) : priceShort(first.price, siteCountry);
                 const icon = bubbleIcon(label, count > 1 ? "count" : "price");
                 return (
                   <Marker
@@ -313,7 +316,7 @@ export default function TransportMapPage() {
                   <div className="truncate text-sm font-black">{`${a.brand ?? ""} ${a.model ?? ""}`.trim() || "Skelbimas"}</div>
                   <div className="truncate text-xs font-semibold text-white/55">{[a.city, a.year].filter(Boolean).join(" • ")}</div>
                 </div>
-                <div className="text-sm font-black">{typeof a.price === "number" ? `${a.price}€` : "—"}</div>
+                <div className="text-sm font-black">{typeof a.price === "number" ? formatPrice(a.price, siteCountry) : "—"}</div>
               </button>
             ))}
             {filtered.length === 0 ? (

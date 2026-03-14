@@ -83,6 +83,8 @@ export default function ManoPage() {
             price={typeof a.price === "number" ? a.price : null}
             img={a.imageUrls?.[0] ?? null}
             badge="Mano"
+            country={(p.country as any) || "LT"}
+            country={(a.country as any) || "LT"}
           />
         ))}
       </section>
@@ -99,6 +101,7 @@ export default function ManoPage() {
             price={typeof p.price === "number" ? p.price : null}
             img={p.imageUrls?.[0] ?? null}
             badge="Mano"
+            country={(a.country as any) || "LT"}
           />
         ))}
       </section>

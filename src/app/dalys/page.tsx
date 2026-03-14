@@ -4,6 +4,8 @@ import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { db } from "@/lib/firebase";
+import { formatPrice } from "@/lib/format";
+import { getSiteCountry, normalizeItemCountry, type SiteCountry } from "@/lib/site";
 
 type Part = {
   id: string;
@@ -13,13 +15,16 @@ type Part = {
   city?: string;
   price?: number;
   imageUrls?: string[];
+  country?: string;
 };
 
 export default function DalysPage() {
   const [items, setItems] = useState<Part[]>([]);
+  const [siteCountry, setSiteCountry] = useState<SiteCountry>("LT");
   const [qText, setQText] = useState("");
 
   useEffect(() => {
+    setSiteCountry(getSiteCountry());
     const q = query(collection(db, "parts"), orderBy("createdAt", "desc"));
     const unsub = onSnapshot(q, (snap) => {
       setItems(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })));
@@ -31,10 +36,11 @@ export default function DalysPage() {
     const t = qText.trim().toLowerCase();
     if (!t) return items;
     return items.filter((p) => {
+      if (normalizeItemCountry(p.country) !== siteCountry) return false;
       const s = `${p.title ?? ""} ${p.brand ?? ""} ${p.model ?? ""} ${p.city ?? ""}`.toLowerCase();
       return s.includes(t);
     });
-  }, [items, qText]);
+  }, [items, qText, siteCountry]);
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-6">
@@ -84,7 +90,7 @@ export default function DalysPage() {
               </div>
               <div className="mt-1 text-xs font-extrabold text-white/55">{(p.city ?? "").toString() || "—"}</div>
               <div className="mt-3 text-lg font-black">
-                {typeof p.price === "number" ? `${p.price} €` : "Kaina nenurodyta"}
+                {typeof p.price === "number" ? formatPrice(p.price, siteCountry) : "Kaina nenurodyta"}
               </div>
             </div>
           </Link>

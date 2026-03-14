@@ -9,8 +9,9 @@ import { useRouter } from "next/navigation";
 
 import { db } from "@/lib/firebase";
 import { ListingCard } from "@/components/ListingCard";
-import { cls, eur } from "@/lib/format";
+import { cls } from "@/lib/format";
 import { bubbleIcon, groupMarkers } from "@/lib/mapMarkers";
+import { citySuggestions, getSiteCenter, getSiteCountry, normalizeItemCountry, priceShort, type SiteCountry } from "@/lib/site";
 import { VEHICLE_CATEGORIES, VEHICLE_TYPES, type VehicleCategory } from "@/lib/categories";
 import { brandsForCategory, modelsForBrand, type BrandCategory } from "@/lib/brands_models";
 
@@ -31,12 +32,12 @@ type Item = {
   fuel?: string;
   drive?: string;
   gearbox?: string;
+  country?: string;
   createdAt?: any;
 };
 
 type Tab = "transportas" | "dalys";
 
-const LT_CENTER = { lat: 55.1694, lng: 23.8813 };
 const optStyle: CSSProperties = { background: "#0b0b10", color: "rgba(255,255,255,0.95)" };
 
 function toBrandCategory(cat: VehicleCategory): BrandCategory {
@@ -75,6 +76,7 @@ export default function Home() {
   });
 
   const [tab, setTab] = useState<Tab>("transportas");
+  const [siteCountry, setSiteCountry] = useState<SiteCountry>("LT");
   const [ads, setAds] = useState<Item[]>([]);
   const [parts, setParts] = useState<Item[]>([]);
 
@@ -103,6 +105,8 @@ export default function Home() {
   const [filterByMap, setFilterByMap] = useState(true);
 
   useEffect(() => {
+    setSiteCountry(getSiteCountry());
+
     const qAds = query(collection(db, "ads"), orderBy("createdAt", "desc"));
     const unsubAds = onSnapshot(qAds, (snap) => {
       setAds(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })));
@@ -131,6 +135,8 @@ export default function Home() {
   }, [brand]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const items = useMemo(() => (tab === "transportas" ? ads : parts), [tab, ads, parts]);
+  const mapCenter = useMemo(() => getSiteCenter(siteCountry), [siteCountry]);
+  const cities = useMemo(() => citySuggestions(siteCountry), [siteCountry]);
 
   const filtered = useMemo(() => {
     const q = qText.trim().toLowerCase();
@@ -150,6 +156,7 @@ export default function Home() {
     const g = gearbox.trim().toLowerCase();
 
     return items.filter((it) => {
+      if (normalizeItemCountry(it.country) !== siteCountry) return false;
       if (tab === "transportas") {
         if (cat && it.category && it.category !== cat) return false;
         if (type.trim() && (it.type || "").toLowerCase() !== type.trim().toLowerCase()) return false;
@@ -187,7 +194,7 @@ export default function Home() {
 
       return true;
     });
-  }, [items, qText, brand, model, city, priceMin, priceMax, mileageMin, mileageMax, fuel, drive, gearbox, yearMin, yearMax, filterByMap, bounds, tab, cat, type]);
+  }, [items, qText, brand, model, city, priceMin, priceMax, mileageMin, mileageMax, fuel, drive, gearbox, yearMin, yearMax, filterByMap, bounds, tab, cat, type, siteCountry]);
 
   const markers = useMemo(() => {
     return groupMarkers(filtered, zoom).slice(0, 500);
@@ -272,7 +279,7 @@ export default function Home() {
                   <input
                     value={qText}
                     onChange={(e) => setQText(e.target.value)}
-                    placeholder={tab === "transportas" ? "Ieškoti transporto (markė, modelis, miestas...)" : "Ieškoti dalių (pavadinimas, markė, miestas...)"}
+                    placeholder={tab === "transportas" ? `Ieškoti transporto (${siteCountry === "DK" ? "mærke, model, by" : "markė, modelis, miestas"}...)` : `Ieškoti dalių (${siteCountry === "DK" ? "pavadinimas, markė, miestas" : "pavadinimas, markė, miestas"}...)`}
                     className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/45"
                   />
                 </div>
@@ -308,7 +315,7 @@ export default function Home() {
                     setBounds(m.getBounds() || null);
                   }}
                   zoom={7}
-                  center={LT_CENTER}
+                  center={mapCenter}
                   mapContainerStyle={{ width: "100%", height: "100%" }}
                   options={{
                     disableDefaultUI: true,
@@ -322,7 +329,7 @@ export default function Home() {
                   {markers.map((g) => {
                     const count = g.items.length;
                     const first = g.items[0];
-                    const label = count > 1 ? String(count) : typeof first.price === "number" ? `${Math.round(first.price)}€` : "•";
+                    const label = count > 1 ? String(count) : priceShort(first.price, siteCountry);
                     const icon = bubbleIcon(label, count > 1 ? "count" : "price");
                     return (
                       <Marker
@@ -442,9 +449,15 @@ export default function Home() {
               <input
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
-                placeholder="Miestas"
+                placeholder={siteCountry === "DK" ? "By" : "Miestas"}
+                list="city-suggestions"
                 className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
               />
+              <datalist id="city-suggestions">
+                {cities.map((name) => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
 
               <div className="grid grid-cols-2 gap-2">
                 <input

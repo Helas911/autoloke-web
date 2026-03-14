@@ -9,6 +9,8 @@ import { db, storage } from "@/lib/firebase";
 import { useAuth } from "@/lib/useAuth";
 import { deleteFile, deleteFolder, uploadImage } from "@/lib/upload";
 import PhotoGallery from "@/components/gallery/PhotoGallery";
+import { formatPrice } from "@/lib/format";
+import { getSiteCountry, normalizeItemCountry, type SiteCountry } from "@/lib/site";
 
 type Ad = {
   id: string;
@@ -34,6 +36,7 @@ type Ad = {
   desc?: string;
   imageUrls?: string[];
   imagePaths?: string[];
+  country?: string;
 };
 
 function Spec({ label, value }: { label: string; value?: string | number }) {
@@ -50,6 +53,7 @@ export default function TransportDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id;
 
+  const [siteCountry, setSiteCountry] = useState<SiteCountry>("LT");
   const [data, setData] = useState<Ad | null>(null);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -72,8 +76,8 @@ export default function TransportDetailPage() {
 
   const [newFiles, setNewFiles] = useState<File[]>([]);
 
-
   useEffect(() => {
+    setSiteCountry(getSiteCountry());
     if (!id) return;
     const ref = doc(db, "ads", id);
     const unsub = onSnapshot(ref, (snap) => {
@@ -81,6 +85,7 @@ export default function TransportDetailPage() {
     });
     return () => unsub();
   }, [id]);
+
   useEffect(() => {
     if (!data) return;
     setEBrand(data.brand ?? "");
@@ -98,8 +103,8 @@ export default function TransportDetailPage() {
     setEPowerKw(typeof data.powerKw === "number" ? String(data.powerKw) : "");
   }, [data]);
 
-
   const isOwner = !!user?.uid && !!data?.ownerUid && data.ownerUid === user.uid;
+  const wrongCountry = !!data && normalizeItemCountry(data.country) !== siteCountry;
 
   const images = useMemo(
     () => (Array.isArray(data?.imageUrls) ? data!.imageUrls!.filter(Boolean) : []),
@@ -360,6 +365,19 @@ async function deleteOnePhoto(index: number) {
     );
   }
 
+  if (wrongCountry) {
+    return (
+      <main className="mx-auto max-w-6xl px-4 py-6">
+        <Link href="/transportas" className="text-sm font-extrabold text-white/80 hover:text-white">
+          ← Atgal
+        </Link>
+        <div className="mt-4 rounded-3xl border border-white/10 bg-white/[0.03] p-8 text-white/70">
+          Skelbimas šiame domene nerodomas.
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="mx-auto max-w-6xl px-4 py-6">
       <div className="flex items-center justify-between gap-3">
@@ -400,7 +418,7 @@ async function deleteOnePhoto(index: number) {
               <div className="text-right">
                 <div className="text-xs font-extrabold text-white/60">Kaina</div>
                 <div className="text-2xl font-black">
-                  {typeof data.price === "number" ? `${data.price} €` : "—"}
+                  {typeof data.price === "number" ? formatPrice(data.price, siteCountry) : "—"}
                 </div>
               </div>
             </div>

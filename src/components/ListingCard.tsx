@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { eur, cls } from "@/lib/format";
+import { cls, formatPrice } from "@/lib/format";
+import type { SiteCountry } from "@/lib/site";
 
 export function ListingCard({
   href,
@@ -8,6 +9,7 @@ export function ListingCard({
   price,
   img,
   badge,
+  country = "LT",
 }: {
   href: string;
   title: string;
@@ -15,6 +17,7 @@ export function ListingCard({
   price?: number | null;
   img?: string | null;
   badge?: string | null;
+  country?: SiteCountry;
 }) {
   return (
     <Link
@@ -23,7 +26,6 @@ export function ListingCard({
     >
       <div className="relative aspect-[16/10] bg-white/5">
         {img ? (
-          // eslint-disable-next-line @next/next/no-img-element
           <img src={img} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover transition group-hover:scale-[1.02]" />
         ) : (
           <div className="grid h-full w-full place-items-center text-white/45">Be nuotraukos</div>
@@ -39,7 +41,7 @@ export function ListingCard({
         <div className="line-clamp-1 text-sm font-extrabold">{title}</div>
         {subtitle ? <div className="mt-1 line-clamp-1 text-xs text-white/65">{subtitle}</div> : null}
         <div className={cls("mt-2 text-sm font-black", typeof price === "number" ? "text-white" : "text-white/60")}>
-          {typeof price === "number" ? eur(price) : "Kaina nenurodyta"}
+          {typeof price === "number" ? formatPrice(price, country) : "Kaina nenurodyta"}
         </div>
       </div>
     </Link>

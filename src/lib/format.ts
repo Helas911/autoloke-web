@@ -1,6 +1,11 @@
+import { formatMoney, type SiteCountry } from "./site";
+
 export function eur(v?: number | null): string {
-  if (typeof v !== "number" || !isFinite(v)) return "—";
-  return new Intl.NumberFormat("lt-LT", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(v);
+  return formatMoney(v, "LT");
+}
+
+export function formatPrice(v?: number | null, country: SiteCountry = "LT"): string {
+  return formatMoney(v, country);
 }
 
 export function compact(v?: number | null): string {

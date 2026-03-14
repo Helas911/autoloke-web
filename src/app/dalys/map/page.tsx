@@ -6,8 +6,9 @@ import { GoogleMap, Marker, useLoadScript } from "@react-google-maps/api";
 import { useRouter } from "next/navigation";
 
 import { db } from "@/lib/firebase";
-import { cls } from "@/lib/format";
+import { cls, formatPrice } from "@/lib/format";
 import { bubbleIcon, groupMarkers } from "@/lib/mapMarkers";
+import { getSiteCenter, getSiteCountry, normalizeItemCountry, priceShort, type SiteCountry } from "@/lib/site";
 
 type Part = {
   id: string;
@@ -19,9 +20,8 @@ type Part = {
   lng?: number;
   city?: string;
   imageUrls?: string[];
+  country?: string;
 };
-
-const LT_CENTER = { lat: 55.1694, lng: 23.8813 };
 
 export default function PartsMapPage() {
   const router = useRouter();
@@ -30,6 +30,7 @@ export default function PartsMapPage() {
   });
 
   const [qText, setQText] = useState("");
+  const [siteCountry, setSiteCountry] = useState<SiteCountry>("LT");
   const [items, setItems] = useState<Part[]>([]);
   const mapRef = useRef<google.maps.Map | null>(null);
 
@@ -44,6 +45,7 @@ export default function PartsMapPage() {
   const [zoom, setZoom] = useState(6.6);
 
   useEffect(() => {
+    setSiteCountry(getSiteCountry());
     const unsub = onSnapshot(collection(db, "parts"), (snap) => {
       setItems(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })));
     });
@@ -59,6 +61,7 @@ export default function PartsMapPage() {
     const pMax = priceTo.trim() ? Number(priceTo) : null;
 
     return items.filter((a) => {
+      if (normalizeItemCountry(a.country) !== siteCountry) return false;
       if (t) {
         const s = `${a.title ?? ""} ${a.brand ?? ""} ${a.model ?? ""} ${a.city ?? ""}`.toLowerCase();
         if (!s.includes(t)) return false;
@@ -79,7 +82,7 @@ export default function PartsMapPage() {
 
       return true;
     });
-  }, [items, qText, brand, model, city, priceFrom, priceTo, filterByMap, bounds]);
+  }, [items, qText, brand, model, city, priceFrom, priceTo, filterByMap, bounds, siteCountry]);
 
   const markers = useMemo(() => {
     return groupMarkers(filtered, zoom).slice(0, 500);
@@ -125,7 +128,7 @@ export default function PartsMapPage() {
           ) : (
             <GoogleMap
               mapContainerStyle={{ width: "100%", height: "76vh" }}
-              center={LT_CENTER}
+              center={getSiteCenter(siteCountry)}
               zoom={6.6}
               onLoad={(m) => {
         mapRef.current = m;
@@ -147,7 +150,7 @@ export default function PartsMapPage() {
               {markers.map((g) => {
                 const count = g.items.length;
                 const first = g.items[0];
-                const label = count > 1 ? String(count) : typeof first.price === "number" ? `${Math.round(first.price)}€` : "•";
+                const label = count > 1 ? String(count) : priceShort(first.price, siteCountry);
                 const icon = bubbleIcon(label, count > 1 ? "count" : "price");
                 return (
                   <Marker
@@ -228,7 +231,7 @@ export default function PartsMapPage() {
                   <div className="truncate text-sm font-black">{a.title ?? "Detalė"}</div>
                   <div className="truncate text-xs font-semibold text-white/55">{[a.city, a.brand, a.model].filter(Boolean).join(" • ")}</div>
                 </div>
-                <div className="text-sm font-black">{typeof a.price === "number" ? `${a.price}€` : "—"}</div>
+                <div className="text-sm font-black">{typeof a.price === "number" ? formatPrice(a.price, siteCountry) : "—"}</div>
               </button>
             ))}
             {filtered.length === 0 ? <div className="p-4 text-sm font-semibold text-white/60">Nieko nerasta.</div> : null}

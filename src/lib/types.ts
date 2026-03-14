@@ -34,6 +34,10 @@ export type Ad = {
   ownerUid?: string;
   ownerEmail?: string;
 
+  country?: string;
+
+  country?: string;
+
   createdAt?: any;
 };
 
