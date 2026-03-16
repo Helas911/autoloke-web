@@ -2,12 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { collection, onSnapshot } from "firebase/firestore";
-import { GoogleMap, Marker, useLoadScript } from "@react-google-maps/api";
+import { GoogleMap, Marker, MarkerClustererF, useLoadScript } from "@react-google-maps/api";
 import { useRouter } from "next/navigation";
 
 import { db } from "@/lib/firebase";
 import { cls, formatPrice } from "@/lib/format";
-import { bubbleIcon, groupMarkers } from "@/lib/mapMarkers";
+import { bubbleIcon } from "@/lib/mapMarkers";
 import { brandsForCategory, modelsForBrand, type BrandCategory } from "@/lib/brands_models";
 import { getSiteCenter, getSiteCountry, normalizeItemCountry, priceShort, type SiteCountry } from "@/lib/site";
 import { categoryLabelLocalized, canonicalDriveOptions, canonicalFuelOptions, canonicalGearboxOptions, labelDrive, labelFuel, labelGearbox, t } from "@/lib/i18n";
@@ -124,9 +124,6 @@ export default function TransportMapPage() {
     });
   }, [items, qText, cat, brand, model, city, priceFrom, priceTo, yearFrom, yearTo, filterByMap, bounds, siteCountry]);
 
-  const markers = useMemo(() => {
-    return groupMarkers(filtered, zoom).slice(0, 500);
-  }, [filtered, zoom]);
 
   async function centerOnMe() {
     const m = mapRef.current;

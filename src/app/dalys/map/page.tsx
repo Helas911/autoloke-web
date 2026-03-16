@@ -2,12 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { collection, onSnapshot } from "firebase/firestore";
-import { GoogleMap, Marker, useLoadScript } from "@react-google-maps/api";
+import { GoogleMap, Marker, MarkerClustererF, useLoadScript } from "@react-google-maps/api";
 import { useRouter } from "next/navigation";
 
 import { db } from "@/lib/firebase";
 import { cls, formatPrice } from "@/lib/format";
-import { bubbleIcon, groupMarkers } from "@/lib/mapMarkers";
+import { bubbleIcon } from "@/lib/mapMarkers";
 import { getSiteCenter, getSiteCountry, normalizeItemCountry, priceShort, type SiteCountry } from "@/lib/site";
 import { categoryLabelLocalized, canonicalDriveOptions, canonicalFuelOptions, canonicalGearboxOptions, labelDrive, labelFuel, labelGearbox, t } from "@/lib/i18n";
 
@@ -86,9 +86,6 @@ export default function PartsMapPage() {
     });
   }, [items, qText, brand, model, city, priceFrom, priceTo, filterByMap, bounds, siteCountry]);
 
-  const markers = useMemo(() => {
-    return groupMarkers(filtered, zoom).slice(0, 500);
-  }, [filtered, zoom]);
 
   async function centerOnMe() {
     const m = mapRef.current;
@@ -150,27 +147,43 @@ export default function PartsMapPage() {
                 gestureHandling: "greedy",
               }}
             >
-              {markers.map((g) => {
-                const count = g.items.length;
-                const first = g.items[0];
-                const label = count > 1 ? String(count) : priceShort(first.price, siteCountry);
-                const icon = bubbleIcon(label, count > 1 ? "count" : "price");
-                return (
-                  <Marker
-                    key={g.key}
-                    position={g.pos}
-                    icon={icon}
-                    onClick={() => {
-                      if (count === 1) {
-                        router.push(`/dalys/${first.id}`);
-                      } else {
-                        mapRef.current?.panTo(g.pos);
-                        mapRef.current?.setZoom(Math.min(14, (zoom || 6.6) + 2));
-                      }
-                    }}
-                  />
-                );
-              })}
+              <MarkerClustererF
+                options={{
+                  minimumClusterSize: 2,
+                  gridSize: 56,
+                  maxZoom: 15,
+                  zoomOnClick: false,
+                }}
+                onClick={(cluster) => {
+                  const m = mapRef.current;
+                  if (!m) return;
+                  const clusterBounds = (cluster as any)?.getBounds?.();
+                  if (clusterBounds) {
+                    m.fitBounds(clusterBounds);
+                    return;
+                  }
+                  const center = (cluster as any)?.getCenter?.();
+                  if (center) {
+                    m.panTo(center);
+                    m.setZoom(Math.min(16, (m.getZoom() ?? zoom ?? 6.6) + 2));
+                  }
+                }}
+              >
+                {(clusterer) =>
+                  filtered
+                    .filter((item) => typeof item.lat === "number" && typeof item.lng === "number")
+                    .slice(0, 500)
+                    .map((item) => (
+                      <Marker
+                        key={item.id}
+                        clusterer={clusterer}
+                        position={{ lat: item.lat as number, lng: item.lng as number }}
+                        icon={bubbleIcon(priceShort(item.price, siteCountry), "price")}
+                        onClick={() => router.push(`/dalys/${item.id}`)}
+                      />
+                    ))
+                }
+              </MarkerClustererF>
             </GoogleMap>
           )}
         </div>

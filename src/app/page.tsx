@@ -4,13 +4,13 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
-import { GoogleMap, Marker, useLoadScript } from "@react-google-maps/api";
+import { GoogleMap, Marker, MarkerClustererF, useLoadScript } from "@react-google-maps/api";
 import { useRouter } from "next/navigation";
 
 import { db } from "@/lib/firebase";
 import { ListingCard } from "@/components/ListingCard";
 import { cls } from "@/lib/format";
-import { bubbleIcon, groupMarkers } from "@/lib/mapMarkers";
+import { bubbleIcon } from "@/lib/mapMarkers";
 import { citySuggestions, getSiteCenter, getSiteCountry, normalizeItemCountry, priceShort, type SiteCountry } from "@/lib/site";
 import { categoryLabelLocalized, canonicalDriveOptions, canonicalFuelOptions, canonicalGearboxOptions, labelDrive, labelFuel, labelGearbox, otherLabel, t } from "@/lib/i18n";
 import { VEHICLE_CATEGORIES, VEHICLE_TYPES, type VehicleCategory } from "@/lib/categories";
@@ -198,9 +198,6 @@ export default function Home() {
     });
   }, [items, qText, brand, model, city, priceMin, priceMax, mileageMin, mileageMax, fuel, drive, gearbox, yearMin, yearMax, filterByMap, bounds, tab, cat, type, siteCountry]);
 
-  const markers = useMemo(() => {
-    return groupMarkers(filtered, zoom).slice(0, 500);
-  }, [filtered, zoom]);
 
   function goNearMe() {
     if (!navigator.geolocation) return;
@@ -329,28 +326,45 @@ export default function Home() {
                     streetViewControl: false,
                   }}
                 >
-                  {markers.map((g) => {
-                    const count = g.items.length;
-                    const first = g.items[0];
-                    const label = count > 1 ? String(count) : priceShort(first.price, siteCountry);
-                    const icon = bubbleIcon(label, count > 1 ? "count" : "price");
-                    return (
-                      <Marker
-                        key={g.key}
-                        position={g.pos}
-                        icon={icon}
-                        onClick={() => {
-                          if (count === 1) {
-                            const id = first.id;
-                            router.push(tab === "transportas" ? `/transportas/${id}` : `/dalys/${id}`);
-                          } else {
-                            mapRef.current?.panTo(g.pos);
-                            mapRef.current?.setZoom(Math.min(14, (zoom || 7) + 2));
-                          }
-                        }}
-                      />
-                    );
-                  })}
+                  <MarkerClustererF
+                    options={{
+                      minimumClusterSize: 2,
+                      gridSize: 56,
+                      maxZoom: 15,
+                      zoomOnClick: false,
+                    }}
+                    onClick={(cluster) => {
+                      const m = mapRef.current;
+                      if (!m) return;
+                      const clusterBounds = (cluster as any)?.getBounds?.();
+                      if (clusterBounds) {
+                        m.fitBounds(clusterBounds);
+                        return;
+                      }
+                      const center = (cluster as any)?.getCenter?.();
+                      if (center) {
+                        m.panTo(center);
+                        m.setZoom(Math.min(16, (m.getZoom() ?? zoom ?? 7) + 2));
+                      }
+                    }}
+                  >
+                    {(clusterer) =>
+                      filtered
+                        .filter((item) => typeof item.lat === "number" && typeof item.lng === "number")
+                        .slice(0, 500)
+                        .map((item) => (
+                          <Marker
+                            key={item.id}
+                            clusterer={clusterer}
+                            position={{ lat: item.lat as number, lng: item.lng as number }}
+                            icon={bubbleIcon(priceShort(item.price, siteCountry), "price")}
+                            onClick={() => {
+                              router.push(tab === "transportas" ? `/transportas/${item.id}` : `/dalys/${item.id}`);
+                            }}
+                          />
+                        ))
+                    }
+                  </MarkerClustererF>
                 </GoogleMap>
               ) : (
                 <div className="grid h-full place-items-center text-sm text-white/70">{t(siteCountry, "mapLoading")}</div>
