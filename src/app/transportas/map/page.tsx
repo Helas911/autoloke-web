@@ -186,27 +186,45 @@ export default function TransportMapPage() {
                 gestureHandling: "greedy",
               }}
             >
-              {markers.map((g) => {
-                const count = g.items.length;
-                const first = g.items[0];
-                const label = count > 1 ? String(count) : priceShort(first.price, siteCountry);
-                const icon = bubbleIcon(label, count > 1 ? "count" : "price");
-                return (
-                  <Marker
-                    key={g.key}
-                    position={g.pos}
-                    icon={icon}
-                    onClick={() => {
-                      if (count === 1) {
-                        router.push(`/transportas/${first.id}`);
-                      } else {
-                        mapRef.current?.panTo(g.pos);
-                        mapRef.current?.setZoom(Math.min(14, (zoom || 6.6) + 2));
-                      }
-                    }}
-                  />
-                );
-              })}
+              <MarkerClustererF
+                options={{
+                  minimumClusterSize: 2,
+                  gridSize: 56,
+                  maxZoom: 15,
+                  zoomOnClick: false,
+                }}
+                onClick={(cluster) => {
+                  const m = mapRef.current;
+                  if (!m) return;
+                  const clusterBounds = (cluster as any)?.getBounds?.();
+                  if (clusterBounds) {
+                    m.fitBounds(clusterBounds);
+                    return;
+                  }
+                  const center = (cluster as any)?.getCenter?.();
+                  if (center) {
+                    m.panTo(center);
+                    m.setZoom(Math.min(16, (m.getZoom() ?? zoom ?? 6.6) + 2));
+                  }
+                }}
+              >
+                {(clusterer) => (
+                  <>
+                    {filtered
+                      .filter((item) => typeof item.lat === "number" && typeof item.lng === "number")
+                      .slice(0, 500)
+                      .map((item) => (
+                        <Marker
+                          key={item.id}
+                          clusterer={clusterer}
+                          position={{ lat: item.lat as number, lng: item.lng as number }}
+                          icon={bubbleIcon(priceShort(item.price, siteCountry), "price")}
+                          onClick={() => router.push(`/transportas/${item.id}`)}
+                        />
+                      ))}
+                  </>
+                )}
+              </MarkerClustererF>
             </GoogleMap>
           )}
         </div>

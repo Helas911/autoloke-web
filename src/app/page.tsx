@@ -348,22 +348,24 @@ export default function Home() {
                       }
                     }}
                   >
-                    {(clusterer) =>
-                      filtered
-                        .filter((item) => typeof item.lat === "number" && typeof item.lng === "number")
-                        .slice(0, 500)
-                        .map((item) => (
-                          <Marker
-                            key={item.id}
-                            clusterer={clusterer}
-                            position={{ lat: item.lat as number, lng: item.lng as number }}
-                            icon={bubbleIcon(priceShort(item.price, siteCountry), "price")}
-                            onClick={() => {
-                              router.push(tab === "transportas" ? `/transportas/${item.id}` : `/dalys/${item.id}`);
-                            }}
-                          />
-                        ))
-                    }
+                    {(clusterer) => (
+                      <>
+                        {filtered
+                          .filter((item) => typeof item.lat === "number" && typeof item.lng === "number")
+                          .slice(0, 500)
+                          .map((item) => (
+                            <Marker
+                              key={item.id}
+                              clusterer={clusterer}
+                              position={{ lat: item.lat as number, lng: item.lng as number }}
+                              icon={bubbleIcon(priceShort(item.price, siteCountry), "price")}
+                              onClick={() => {
+                                router.push(tab === "transportas" ? `/transportas/${item.id}` : `/dalys/${item.id}`);
+                              }}
+                            />
+                          ))}
+                      </>
+                    )}
                   </MarkerClustererF>
                 </GoogleMap>
               ) : (
