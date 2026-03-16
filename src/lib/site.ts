@@ -17,7 +17,7 @@ const LT_CITIES = [
 ];
 
 const DK_CITIES = [
-  "Copenhagen",
+  "København",
   "Aarhus",
   "Odense",
   "Aalborg",

@@ -4,9 +4,12 @@ import Link from "next/link";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useAuth } from "@/lib/useAuth";
+import { getSiteCountry } from "@/lib/site";
+import { t } from "@/lib/i18n";
 
 export function SiteHeader() {
   const { user, loading } = useAuth();
+  const country = getSiteCountry();
 
   async function onLogout() {
     if (!auth) return;
@@ -21,9 +24,7 @@ export function SiteHeader() {
           <span className="grid h-11 w-11 place-items-center rounded-2xl bg-white/10 text-xl">🚗</span>
           <div className="leading-tight">
             <div className="text-2xl font-black tracking-tight">Autoloke</div>
-            <div className="text-[11px] font-semibold text-white/60">
-              Autoloke- lengvai rask transporta ir dalis aplink save
-            </div>
+            <div className="text-[11px] font-semibold text-white/60">{t(country, "siteTagline")}</div>
           </div>
         </Link>
 
@@ -35,21 +36,18 @@ export function SiteHeader() {
                 className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-2 text-sm font-extrabold text-white/90 hover:bg-white/10"
               >
                 {user.photoURL ? (
-                  // eslint-disable-next-line @next/next/no-img-element
                   <img src={user.photoURL} alt="" className="h-6 w-6 rounded-full" />
                 ) : (
                   <span className="grid h-6 w-6 place-items-center rounded-full bg-white/10 text-xs">👤</span>
                 )}
-                <span className="hidden max-w-[160px] truncate sm:inline">
-                  {user.displayName || user.email || "Mano"}
-                </span>
+                <span className="hidden max-w-[160px] truncate sm:inline">{user.displayName || user.email || t(country, "myAccount")}</span>
               </Link>
 
               <button
                 onClick={onLogout}
                 className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm font-extrabold text-white/90 hover:bg-white/10"
               >
-                Atsijungti
+                {t(country, "logout")}
               </button>
             </>
           ) : (
@@ -58,13 +56,10 @@ export function SiteHeader() {
                 href="/prisijungti"
                 className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm font-extrabold text-white/90 hover:bg-white/10"
               >
-                Prisijungti
+                {t(country, "login")}
               </Link>
-              <Link
-                href="/registracija"
-                className="rounded-full bg-white px-4 py-2 text-sm font-extrabold text-black hover:bg-white/90"
-              >
-                Registruotis
+              <Link href="/registracija" className="rounded-full bg-white px-4 py-2 text-sm font-extrabold text-black hover:bg-white/90">
+                {t(country, "register")}
               </Link>
             </>
           )}

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { cls, formatPrice } from "@/lib/format";
+import { t } from "@/lib/i18n";
 import type { SiteCountry } from "@/lib/site";
 
 export function ListingCard({
@@ -28,7 +29,7 @@ export function ListingCard({
         {img ? (
           <img src={img} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover transition group-hover:scale-[1.02]" />
         ) : (
-          <div className="grid h-full w-full place-items-center text-white/45">Be nuotraukos</div>
+          <div className="grid h-full w-full place-items-center text-white/45">{t(country, "noPhoto")}</div>
         )}
         {badge ? (
           <div className="absolute left-3 top-3 rounded-full border border-white/20 bg-black/45 px-3 py-1 text-xs font-extrabold text-white">
@@ -41,7 +42,7 @@ export function ListingCard({
         <div className="line-clamp-1 text-sm font-extrabold">{title}</div>
         {subtitle ? <div className="mt-1 line-clamp-1 text-xs text-white/65">{subtitle}</div> : null}
         <div className={cls("mt-2 text-sm font-black", typeof price === "number" ? "text-white" : "text-white/60")}>
-          {typeof price === "number" ? formatPrice(price, country) : "Kaina nenurodyta"}
+          {typeof price === "number" ? formatPrice(price, country) : t(country, "priceNotSpecified")}
         </div>
       </div>
     </Link>

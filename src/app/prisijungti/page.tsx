@@ -4,22 +4,25 @@ import Link from "next/link";
 import { signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
 import { useState } from "react";
 import { auth, googleProvider } from "@/lib/firebase";
+import { getSiteCountry } from "@/lib/site";
+import { t } from "@/lib/i18n";
 
 export default function PrisijungtiPage() {
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const country = getSiteCountry();
 
   async function loginWithGoogle() {
     setErr(null);
     setBusy(true);
     try {
-      if (!auth || !googleProvider) throw new Error("Google prisijungimas neparuoštas");
+      if (!auth || !googleProvider) throw new Error(country === "DK" ? "Google-login er ikke klar" : "Google prisijungimas neparuoštas");
       await signInWithPopup(auth as any, googleProvider as any);
       window.location.href = "/mano";
     } catch (e: any) {
-      setErr(e?.message ?? "Nepavyko prisijungti su Google");
+      setErr(e?.message ?? (country === "DK" ? "Google-login mislykkedes" : "Nepavyko prisijungti su Google"));
     } finally {
       setBusy(false);
     }
@@ -33,7 +36,7 @@ export default function PrisijungtiPage() {
       await signInWithEmailAndPassword(auth, email.trim(), pass);
       window.location.href = "/mano";
     } catch (e: any) {
-      setErr(e?.message ?? "Nepavyko prisijungti");
+      setErr(e?.message ?? (country === "DK" ? "Login mislykkedes" : "Nepavyko prisijungti"));
     } finally {
       setBusy(false);
     }
@@ -41,10 +44,10 @@ export default function PrisijungtiPage() {
 
   return (
     <main className="mx-auto max-w-md px-4 py-10">
-      <h1 className="text-2xl font-black">Prisijungti</h1>
+      <h1 className="text-2xl font-black">{t(country, "login")}</h1>
 
       <form onSubmit={onSubmit} className="mt-5 space-y-3 rounded-3xl border border-white/10 bg-white/[0.03] p-6">
-        <Field label="El. paštas">
+        <Field label={t(country, "email")}>
           <input
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -54,7 +57,7 @@ export default function PrisijungtiPage() {
           />
         </Field>
 
-        <Field label="Slaptažodis">
+        <Field label={t(country, "password")}>
           <input
             value={pass}
             onChange={(e) => setPass(e.target.value)}
@@ -72,22 +75,19 @@ export default function PrisijungtiPage() {
           disabled={busy}
           className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm font-extrabold text-white hover:bg-white/10 disabled:opacity-60"
         >
-          {busy ? "Jungiasi..." : "Prisijungti su Google"}
+          {busy ? t(country, "joining") : t(country, "loginGoogle")}
         </button>
 
         <div className="text-center text-xs font-extrabold text-white/40">arba</div>
 
-        <button
-          disabled={busy}
-          className="w-full rounded-2xl bg-white px-4 py-3 text-sm font-extrabold text-black hover:bg-white/90 disabled:opacity-60"
-        >
-          {busy ? "Jungiasi..." : "Prisijungti"}
+        <button disabled={busy} className="w-full rounded-2xl bg-white px-4 py-3 text-sm font-extrabold text-black hover:bg-white/90 disabled:opacity-60">
+          {busy ? t(country, "joining") : t(country, "login")}
         </button>
 
         <div className="text-center text-sm text-white/60">
-          Neturi paskyros?{" "}
+          {t(country, "noAccount")} {" "}
           <Link className="font-extrabold text-white hover:underline" href="/registracija">
-            Registracija
+            {t(country, "register")}
           </Link>
         </div>
       </form>

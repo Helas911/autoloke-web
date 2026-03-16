@@ -9,6 +9,7 @@ import { db } from "@/lib/firebase";
 import { cls, formatPrice } from "@/lib/format";
 import { bubbleIcon, groupMarkers } from "@/lib/mapMarkers";
 import { getSiteCenter, getSiteCountry, normalizeItemCountry, priceShort, type SiteCountry } from "@/lib/site";
+import { categoryLabelLocalized, canonicalDriveOptions, canonicalFuelOptions, canonicalGearboxOptions, labelDrive, labelFuel, labelGearbox, t } from "@/lib/i18n";
 
 type Part = {
   id: string;
@@ -107,7 +108,7 @@ export default function PartsMapPage() {
   return (
     <main className="mx-auto max-w-7xl px-3 py-4">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <div className="text-sm font-black text-white/80">Dalys • Žemėlapis</div>
+        <div className="text-sm font-black text-white/80">{t(siteCountry, "partsMap")}</div>
         <button
           type="button"
           onClick={() => setFilterByMap((v) => !v)}
@@ -116,7 +117,7 @@ export default function PartsMapPage() {
             filterByMap ? "bg-blue-500 text-white" : "border border-white/15 bg-white/5 text-white/80 hover:bg-white/10"
           )}
         >
-          Filtruoti pagal žemėlapį: {filterByMap ? "ON" : "OFF"}
+          {t(siteCountry, "filterByMap")}: {filterByMap ? t(siteCountry, "on") : t(siteCountry, "off")}
         </button>
       </div>
 
@@ -124,7 +125,7 @@ export default function PartsMapPage() {
         <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03]">
           {!isLoaded ? (
             <div className="grid h-[58vh] lg:h-[76vh] place-items-center text-sm font-extrabold text-white/60">
-              Kraunasi žemėlapis…
+              {t(siteCountry, "mapLoading")}
             </div>
           ) : (
             <GoogleMap
@@ -177,15 +178,15 @@ export default function PartsMapPage() {
         <aside className="rounded-3xl border border-white/10 bg-white/[0.03] p-3">
           <div className="flex items-center justify-between gap-2">
             <div>
-              <div className="text-sm font-black">Filtrai</div>
-              <div className="text-xs font-extrabold text-white/55">{filtered.length} skelb. • arti rodo atskirai</div>
+              <div className="text-sm font-black">{t(siteCountry, "filters")}</div>
+              <div className="text-xs font-extrabold text-white/55">{filtered.length} {t(siteCountry, "adsCount")} • {t(siteCountry, "activeSeparate")}</div>
             </div>
             <button
               type="button"
               onClick={centerOnMe}
               className="rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-xs font-extrabold text-white/85 hover:bg-white/[0.08]"
             >
-              📍 Aplink mane
+              📍 {t(siteCountry, "nearMe")}
             </button>
           </div>
 
@@ -193,14 +194,14 @@ export default function PartsMapPage() {
             <input
               value={qText}
               onChange={(e) => setQText(e.target.value)}
-              placeholder="Paieška (stabdžiai, žibintas...)"
+              placeholder={siteCountry === "DK" ? "Søgning (bremser, lygte...)" : "Paieška (stabdžiai, žibintas...)"}
               className="col-span-2 rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-sm font-extrabold text-white/90 outline-none placeholder:text-white/40"
             />
-            <input value={brand} onChange={(e) => setBrand(e.target.value)} className="rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-sm font-extrabold outline-none placeholder:text-white/40" placeholder="Markė" />
-            <input value={model} onChange={(e) => setModel(e.target.value)} className="rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-sm font-extrabold outline-none placeholder:text-white/40" placeholder="Modelis" />
-            <input value={priceFrom} onChange={(e) => setPriceFrom(e.target.value)} inputMode="numeric" className="rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-sm font-extrabold outline-none placeholder:text-white/40" placeholder="Kaina nuo" />
-            <input value={priceTo} onChange={(e) => setPriceTo(e.target.value)} inputMode="numeric" className="rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-sm font-extrabold outline-none placeholder:text-white/40" placeholder="Kaina iki" />
-            <input value={city} onChange={(e) => setCity(e.target.value)} className="col-span-2 rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-sm font-extrabold outline-none placeholder:text-white/40" placeholder="Miestas" />
+            <input value={brand} onChange={(e) => setBrand(e.target.value)} className="rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-sm font-extrabold outline-none placeholder:text-white/40" placeholder={t(siteCountry, "brand")} />
+            <input value={model} onChange={(e) => setModel(e.target.value)} className="rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-sm font-extrabold outline-none placeholder:text-white/40" placeholder={siteCountry === "DK" ? "Model" : "Modelis"} />
+            <input value={priceFrom} onChange={(e) => setPriceFrom(e.target.value)} inputMode="numeric" className="rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-sm font-extrabold outline-none placeholder:text-white/40" placeholder={t(siteCountry, "priceFrom")} />
+            <input value={priceTo} onChange={(e) => setPriceTo(e.target.value)} inputMode="numeric" className="rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-sm font-extrabold outline-none placeholder:text-white/40" placeholder={t(siteCountry, "priceTo")} />
+            <input value={city} onChange={(e) => setCity(e.target.value)} className="col-span-2 rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-sm font-extrabold outline-none placeholder:text-white/40" placeholder={t(siteCountry, "city")} />
           </div>
 
           <div className="mt-3 flex gap-2">

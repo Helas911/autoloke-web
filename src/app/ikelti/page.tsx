@@ -11,6 +11,7 @@ import { uploadImage } from "@/lib/upload";
 import { cls } from "@/lib/format";
 import { VEHICLE_CATEGORIES, VEHICLE_TYPES, type VehicleCategory } from "@/lib/categories";
 import { citySuggestions, getSiteCenter, getSiteCountry, getSiteCurrency, type SiteCountry } from "@/lib/site";
+import { categoryLabelLocalized, canonicalDriveOptions, canonicalFuelOptions, canonicalGearboxOptions, labelDrive, labelFuel, labelGearbox, otherLabel, t } from "@/lib/i18n";
 import { brandsForCategory, modelsForBrand, type BrandCategory } from "@/lib/brands_models";
 
 type Mode = "transportas" | "dalys";
@@ -85,6 +86,7 @@ export default function IkeltiPage() {
   const brands = useMemo(() => brandsForCategory(brandCat), [brandCat]);
   const effectiveBrand = brand === OTHER ? brandOther : brand;
   const models = useMemo(() => modelsForBrand(brandCat, effectiveBrand), [brandCat, effectiveBrand]);
+  const otherText = useMemo(() => otherLabel(siteCountry), [siteCountry]);
 
   useEffect(() => {
     if (model && models.length && !models.includes(model)) setModel("");
@@ -129,7 +131,7 @@ export default function IkeltiPage() {
   function fillMyLocation() {
     setErr(null);
     if (!navigator.geolocation) {
-      setErr("Naršyklė nepalaiko geolokacijos.");
+      setErr(siteCountry === "DK" ? "Browseren understøtter ikke geolokation." : "Naršyklė nepalaiko geolokacijos.");
       return;
     }
     navigator.geolocation.getCurrentPosition(
@@ -140,7 +142,7 @@ export default function IkeltiPage() {
         setLng(ln.toFixed(6));
         setPicked({ lat: la, lng: ln });
       },
-      () => setErr("Nepavyko gauti vietos. Patikrink Location leidimus."),
+      () => setErr(siteCountry === "DK" ? "Kunne ikke hente placering. Tjek lokationstilladelser." : "Nepavyko gauti vietos. Patikrink Location leidimus."),
       { enableHighAccuracy: true, timeout: 8000 }
     );
   }
@@ -169,17 +171,17 @@ export default function IkeltiPage() {
       const la = Number(lat);
       const ln = Number(lng);
 
-      if (!Number.isFinite(p)) throw new Error("Kaina turi būti skaičius.");
+      if (!Number.isFinite(p)) throw new Error(siteCountry === "DK" ? "Prisen skal være et tal." : "Kaina turi būti skaičius.");
       if (!Number.isFinite(la) || !Number.isFinite(ln)) throw new Error("Koordinatės turi būti skaičiai.");
-      if (year.trim() && !Number.isFinite(y)) throw new Error("Metai turi būti skaičius.");
-      if (mileage.trim() && !Number.isFinite(mi)) throw new Error("Rida turi būti skaičius.");
-      if (engineCapacity.trim() && !Number.isFinite(ec)) throw new Error("Variklio tūris turi būti skaičius.");
-      if (powerKw.trim() && !Number.isFinite(pk)) throw new Error("Galia turi būti skaičius.");
+      if (year.trim() && !Number.isFinite(y)) throw new Error(siteCountry === "DK" ? "År skal være et tal." : "Metai turi būti skaičius.");
+      if (mileage.trim() && !Number.isFinite(mi)) throw new Error(siteCountry === "DK" ? "Kilometer skal være et tal." : "Rida turi būti skaičius.");
+      if (engineCapacity.trim() && !Number.isFinite(ec)) throw new Error(siteCountry === "DK" ? "Motorvolumen skal være et tal." : "Variklio tūris turi būti skaičius.");
+      if (powerKw.trim() && !Number.isFinite(pk)) throw new Error(siteCountry === "DK" ? "Effekt skal være et tal." : "Galia turi būti skaičius.");
 
       const finalBrand = (brand === OTHER ? brandOther : brand).trim() || undefined;
       const finalModel = (model === OTHER ? modelOther : model).trim() || undefined;
 
-      if (!user) throw new Error("Prisijunk, kad galėtum įkelti skelbimą.");
+      if (!user) throw new Error(siteCountry === "DK" ? "Log ind for at oprette en annonce." : "Prisijunk, kad galėtum įkelti skelbimą.");
 
       if (mode === "transportas") {
         // 1) sukuriam dokumentą (be nuotraukų), kad turėtume id
@@ -223,7 +225,7 @@ export default function IkeltiPage() {
         // 3) atnaujinam dokumentą su nuotraukom
         await updateDoc(doc(db, "ads", docRef.id), { imageUrls, imagePaths });
 
-        setOkMsg("Skelbimas įkeltas ✅");
+        setOkMsg(t(siteCountry, "adUploaded"));
       } else {
         const docRef = await addDoc(collection(db, "parts"), {
           title: title.trim() || undefined,
@@ -255,7 +257,7 @@ export default function IkeltiPage() {
 
         await updateDoc(doc(db, "parts", docRef.id), { imageUrls, imagePaths });
 
-        setOkMsg("Dalys įkeltos ✅");
+        setOkMsg(t(siteCountry, "partsUploaded"));
       }
 
       // reset minimal
@@ -273,7 +275,7 @@ export default function IkeltiPage() {
       
       <main className="mx-auto w-full max-w-6xl px-4 pb-24 pt-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-          <h1 className="text-lg font-black">Įkelti skelbimą</h1>
+          <h1 className="text-lg font-black">{t(siteCountry, "uploadListing")}</h1>
 
           <div className="flex items-center gap-2">
             <button
@@ -283,7 +285,7 @@ export default function IkeltiPage() {
                 mode === "transportas" ? "border-white/25 bg-white/12" : "border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
               )}
             >
-              Transportas
+              {t(siteCountry, "transport")}
             </button>
             <button
               onClick={() => setMode("dalys")}
@@ -292,7 +294,7 @@ export default function IkeltiPage() {
                 mode === "dalys" ? "border-white/25 bg-white/12" : "border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
               )}
             >
-              Dalys
+              {t(siteCountry, "parts")}
             </button>
           </div>
         </div>
@@ -311,7 +313,7 @@ export default function IkeltiPage() {
                     className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none"
                   >
                     {VEHICLE_CATEGORIES.map((c) => (
-                      <option key={c.id} value={c.id} style={optStyle}>{c.label}</option>
+                      <option key={c.id} value={c.id} style={optStyle}>{categoryLabelLocalized(c.id, siteCountry)}</option>
                     ))}
                   </select>
 
@@ -320,7 +322,7 @@ export default function IkeltiPage() {
                     onChange={(e) => setType(e.target.value)}
                     className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none"
                   >
-                    <option value="" style={optStyle}>Tipas (pasirinkti)</option>
+                    <option value="" style={optStyle}>{t(siteCountry, "vehicleTypePick")}</option>
                     {VEHICLE_TYPES[category].map((t) => (
                       <option key={t} value={t} style={optStyle}>{t}</option>
                     ))}
@@ -337,18 +339,18 @@ export default function IkeltiPage() {
                     }}
                     className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none"
                   >
-                    <option value="" style={{ ...optStyle }}>Markė</option>
+                    <option value="" style={{ ...optStyle }}>{t(siteCountry, "brand")}</option>
                     {brands.map((b) => (
                       <option key={b} value={b} style={{ ...optStyle }}>{b}</option>
                     ))}
-                    <option value={OTHER} style={{ ...optStyle }}>Kita</option>
+                    <option value={OTHER} style={{ ...optStyle }}>{otherText}</option>
                   </select>
 
                   {brand === OTHER ? (
                     <input
                       value={brandOther}
                       onChange={(e) => setBrandOther(e.target.value)}
-                      placeholder="Įrašyk markę"
+                      placeholder={t(siteCountry, "enterBrand")}
                       className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
                     />
                   ) : null}
@@ -362,18 +364,18 @@ export default function IkeltiPage() {
                       effectiveBrand ? "border-white/12 bg-white/5 text-white" : "border-white/10 bg-white/3 text-white/40"
                     )}
                   >
-                    <option value="" style={{ ...optStyle }}>{effectiveBrand ? "Modelis" : "Modelis (pirmiau markė)"}</option>
+                    <option value="" style={{ ...optStyle }}>{effectiveBrand ? (siteCountry === "DK" ? "Model" : "Modelis") : t(siteCountry, "modelFirstBrand")}</option>
                     {models.map((m) => (
                       <option key={m} value={m} style={{ ...optStyle }}>{m}</option>
                     ))}
-                    {effectiveBrand ? <option value={OTHER} style={{ ...optStyle }}>Kita</option> : null}
+                    {effectiveBrand ? <option value={OTHER} style={{ ...optStyle }}>{otherText}</option> : null}
                   </select>
 
                   {model === OTHER ? (
                     <input
                       value={modelOther}
                       onChange={(e) => setModelOther(e.target.value)}
-                      placeholder="Įrašyk modelį"
+                      placeholder={t(siteCountry, "enterModel")}
                       className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
                     />
                   ) : null}
@@ -383,14 +385,14 @@ export default function IkeltiPage() {
                   <input
                     value={price}
                     onChange={(e) => setPrice(e.target.value)}
-                    placeholder={`Kaina (${currency})`}
+                    placeholder={`${siteCountry === "DK" ? "Pris" : "Kaina"} (${currency})`}
                     inputMode="numeric"
                     className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
                   />
                   <input
                     value={year}
                     onChange={(e) => setYear(e.target.value)}
-                    placeholder="Metai"
+                    placeholder={t(siteCountry, "year")}
                     inputMode="numeric"
                     className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
                   />
@@ -400,7 +402,7 @@ export default function IkeltiPage() {
                   <input
                     value={mileage}
                     onChange={(e) => setMileage(e.target.value)}
-                    placeholder="Rida (km)"
+                    placeholder={t(siteCountry, "mileage")}
                     inputMode="numeric"
                     className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
                   />
@@ -409,9 +411,9 @@ export default function IkeltiPage() {
                     onChange={(e) => setGearbox(e.target.value)}
                     className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none"
                   >
-                    <option value="" style={optStyle}>Pavarų dėžė (pasirinkti)</option>
-                    {["Mechaninė", "Automatinė", "Robotizuota", "Kita"].map((g) => (
-                      <option key={g} value={g} style={optStyle}>{g}</option>
+                    <option value="" style={optStyle}>{t(siteCountry, "gearboxPick")}</option>
+                    {canonicalGearboxOptions.map((g) => (
+                      <option key={g} value={g} style={optStyle}>{labelGearbox(g, siteCountry)}</option>
                     ))}
                   </select>
                 </div>
@@ -420,14 +422,14 @@ export default function IkeltiPage() {
                   <input
                     value={engineCapacity}
                     onChange={(e) => setEngineCapacity(e.target.value)}
-                    placeholder="Variklio tūris (l)"
+                    placeholder={t(siteCountry, "engineCapacity")}
                     inputMode="decimal"
                     className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
                   />
                   <input
                     value={powerKw}
                     onChange={(e) => setPowerKw(e.target.value)}
-                    placeholder="Galia (kW)"
+                    placeholder={t(siteCountry, "powerKw")}
                     inputMode="numeric"
                     className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
                   />
@@ -439,18 +441,9 @@ export default function IkeltiPage() {
                     onChange={(e) => setFuel(e.target.value)}
                     className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none"
                   >
-                    <option value="" style={optStyle}>Kuro tipas (pasirinkti)</option>
-                    {[
-                      "Benzinas",
-                      "Dyzelis",
-                      "Benzinas+dujos",
-                      "Dujos",
-                      "Hibridas",
-                      "Plug-in hibridas",
-                      "Elektra",
-                      "Kita",
-                    ].map((f) => (
-                      <option key={f} value={f} style={optStyle}>{f}</option>
+                    <option value="" style={optStyle}>{t(siteCountry, "fuelPick")}</option>
+                    {canonicalFuelOptions.map((f) => (
+                      <option key={f} value={f} style={optStyle}>{labelFuel(f, siteCountry)}</option>
                     ))}
                   </select>
 
@@ -459,9 +452,9 @@ export default function IkeltiPage() {
                     onChange={(e) => setDrive(e.target.value)}
                     className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none"
                   >
-                    <option value="" style={optStyle}>Varomieji ratai (pasirinkti)</option>
-                    {["Priekis", "Galas", "4x4"].map((d) => (
-                      <option key={d} value={d} style={optStyle}>{d}</option>
+                    <option value="" style={optStyle}>{t(siteCountry, "drivePick")}</option>
+                    {canonicalDriveOptions.map((d) => (
+                      <option key={d} value={d} style={optStyle}>{labelDrive(d, siteCountry)}</option>
                     ))}
                   </select>
                 </div>
@@ -471,7 +464,7 @@ export default function IkeltiPage() {
                 <input
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Dalių pavadinimas (pvz. žibintas, variklis...)"
+                  placeholder={t(siteCountry, "titleParts")}
                   className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
                 />
                 <div className="grid gap-2 sm:grid-cols-2">
@@ -483,18 +476,18 @@ export default function IkeltiPage() {
                     }}
                     className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none"
                   >
-                    <option value="" style={{ ...optStyle }}>Markė (nebūtina)</option>
+                    <option value="" style={{ ...optStyle }}>{siteCountry === "DK" ? "Mærke (valgfrit)" : "Markė (nebūtina)"}</option>
                     {brands.map((b) => (
                       <option key={b} value={b} style={{ ...optStyle }}>{b}</option>
                     ))}
-                    <option value={OTHER} style={{ ...optStyle }}>Kita</option>
+                    <option value={OTHER} style={{ ...optStyle }}>{otherText}</option>
                   </select>
 
                   {brand === OTHER ? (
                     <input
                       value={brandOther}
                       onChange={(e) => setBrandOther(e.target.value)}
-                      placeholder="Įrašyk markę (nebūtina)"
+                      placeholder={siteCountry === "DK" ? "Skriv mærke (valgfrit)" : "Įrašyk markę (nebūtina)"}
                       className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
                     />
                   ) : null}
@@ -502,14 +495,14 @@ export default function IkeltiPage() {
                   <input
                     value={model === OTHER ? modelOther : model}
                     onChange={(e) => setModel(e.target.value)}
-                    placeholder="Modelis (nebūtina)"
+                    placeholder={siteCountry === "DK" ? "Model (valgfrit)" : "Modelis (nebūtina)"}
                     className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
                   />
                 </div>
                 <input
                   value={price}
                   onChange={(e) => setPrice(e.target.value)}
-                  placeholder={`Kaina (${currency})`}
+                  placeholder={`${siteCountry === "DK" ? "Pris" : "Kaina"} (${currency})`}
                   inputMode="numeric"
                   className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
                 />
@@ -520,14 +513,14 @@ export default function IkeltiPage() {
               <input
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
-                placeholder={siteCountry === "DK" ? "By" : "Miestas"}
+                placeholder={t(siteCountry, "city")}
                 list="city-suggestions"
                 className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
               />
               <input
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="Telefonas (+370...)"
+                placeholder={t(siteCountry, "phone")}
                 className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
               />
             </div>
@@ -535,14 +528,14 @@ export default function IkeltiPage() {
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Aprašymas (būklė, komplektacija, pastabos...)"
+              placeholder={t(siteCountry, "description")}
               rows={4}
               className="mt-2 w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
             />
 
             <div className="mt-4 rounded-2xl border border-white/10 bg-black/25 p-3">
               <div className="mb-2 flex items-center justify-between gap-2">
-                <div className="text-sm font-black">Vieta žemėlapyje</div>
+                <div className="text-sm font-black">{t(siteCountry, "locationOnMap")}</div>
                 <button
                   onClick={fillMyLocation}
                   className="rounded-full border border-white/12 bg-white/5 px-3 py-1 text-xs font-extrabold text-white/85 hover:bg-white/10"
@@ -580,7 +573,7 @@ export default function IkeltiPage() {
                       {markerPos ? <Marker position={markerPos} /> : null}
                     </GoogleMap>
                   ) : (
-                    <div className="grid h-full place-items-center text-sm text-white/70">Kraunamas žemėlapis...</div>
+                    <div className="grid h-full place-items-center text-sm text-white/70">{t(siteCountry, "mapLoading")}</div>
                   )}
                 </div>
               </div>
@@ -595,8 +588,8 @@ export default function IkeltiPage() {
           <div className="rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
             <div className="mb-2 flex items-center justify-between">
               <div>
-                <div className="text-sm font-black">Nuotraukos</div>
-                <div className="text-xs text-white/60">Reikia bent 1.</div>
+                <div className="text-sm font-black">{t(siteCountry, "uploadPhotos")}</div>
+                <div className="text-xs text-white/60">{t(siteCountry, "needOnePhoto")}</div>
               </div>
               <button
                 onClick={() => fileRef.current?.click()}
@@ -638,7 +631,7 @@ export default function IkeltiPage() {
                   canSubmit && !busy ? "bg-white text-black hover:bg-white/90" : "bg-white/20 text-white/50"
                 )}
               >
-                {busy ? "Įkeliama..." : "Įkelti"}
+                {busy ? t(siteCountry, "uploading") : t(siteCountry, "upload")}
               </button>
 
               <button

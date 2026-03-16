@@ -12,6 +12,7 @@ import { ListingCard } from "@/components/ListingCard";
 import { cls } from "@/lib/format";
 import { bubbleIcon, groupMarkers } from "@/lib/mapMarkers";
 import { citySuggestions, getSiteCenter, getSiteCountry, normalizeItemCountry, priceShort, type SiteCountry } from "@/lib/site";
+import { categoryLabelLocalized, canonicalDriveOptions, canonicalFuelOptions, canonicalGearboxOptions, labelDrive, labelFuel, labelGearbox, otherLabel, t } from "@/lib/i18n";
 import { VEHICLE_CATEGORIES, VEHICLE_TYPES, type VehicleCategory } from "@/lib/categories";
 import { brandsForCategory, modelsForBrand, type BrandCategory } from "@/lib/brands_models";
 
@@ -137,6 +138,7 @@ export default function Home() {
   const items = useMemo(() => (tab === "transportas" ? ads : parts), [tab, ads, parts]);
   const mapCenter = useMemo(() => getSiteCenter(siteCountry), [siteCountry]);
   const cities = useMemo(() => citySuggestions(siteCountry), [siteCountry]);
+  const otherText = useMemo(() => otherLabel(siteCountry), [siteCountry]);
 
   const filtered = useMemo(() => {
     const q = qText.trim().toLowerCase();
@@ -221,7 +223,7 @@ export default function Home() {
       <main className="mx-auto w-full max-w-6xl px-4 pb-24 pt-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div className="text-sm font-extrabold text-white/80">
-            Autoloke- lengvai rask transporta ir dalis aplink save
+            {t(siteCountry, "siteTagline")}
           </div>
 
           <div className="flex items-center gap-2">
@@ -232,7 +234,7 @@ export default function Home() {
                 tab === "transportas" ? "border-white/25 bg-white/12" : "border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
               )}
             >
-              Transportas
+              {t(siteCountry, "transport")}
             </button>
             <button
               onClick={() => setTab("dalys")}
@@ -241,7 +243,7 @@ export default function Home() {
                 tab === "dalys" ? "border-white/25 bg-white/12" : "border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
               )}
             >
-              Dalys
+              {t(siteCountry, "parts")}
             </button>
           </div>
         </div>
@@ -262,7 +264,7 @@ export default function Home() {
                 )}
               >
                 <span className="mr-2">{c.icon}</span>
-                {c.label}
+                {categoryLabelLocalized(c.id, siteCountry)}
               </button>
             ))}
           </div>
@@ -279,7 +281,7 @@ export default function Home() {
                   <input
                     value={qText}
                     onChange={(e) => setQText(e.target.value)}
-                    placeholder={tab === "transportas" ? `Ieškoti transporto (${siteCountry === "DK" ? "mærke, model, by" : "markė, modelis, miestas"}...)` : `Ieškoti dalių (${siteCountry === "DK" ? "pavadinimas, markė, miestas" : "pavadinimas, markė, miestas"}...)`}
+                    placeholder={tab === "transportas" ? t(siteCountry, "searchVehiclePlaceholder") : t(siteCountry, "searchPartsPlaceholder")}
                     className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/45"
                   />
                 </div>
@@ -289,7 +291,7 @@ export default function Home() {
                     onClick={goNearMe}
                     className="rounded-2xl border border-white/12 bg-black/55 px-4 py-3 text-sm font-extrabold text-white/90 backdrop-blur hover:bg-black/45"
                   >
-                    📍 Aplink mane
+                    📍 {t(siteCountry, "nearMe")}
                   </button>
                   <button
                     onClick={() => setFilterByMap((v) => !v)}
@@ -298,7 +300,7 @@ export default function Home() {
                       filterByMap ? "border-blue-400/40 bg-blue-600/90 text-white shadow-sm" : "border-white/12 bg-black/55 text-white/85 hover:bg-black/45"
                     )}
                   >
-                    Filtruoti pagal žemėlapį: {filterByMap ? "ON" : "OFF"}
+                    {t(siteCountry, "filterByMap")}: {filterByMap ? t(siteCountry, "on") : t(siteCountry, "off")}
                   </button>
                 </div>
               </div>
@@ -351,7 +353,7 @@ export default function Home() {
                   })}
                 </GoogleMap>
               ) : (
-                <div className="grid h-full place-items-center text-sm text-white/70">Kraunamas žemėlapis…</div>
+                <div className="grid h-full place-items-center text-sm text-white/70">{t(siteCountry, "mapLoading")}</div>
               )}
             </div>
           </div>
@@ -359,7 +361,7 @@ export default function Home() {
           {/* FILTERS */}
           <aside className="rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
             <div className="mb-3 flex items-center justify-between">
-              <div className="text-sm font-black">Paieškos filtrai</div>
+              <div className="text-sm font-black">{t(siteCountry, "searchFilters")}</div>
               <button
                 onClick={() => {
                   setQText("");
@@ -379,7 +381,7 @@ export default function Home() {
                 }}
                 className="rounded-full border border-white/12 bg-white/5 px-3 py-1 text-xs font-extrabold text-white/80 hover:bg-white/10"
               >
-                Išvalyti
+                {t(siteCountry, "clear")}
               </button>
             </div>
 
@@ -390,7 +392,7 @@ export default function Home() {
                   onChange={(e) => setType(e.target.value)}
                   className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none"
                 >
-                  <option value="" style={optStyle}>Tipas (visi)</option>
+                  <option value="" style={optStyle}>{t(siteCountry, "typeAll")}</option>
                   {VEHICLE_TYPES[cat].map((t) => (
                     <option key={t} value={t} style={optStyle}>{t}</option>
                   ))}
@@ -406,18 +408,18 @@ export default function Home() {
                 }}
                 className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none"
               >
-                <option value="" style={{ ...optStyle }}>Markė (visi)</option>
+                <option value="" style={{ ...optStyle }}>{t(siteCountry, "brandAll")}</option>
                 {brands.map((b) => (
                   <option key={b} value={b} style={{ ...optStyle }}>{b}</option>
                 ))}
-                <option value={OTHER} style={{ ...optStyle }}>Kita</option>
+                <option value={OTHER} style={{ ...optStyle }}>{otherText}</option>
               </select>
 
               {brand === OTHER ? (
                 <input
                   value={brandOther}
                   onChange={(e) => setBrandOther(e.target.value)}
-                  placeholder="Įrašyk markę"
+                  placeholder={t(siteCountry, "enterBrand")}
                   className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
                 />
               ) : null}
@@ -431,18 +433,18 @@ export default function Home() {
                   effectiveBrand ? "border-white/12 bg-white/5 text-white" : "border-white/10 bg-white/3 text-white/40"
                 )}
               >
-                <option value="" style={{ ...optStyle }}>{effectiveBrand ? "Modelis (visi)" : "Modelis (pirmiau markė)"}</option>
+                <option value="" style={{ ...optStyle }}>{effectiveBrand ? t(siteCountry, "modelAll") : t(siteCountry, "modelFirstBrand")}</option>
                 {models.map((m) => (
                   <option key={m} value={m} style={{ ...optStyle }}>{m}</option>
                 ))}
-                {effectiveBrand ? <option value={OTHER} style={{ ...optStyle }}>Kita</option> : null}
+                {effectiveBrand ? <option value={OTHER} style={{ ...optStyle }}>{otherText}</option> : null}
               </select>
 
               {model === OTHER ? (
                 <input
                   value={modelOther}
                   onChange={(e) => setModelOther(e.target.value)}
-                  placeholder="Įrašyk modelį"
+                  placeholder={t(siteCountry, "enterModel")}
                   className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
                 />
               ) : null}
@@ -450,7 +452,7 @@ export default function Home() {
               <input
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
-                placeholder={siteCountry === "DK" ? "By" : "Miestas"}
+                placeholder={t(siteCountry, "city")}
                 list="city-suggestions"
                 className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
               />
@@ -464,14 +466,14 @@ export default function Home() {
                 <input
                   value={priceMin}
                   onChange={(e) => setPriceMin(e.target.value)}
-                  placeholder="Kaina nuo"
+                  placeholder={t(siteCountry, "priceFrom")}
                   inputMode="numeric"
                   className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
                 />
                 <input
                   value={priceMax}
                   onChange={(e) => setPriceMax(e.target.value)}
-                  placeholder="Kaina iki"
+                  placeholder={t(siteCountry, "priceTo")}
                   inputMode="numeric"
                   className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
                 />
@@ -483,14 +485,14 @@ export default function Home() {
                   <input
                     value={yearMin}
                     onChange={(e) => setYearMin(e.target.value)}
-                    placeholder="Metai nuo"
+                    placeholder={t(siteCountry, "yearFrom")}
                     inputMode="numeric"
                     className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
                   />
                   <input
                     value={yearMax}
                     onChange={(e) => setYearMax(e.target.value)}
-                    placeholder="Metai iki"
+                    placeholder={t(siteCountry, "yearTo")}
                     inputMode="numeric"
                     className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
                   />
@@ -500,14 +502,14 @@ export default function Home() {
                   <input
                     value={mileageMin}
                     onChange={(e) => setMileageMin(e.target.value)}
-                    placeholder="Rida nuo (km)"
+                    placeholder={`${t(siteCountry, "mileageFrom")} (km)`}
                     inputMode="numeric"
                     className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
                   />
                   <input
                     value={mileageMax}
                     onChange={(e) => setMileageMax(e.target.value)}
-                    placeholder="Rida iki (km)"
+                    placeholder={`${t(siteCountry, "mileageTo")} (km)`}
                     inputMode="numeric"
                     className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
                   />
@@ -518,9 +520,9 @@ export default function Home() {
                   onChange={(e) => setFuel(e.target.value)}
                   className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none"
                 >
-                  <option value="" style={optStyle}>Kuro tipas (visi)</option>
-                  {["Benzinas","Dyzelis","Benzinas+dujos","Dujos","Hibridas","Plug-in hibridas","Elektra","Kita"].map((f) => (
-                    <option key={f} value={f} style={optStyle}>{f}</option>
+                  <option value="" style={optStyle}>{t(siteCountry, "fuelAll")}</option>
+                  {canonicalFuelOptions.map((f) => (
+                    <option key={f} value={f} style={optStyle}>{labelFuel(f, siteCountry)}</option>
                   ))}
                 </select>
 
@@ -529,9 +531,9 @@ export default function Home() {
                   onChange={(e) => setDrive(e.target.value)}
                   className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none"
                 >
-                  <option value="" style={optStyle}>Varomieji ratai (visi)</option>
-                  {["Priekis","Galas","4x4"].map((d) => (
-                    <option key={d} value={d} style={optStyle}>{d}</option>
+                  <option value="" style={optStyle}>{t(siteCountry, "driveAll")}</option>
+                  {canonicalDriveOptions.map((d) => (
+                    <option key={d} value={d} style={optStyle}>{labelDrive(d, siteCountry)}</option>
                   ))}
                 </select>
 
@@ -541,23 +543,23 @@ export default function Home() {
                   onChange={(e) => setGearbox(e.target.value)}
                   className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none"
                 >
-                  <option value="" style={optStyle}>Pavarų dėžė (visi)</option>
-                  {["Mechaninė","Automatinė","Robotizuota","Kita"].map((g) => (
-                    <option key={g} value={g} style={optStyle}>{g}</option>
+                  <option value="" style={optStyle}>{t(siteCountry, "gearboxAll")}</option>
+                  {canonicalGearboxOptions.map((g) => (
+                    <option key={g} value={g} style={optStyle}>{labelGearbox(g, siteCountry)}</option>
                   ))}
                 </select>
                 </>
               ) : null}
 
               <div className="mt-1 rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-xs font-bold text-white/70">
-                Rasta: <span className="text-white">{filtered.length}</span>
+                {siteCountry === "DK" ? "Fundet" : "Rasta"}: <span className="text-white">{filtered.length}</span>
               </div>
 
               <Link
                 href="/ikelti"
                 className="mt-2 inline-flex items-center justify-center rounded-2xl bg-white px-4 py-3 text-sm font-black text-black hover:bg-white/90"
               >
-                ➕ Įkelti skelbimą
+                ➕ {t(siteCountry, "uploadListing")}
               </Link>
             </div>
           </aside>
@@ -566,8 +568,8 @@ export default function Home() {
         {/* LISTINGS */}
         <section className="mt-6">
           <div className="mb-3 flex items-center justify-between">
-            <div className="text-lg font-black">Skelbimai</div>
-            <div className="text-xs text-white/55">Rasta: {filtered.length}</div>
+            <div className="text-lg font-black">{siteCountry === "DK" ? "Annoncer" : "Skelbimai"}</div>
+            <div className="text-xs text-white/55">{siteCountry === "DK" ? "Fundet" : "Rasta"}: {filtered.length}</div>
           </div>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -579,20 +581,20 @@ export default function Home() {
                 subtitle={buildSubtitle(i)}
                 price={typeof i.price === "number" ? i.price : null}
                 img={i.imageUrls?.[0] || null}
-                badge={tab === "transportas" ? (i.category ? String(i.category) : null) : "DALYS"}
+                badge={tab === "transportas" ? (i.category ? categoryLabelLocalized(String(i.category), siteCountry) : null) : t(siteCountry, "parts")}
+                country={siteCountry}
               />
             ))}
 
             {filtered.length === 0 ? (
               <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-sm text-white/70">
-                Nieko nerasta. Pabandyk išvalyti filtrus arba priartinti žemėlapį.
+                {siteCountry === "DK" ? "Ingen resultater. Prøv at rydde filtrene eller zoome ind på kortet." : "Nieko nerasta. Pabandyk išvalyti filtrus arba priartinti žemėlapį."}
               </div>
             ) : null}
           </div>
         </section>
       </main>
 
-      
     </>
   );
 }
