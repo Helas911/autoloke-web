@@ -109,6 +109,7 @@ export default function Home() {
   const [externalItems, setExternalItems] = useState<ExternalListing[]>([]);
   const [externalLoading, setExternalLoading] = useState(false);
   const [searchNonce, setSearchNonce] = useState(0);
+  const [hasSearchedExternal, setHasSearchedExternal] = useState(false);
 
   useEffect(() => {
     setSiteCountry(getSiteCountry());
@@ -132,7 +133,6 @@ export default function Home() {
   const brandCat = toBrandCategory(cat);
   const brands = useMemo(() => brandsForCategory(brandCat), [brandCat]);
   const effectiveBrand = brand === OTHER ? brandOther : brand;
-  const effectiveModel = model === OTHER ? modelOther : model;
   const models = useMemo(() => modelsForBrand(brandCat, effectiveBrand), [brandCat, effectiveBrand]);
 
   useEffect(() => {
@@ -147,23 +147,30 @@ export default function Home() {
   const otherText = useMemo(() => otherLabel(siteCountry), [siteCountry]);
 
 
-
-  useEffect(() => {
-    const externalQuery = [qText.trim(), effectiveBrand.trim(), effectiveModel.trim(), city.trim()]
+  const effectiveModel = model === OTHER ? modelOther : model;
+  const externalQuery = useMemo(() => {
+    return [qText.trim(), effectiveBrand.trim(), effectiveModel.trim(), city.trim()]
       .filter(Boolean)
       .join(" ")
       .trim();
+  }, [qText, effectiveBrand, effectiveModel, city]);
 
-    if (searchNonce === 0 || externalQuery.length < 2) {
+  useEffect(() => {
+    if (!searchNonce) return;
+
+    if (externalQuery.length < 2) {
       setExternalItems([]);
       setExternalLoading(false);
+      setHasSearchedExternal(true);
       return;
     }
 
     const controller = new AbortController();
-    const timer = setTimeout(async () => {
+
+    (async () => {
       try {
         setExternalLoading(true);
+        setHasSearchedExternal(true);
         const params = new URLSearchParams({
           q: externalQuery,
           section: tab === "dalys" ? "dalys" : "transportas",
@@ -178,13 +185,12 @@ export default function Home() {
       } finally {
         if (!controller.signal.aborted) setExternalLoading(false);
       }
-    }, 150);
+    })();
 
     return () => {
       controller.abort();
-      clearTimeout(timer);
     };
-  }, [qText, effectiveBrand, effectiveModel, city, tab, cat, searchNonce]);
+  }, [searchNonce, externalQuery, tab, cat]);
 
   const filtered = useMemo(() => {
     const q = qText.trim().toLowerCase();
@@ -639,12 +645,13 @@ export default function Home() {
                     setGearbox("");
                     setYearMin("");
                     setYearMax("");
+                    setType("");
                     setExternalItems([]);
-                    setSearchNonce(0);
+                    setHasSearchedExternal(false);
                   }}
                   className="rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm font-extrabold text-white/85 hover:bg-white/[0.08]"
                 >
-                  ✕ {siteCountry === "DK" ? "Ryd" : "Išvalyti"}
+                  ✕ {t(siteCountry, "clear")}
                 </button>
               </div>
 
@@ -692,18 +699,19 @@ export default function Home() {
         </section>
 
 
-        {searchNonce > 0 ? (
+        {hasSearchedExternal ? (
           <section className="mt-8">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-lg font-black text-white">Iš kitų portalų</h2>
+                <div className="text-xs font-extrabold text-white/45">Paieška: {externalQuery || "—"}</div>
                 <div className="text-xs font-extrabold text-white/55">Autoplius, Autogidas, Autobilis, Autosel, Autobonus</div>
               </div>
               {externalLoading ? <div className="text-xs font-extrabold text-orange-200">Ieškoma…</div> : null}
             </div>
 
             {externalItems.length ? (
-              <div className="space-y-5">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {externalItems.map((item) => (
                   <ExternalListingCard key={item.id} item={item} />
                 ))}
