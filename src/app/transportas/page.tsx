@@ -7,7 +7,6 @@ import { ExternalListingCard } from "@/components/ExternalListingCard";
 import { LocalListingRow } from "@/components/LocalListingRow";
 import type { ExternalListing } from "@/lib/externalAggregator";
 import { db } from "@/lib/firebase";
-import { formatPrice } from "@/lib/format";
 import { getSiteCountry, normalizeItemCountry, type SiteCountry } from "@/lib/site";
 import { canonicalDriveOptions, canonicalFuelOptions, canonicalGearboxOptions, labelDrive, labelFuel, labelGearbox, t } from "@/lib/i18n";
 
@@ -28,6 +27,8 @@ type Ad = {
   category?: string;
   type?: string;
   country?: string;
+  year?: number | string | null;
+  body?: string | null;
 };
 
 export default function TransportasPage() {
@@ -45,7 +46,6 @@ export default function TransportasPage() {
   const [powerTo, setPowerTo] = useState("");
   const [externalItems, setExternalItems] = useState<ExternalListing[]>([]);
   const [externalLoading, setExternalLoading] = useState(false);
-  const [searchNonce, setSearchNonce] = useState(0);
 
   useEffect(() => {
     setSiteCountry(getSiteCountry());
@@ -61,7 +61,7 @@ export default function TransportasPage() {
 
   useEffect(() => {
     const queryText = qText.trim();
-    if (searchNonce === 0 || queryText.length < 2) {
+    if (queryText.length < 2) {
       setExternalItems([]);
       setExternalLoading(false);
       return;
@@ -85,13 +85,13 @@ export default function TransportasPage() {
       } finally {
         if (!controller.signal.aborted) setExternalLoading(false);
       }
-    }, 150);
+    }, 550);
 
     return () => {
       controller.abort();
       clearTimeout(timer);
     };
-  }, [qText, searchNonce]);
+  }, [qText]);
 
   const filtered = useMemo(() => {
     const q = qText.trim().toLowerCase();
@@ -182,13 +182,13 @@ export default function TransportasPage() {
         <div className="text-xs font-extrabold text-white/55 sm:text-right">{filtered.length} {t(siteCountry, "adsCount")}</div>
       </div>
 
-      <section className="mt-5 space-y-5">
+      <section className="mt-5 space-y-4">
         {filtered.map((a) => (
           <LocalListingRow
             key={a.id}
             href={`/transportas/${a.id}`}
-            title={`${(a.brand ?? "").toString()} ${(a.model ?? "").toString()}`.trim() || 'Skelbimas'}
-            subtitle={`${(a.city ?? "").toString() || '—'} • ${(a.year ?? '').toString()}${(a.body ?? '').toString() ? ` • ${(a.body ?? '').toString()}` : ''}`.replace(/^\s*•\s*/,'').trim()}
+            title={`${(a.brand ?? "").toString()} ${(a.model ?? "").toString()}`.trim() || "Skelbimas"}
+            subtitle={`${(a.city ?? "").toString() || "—"} • ${((a as any).year ?? "").toString()} ${((a as any).body ?? "").toString()}`.trim()}
             price={typeof a.price === "number" ? a.price : null}
             img={a.imageUrls?.[0] || null}
             badge={a.category ? String(a.category) : null}
@@ -197,7 +197,7 @@ export default function TransportasPage() {
         ))}
       </section>
 
-      {searchNonce > 0 ? (
+      {qText.trim().length >= 2 ? (
         <section className="mt-8">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>

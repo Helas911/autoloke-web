@@ -1,48 +1,29 @@
+
 import type { ExternalListing } from "@/lib/externalAggregator";
 
-function safeText(v?: string) {
-  return (v || "")
-    .replace(/<[^>]*>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function sourceLabel(source?: string) {
-  const s = (source || "").toLowerCase();
-  if (s.includes("autoplius")) return "autoplius.lt";
-  if (s.includes("autogidas")) return "autogidas.lt";
-  if (s.includes("autobilis")) return "autobilis.lt";
-  if (s.includes("autosel")) return "autosel.lt";
-  if (s.includes("autobonus")) return "autobonus.lt";
-  return safeText(source) || "išorinis šaltinis";
-}
-
-function looksReal(item: ExternalListing) {
-  return !item.isFallback && Boolean(safeText(item.priceText) || safeText(item.city) || item.imageUrl);
+function clean(text?: string) {
+  return (text || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 }
 
 export function ExternalListingCard({ item }: { item: ExternalListing }) {
-  const title = safeText(item.title) || "Skelbimas";
-  const details = safeText(item.city) || "Atidaryti originalų skelbimą";
-  const price = safeText(item.priceText);
-  const image = item.imageUrl || "https://placehold.co/800x500/e8decd/4a4a4a?text=Skelbimas";
-  const source = sourceLabel(item.source);
+  const title = clean(item.title) || item.source;
+  const details = [clean(item.city), clean(item.priceText)].filter(Boolean).join(" • ");
+  const hasRich = Boolean(item.imageUrl || item.priceText || item.city);
 
-  if (!looksReal(item)) {
+  if (!hasRich) {
     return (
       <a
         href={item.url}
         target="_blank"
         rel="noreferrer"
-        className="block overflow-hidden rounded-[20px] border border-white/10 bg-white/[0.03] px-5 py-4 text-white transition hover:bg-white/[0.05]"
+        className="block rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4 transition hover:bg-white/[0.05]"
       >
         <div className="flex items-center justify-between gap-4">
           <div>
-            <div className="text-sm font-extrabold uppercase tracking-wide text-orange-300">{source}</div>
-            <div className="mt-1 text-xl font-black text-white">{title}</div>
-            <div className="mt-1 text-sm text-white/60">Atidaryti paieškos rezultatą originale ↗</div>
+            <div className="text-sm font-black text-white">{item.source}</div>
+            <div className="mt-1 text-xs text-white/60">Atidaryti originalų paieškos rezultatą</div>
           </div>
-          <div className="rounded-2xl bg-orange-500 px-4 py-2 text-sm font-black text-white">Žiūrėti</div>
+          <div className="rounded-xl bg-orange-500 px-4 py-2 text-sm font-black text-white">Žiūrėti</div>
         </div>
       </a>
     );
@@ -53,42 +34,50 @@ export function ExternalListingCard({ item }: { item: ExternalListing }) {
       href={item.url}
       target="_blank"
       rel="noreferrer"
-      className="block overflow-hidden rounded-[26px] border border-[#efc58f]/35 bg-[#efe4d4] text-[#3d352c] shadow-[0_10px_30px_rgba(0,0,0,0.16)] transition hover:scale-[1.01]"
+      className="group overflow-hidden rounded-[22px] border border-orange-400/20 bg-[#efe6d8] text-[#2b2b2b] shadow-sm transition hover:border-orange-300/40"
     >
       <div className="flex flex-col md:flex-row">
-        <div className="md:w-[42%]">
-          <img
-            src={image}
-            alt={title}
-            loading="lazy"
-            decoding="async"
-            className="h-[240px] w-full object-cover md:h-full"
-          />
-          <div className="px-4 pb-4 pt-2 text-center text-[20px] font-black text-[#d24d3d] md:text-[34px]">
-            {source}
+        <div className="relative md:w-[42%]">
+          <div className="aspect-[16/10] md:h-full md:aspect-auto bg-[#ddd5c8]">
+            {item.imageUrl ? (
+              <img src={item.imageUrl} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
+            ) : (
+              <div className="grid h-full w-full place-items-center text-center text-4xl font-black text-[#4d4d4d]">
+                Skelbimas
+              </div>
+            )}
+          </div>
+          <div className="px-4 pb-3 pt-2 text-center text-[22px] font-extrabold tracking-tight text-[#d24d3d] md:text-[34px]">
+            {item.source}
           </div>
         </div>
 
         <div className="flex flex-1 flex-col justify-between p-5 md:p-6">
           <div>
             <div className="mb-3 flex items-start justify-between gap-3">
-              <h3 className="text-[30px] font-black leading-tight text-[#f18418] md:text-[38px]">
+              <h3 className="text-[24px] font-black leading-tight text-[#f18418] md:text-[34px]">
                 {title}
               </h3>
-              <div className="shrink-0 text-[42px] leading-none text-[#f18418]">♡</div>
+              <div className="text-[40px] leading-none text-[#f18418]">♡</div>
             </div>
 
-            <p className="text-[20px] leading-[1.35] text-[#4d4d4d] md:text-[24px]">
-              {details}
-            </p>
+            {details ? (
+              <p className="text-[18px] leading-[1.35] text-[#454545] md:text-[24px]">
+                {details}
+              </p>
+            ) : (
+              <p className="text-[18px] leading-[1.35] text-[#454545] md:text-[24px]">
+                Atidaryti originalų skelbimą
+              </p>
+            )}
           </div>
 
-          <div className="mt-6 flex items-end justify-between gap-4">
-            <div className="inline-flex rounded-[18px] bg-[#f18418] px-5 py-3 text-[30px] font-black leading-none text-white md:text-[38px]">
-              {price || 'Žiūrėti'}
+          <div className="mt-5 flex items-end justify-between gap-4">
+            <div className="inline-flex rounded-[18px] bg-[#f18418] px-5 py-3 text-[28px] font-black leading-none text-white md:text-[34px]">
+              {clean(item.priceText) || "Žiūrėti"}
             </div>
 
-            <div className="text-right text-sm font-bold text-[#666]">
+            <div className="text-right text-sm font-semibold text-[#6a6a6a]">
               Atidaryti originalų skelbimą ↗
             </div>
           </div>
