@@ -1,12 +1,11 @@
 "use client";
 
 import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ExternalListingCard } from "@/components/ExternalListingCard";
+import { LocalListingRow } from "@/components/LocalListingRow";
 import type { ExternalListing } from "@/lib/externalAggregator";
 import { db } from "@/lib/firebase";
-import { formatPrice } from "@/lib/format";
 import { getSiteCountry, normalizeItemCountry, type SiteCountry } from "@/lib/site";
 import { canonicalDriveOptions, canonicalFuelOptions, canonicalGearboxOptions, labelDrive, labelFuel, labelGearbox, t } from "@/lib/i18n";
 
@@ -181,22 +180,22 @@ export default function TransportasPage() {
         <div className="text-xs font-extrabold text-white/55 sm:text-right">{filtered.length} {t(siteCountry, "adsCount")}</div>
       </div>
 
-      <section className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <section className="mt-5 space-y-5">
         {filtered.map((a) => (
-          <Link key={a.id} href={`/transportas/${a.id}`} className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.06]">
-            <div className="aspect-[16/10] bg-white/5">
-              {a.imageUrls?.[0] ? (
-                <img src={a.imageUrls[0]} alt="" className="h-full w-full object-cover" />
-              ) : (
-                <div className="grid h-full w-full place-items-center text-xs font-extrabold text-white/40">{t(siteCountry, "noPhoto")}</div>
-              )}
-            </div>
-            <div className="p-4">
-              <div className="truncate text-sm font-black">{(a.brand ?? "").toString()} {(a.model ?? "").toString()}</div>
-              <div className="mt-1 text-xs font-extrabold text-white/55">{(a.city ?? "").toString() || "—"} • {(a.category ?? "").toString()} {a.type ? `• ${a.type}` : ""}</div>
-              <div className="mt-3 text-lg font-black">{typeof a.price === "number" ? formatPrice(a.price, siteCountry) : t(siteCountry, "priceNotSpecified")}</div>
-            </div>
-          </Link>
+          <LocalListingRow
+            key={a.id}
+            href={`/transportas/${a.id}`}
+            title={`${(a.brand ?? "").toString()} ${(a.model ?? "").toString()}`.trim() || (a.title ?? "Transportas")}
+            subtitle={[
+              (a.city ?? "").toString() || "—",
+              (a.year ?? "").toString(),
+              (a.body ?? a.type ?? "").toString(),
+            ].filter(Boolean).join(" • ")}
+            price={typeof a.price === "number" ? a.price : null}
+            img={a.imageUrls?.[0] || null}
+            badge={a.category ? (a.category ?? "").toString() : "Auto"}
+            country={siteCountry}
+          />
         ))}
       </section>
 
