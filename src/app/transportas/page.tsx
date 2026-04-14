@@ -1,13 +1,11 @@
 "use client";
 
 import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ExternalListingCard } from "@/components/ExternalListingCard";
 import LocalListingRow from "@/components/LocalListingRow";
 import type { ExternalListing } from "@/lib/externalAggregator";
 import { db } from "@/lib/firebase";
-import { formatPrice } from "@/lib/format";
 import { getSiteCountry, normalizeItemCountry, type SiteCountry } from "@/lib/site";
 import { canonicalDriveOptions, canonicalFuelOptions, canonicalGearboxOptions, labelDrive, labelFuel, labelGearbox, t } from "@/lib/i18n";
 
@@ -45,8 +43,6 @@ export default function TransportasPage() {
   const [powerTo, setPowerTo] = useState("");
   const [externalItems, setExternalItems] = useState<ExternalListing[]>([]);
   const [externalLoading, setExternalLoading] = useState(false);
-  const [searchNonce, setSearchNonce] = useState(0);
-  const [hasSearchedExternal, setHasSearchedExternal] = useState(false);
 
   useEffect(() => {
     setSiteCountry(getSiteCountry());
@@ -59,27 +55,21 @@ export default function TransportasPage() {
   }, []);
 
 
-  const externalQuery = useMemo(() => {
-    return [qText.trim(), fuel.trim(), drive.trim(), gearbox.trim()].filter(Boolean).join(" ").trim();
-  }, [qText, fuel, drive, gearbox]);
 
   useEffect(() => {
-    if (!searchNonce) return;
-
-    if (externalQuery.length < 2) {
+    const queryText = qText.trim();
+    if (queryText.length < 2) {
       setExternalItems([]);
       setExternalLoading(false);
-      setHasSearchedExternal(true);
       return;
     }
 
     const controller = new AbortController();
-    (async () => {
+    const timer = setTimeout(async () => {
       try {
         setExternalLoading(true);
-        setHasSearchedExternal(true);
         const params = new URLSearchParams({
-          q: externalQuery,
+          q: queryText,
           section: "transportas",
           category: "automobiliai",
         });
@@ -92,10 +82,13 @@ export default function TransportasPage() {
       } finally {
         if (!controller.signal.aborted) setExternalLoading(false);
       }
-    })();
+    }, 550);
 
-    return () => controller.abort();
-  }, [searchNonce, externalQuery]);
+    return () => {
+      controller.abort();
+      clearTimeout(timer);
+    };
+  }, [qText]);
 
   const filtered = useMemo(() => {
     const q = qText.trim().toLowerCase();
@@ -183,66 +176,36 @@ export default function TransportasPage() {
           <input value={powerFrom} onChange={(e) => setPowerFrom(e.target.value)} placeholder={`kW ${siteCountry === "DK" ? "fra" : "nuo"}`} inputMode="numeric" className="w-full rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm font-extrabold text-white/90 outline-none placeholder:text-white/40" />
           <input value={powerTo} onChange={(e) => setPowerTo(e.target.value)} placeholder={`kW ${siteCountry === "DK" ? "til" : "iki"}`} inputMode="numeric" className="w-full rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm font-extrabold text-white/90 outline-none placeholder:text-white/40" />
         </div>
-        <div className="sm:col-span-2 flex gap-2">
-          <button
-            type="button"
-            onClick={() => setSearchNonce((v) => v + 1)}
-            className="flex-1 rounded-2xl bg-blue-600 px-4 py-3 text-sm font-extrabold text-white hover:bg-blue-500"
-          >
-            🔍 {siteCountry === "DK" ? "Søg" : "Ieškoti"}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setQText("");
-              setMileageMin("");
-              setMileageMax("");
-              setFuel("");
-              setDrive("");
-              setGearbox("");
-              setEngineFrom("");
-              setEngineTo("");
-              setPowerFrom("");
-              setPowerTo("");
-              setExternalItems([]);
-              setHasSearchedExternal(false);
-            }}
-            className="rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm font-extrabold text-white/85 hover:bg-white/[0.08]"
-          >
-            ✕ {t(siteCountry, "clear")}
-          </button>
-        </div>
         <div className="text-xs font-extrabold text-white/55 sm:text-right">{filtered.length} {t(siteCountry, "adsCount")}</div>
       </div>
 
-      <section className="mt-5 space-y-5">
+      <section className="mt-5 space-y-4">
         {filtered.map((a) => (
           <LocalListingRow
             key={a.id}
             href={`/transportas/${a.id}`}
             title={`${(a.brand ?? "").toString()} ${(a.model ?? "").toString()}`.trim() || "Skelbimas"}
-            subtitle={[ (a.city ?? "").toString() || "—", (a.category ?? "").toString(), a.type ? String(a.type) : "" ].filter(Boolean).join(" • ")}
+            subtitle={[(a.city ?? "").toString() || "—", a.type || a.category || ""].filter(Boolean).join(" • ")}
             price={typeof a.price === "number" ? a.price : null}
             img={a.imageUrls?.[0] || null}
-            badge={(a.category ?? "Auto").toString()}
+            badge={a.category ? String(a.category) : "Auto"}
             country={siteCountry}
           />
         ))}
       </section>
 
-      {hasSearchedExternal ? (
+      {qText.trim().length >= 2 ? (
         <section className="mt-8">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-black text-white">Iš kitų portalų</h2>
-              <div className="text-xs font-extrabold text-white/45">Paieška: {externalQuery || "—"}</div>
               <div className="text-xs font-extrabold text-white/55">Autoplius, Autogidas, Autobilis, Autosel, Autobonus</div>
             </div>
             {externalLoading ? <div className="text-xs font-extrabold text-orange-200">Ieškoma…</div> : null}
           </div>
 
           {externalItems.length ? (
-            <div className="space-y-5">
+            <div className="space-y-4">
               {externalItems.map((item) => (
                 <ExternalListingCard key={item.id} item={item} />
               ))}
