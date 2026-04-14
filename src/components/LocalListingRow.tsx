@@ -1,7 +1,6 @@
+"use client";
+
 import Link from "next/link";
-import { formatPrice } from "@/lib/format";
-import { t } from "@/lib/i18n";
-import type { SiteCountry } from "@/lib/site";
 
 type Props = {
   href: string;
@@ -10,64 +9,54 @@ type Props = {
   price?: number | null;
   img?: string | null;
   badge?: string | null;
-  country?: SiteCountry;
+  country?: "LT" | "DK";
 };
 
-export function LocalListingRow({ href, title, subtitle, price, img, badge, country = "LT" }: Props) {
+export default function LocalListingRow({ href, title, subtitle, price, img, badge, country = "LT" }: Props) {
+  const priceText = typeof price === "number"
+    ? `${price.toLocaleString(country === "DK" ? "da-DK" : "lt-LT")} €`
+    : country === "DK" ? "Pris ikke angivet" : "Kaina nenurodyta";
+
   return (
-    <Link
-      href={href}
-      className="group block overflow-hidden rounded-[26px] border border-white/10 bg-white/[0.03] shadow-sm transition hover:border-white/20 hover:bg-white/[0.05]"
-    >
-      <div className="flex flex-col md:flex-row">
-        <div className="relative md:w-[42%]">
-          <div className="h-[220px] w-full bg-white/5 md:h-full">
+    <Link href={href} className="block">
+      <article className="overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.04] transition hover:border-white/20 hover:bg-white/[0.06] hover:shadow-[0_12px_32px_rgba(0,0,0,0.18)]">
+        <div className="flex flex-col md:flex-row">
+          <div className="relative md:w-[340px] md:min-w-[340px]">
             {img ? (
-              <img
-                src={img}
-                alt=""
-                loading="lazy"
-                decoding="async"
-                className="h-full w-full object-cover transition group-hover:scale-[1.02]"
-              />
+              <img src={img} alt={title} className="h-[230px] w-full object-cover md:h-full" loading="lazy" />
             ) : (
-              <div className="grid h-full w-full place-items-center text-white/45">
-                {t(country, "noPhoto")}
+              <div className="grid h-[230px] w-full place-items-center bg-white/5 text-sm font-extrabold text-white/40 md:h-full">
+                {country === "DK" ? "Ingen foto" : "Nėra nuotraukos"}
               </div>
             )}
-          </div>
-          {badge ? (
-            <div className="absolute left-3 top-3 rounded-full border border-white/20 bg-black/55 px-3 py-1 text-xs font-extrabold text-white">
-              {badge}
-            </div>
-          ) : null}
-          <div className="px-4 pb-3 pt-2 text-center text-[18px] font-black tracking-tight text-white/60 md:text-[24px]">
-            Autoloke
-          </div>
-        </div>
 
-        <div className="flex flex-1 flex-col justify-between p-5 md:p-6">
-          <div>
-            <div className="mb-3 flex items-start justify-between gap-3">
-              <h3 className="text-[22px] font-black leading-tight text-white md:text-[30px]">
-                {title}
-              </h3>
-              <div className="text-[32px] leading-none text-white/45">♡</div>
-            </div>
-
-            {subtitle ? (
-              <p className="text-[16px] leading-[1.35] text-white/65 md:text-[20px]">{subtitle}</p>
+            {badge ? (
+              <div className="absolute left-3 top-3 rounded-full bg-black/55 px-3 py-1 text-xs font-bold text-white backdrop-blur">
+                {badge}
+              </div>
             ) : null}
           </div>
 
-          <div className="mt-5 flex items-end justify-between gap-4">
-            <div className="inline-flex rounded-[18px] bg-white px-5 py-3 text-[24px] font-black leading-none text-black md:text-[30px]">
-              {typeof price === "number" ? formatPrice(price, country) : t(country, "priceNotSpecified")}
+          <div className="flex min-h-[230px] flex-1 flex-col justify-between p-5 md:p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <h3 className="truncate text-[28px] font-black leading-tight text-white md:text-[34px]">{title}</h3>
+                {subtitle ? (
+                  <p className="mt-2 text-[15px] leading-6 text-white/65 md:text-[18px]">{subtitle}</p>
+                ) : null}
+              </div>
+              <div className="text-[34px] leading-none text-white/45">♡</div>
             </div>
-            <div className="text-right text-sm font-semibold text-white/45">Atidaryti skelbimą ↗</div>
+
+            <div className="mt-6 flex items-end justify-between gap-4">
+              <div className="inline-flex rounded-[18px] bg-white px-5 py-3 text-[22px] font-black leading-none text-black md:text-[30px]">
+                {priceText}
+              </div>
+              <div className="text-right text-sm font-semibold text-white/45">Autoloke</div>
+            </div>
           </div>
         </div>
-      </div>
+      </article>
     </Link>
   );
 }
