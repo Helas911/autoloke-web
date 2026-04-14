@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { UnifiedSearchCard, type UnifiedSearchItem } from "@/components/UnifiedSearchCard";
+import { ExternalListingCard } from "@/components/ExternalListingCard";
 import type { ExternalListing } from "@/lib/externalAggregator";
 import type { CSSProperties } from "react";
 import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
@@ -10,6 +10,7 @@ import { GoogleMap, Marker, MarkerClustererF, useLoadScript } from "@react-googl
 import { useRouter } from "next/navigation";
 
 import { db } from "@/lib/firebase";
+import { ListingCard } from "@/components/ListingCard";
 import { cls } from "@/lib/format";
 import { bubbleIcon } from "@/lib/mapMarkers";
 import { citySuggestions, getSiteCenter, getSiteCountry, normalizeItemCountry, priceShort, type SiteCountry } from "@/lib/site";
@@ -107,6 +108,8 @@ export default function Home() {
   const [filterByMap, setFilterByMap] = useState(true);
   const [externalItems, setExternalItems] = useState<ExternalListing[]>([]);
   const [externalLoading, setExternalLoading] = useState(false);
+  const [searchNonce, setSearchNonce] = useState(0);
+  const [hasSearchedExternal, setHasSearchedExternal] = useState(false);
 
   useEffect(() => {
     setSiteCountry(getSiteCountry());
@@ -144,21 +147,32 @@ export default function Home() {
   const otherText = useMemo(() => otherLabel(siteCountry), [siteCountry]);
 
 
+  const effectiveModel = model === OTHER ? modelOther : model;
+  const externalQuery = useMemo(() => {
+    return [qText.trim(), effectiveBrand.trim(), effectiveModel.trim(), city.trim()]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+  }, [qText, effectiveBrand, effectiveModel, city]);
 
   useEffect(() => {
-    const queryText = qText.trim();
-    if (queryText.length < 2) {
+    if (!searchNonce) return;
+
+    if (externalQuery.length < 2) {
       setExternalItems([]);
       setExternalLoading(false);
+      setHasSearchedExternal(true);
       return;
     }
 
     const controller = new AbortController();
-    const timer = setTimeout(async () => {
+
+    (async () => {
       try {
         setExternalLoading(true);
+        setHasSearchedExternal(true);
         const params = new URLSearchParams({
-          q: queryText,
+          q: externalQuery,
           section: tab === "dalys" ? "dalys" : "transportas",
           category: tab === "transportas" ? cat : "dalys",
         });
@@ -171,13 +185,12 @@ export default function Home() {
       } finally {
         if (!controller.signal.aborted) setExternalLoading(false);
       }
-    }, 550);
+    })();
 
     return () => {
       controller.abort();
-      clearTimeout(timer);
     };
-  }, [qText, tab, cat]);
+  }, [searchNonce, externalQuery, tab, cat]);
 
   const filtered = useMemo(() => {
     const q = qText.trim().toLowerCase();
@@ -237,37 +250,6 @@ export default function Home() {
     });
   }, [items, qText, brand, model, city, priceMin, priceMax, mileageMin, mileageMax, fuel, drive, gearbox, yearMin, yearMax, filterByMap, bounds, tab, cat, type, siteCountry]);
 
-
-
-  const combinedResults = useMemo<UnifiedSearchItem[]>(() => {
-    const localItems: UnifiedSearchItem[] = filtered.map((i) => ({
-      id: `local:${i.id}`,
-      href: tab === "transportas" ? `/transportas/${i.id}` : `/dalys/${i.id}`,
-      external: false,
-      source: "Autoloke",
-      title: buildTitle(i, tab),
-      subtitle: buildSubtitle(i),
-      price: typeof i.price === "number" ? i.price : null,
-      img: i.imageUrls?.[0] || null,
-      badge: tab === "transportas" ? (i.category ? categoryLabelLocalized(String(i.category), siteCountry) : null) : t(siteCountry, "parts"),
-      country: siteCountry,
-    }));
-
-    const remoteItems: UnifiedSearchItem[] = externalItems.map((item) => ({
-      id: `ext:${item.id}`,
-      href: item.url,
-      external: true,
-      source: item.source,
-      title: item.title,
-      subtitle: item.city || (tab === "dalys" ? t(siteCountry, "parts") : categoryLabelLocalized(cat, siteCountry)),
-      priceText: item.priceText,
-      img: item.imageUrl || null,
-      badge: item.category ? categoryLabelLocalized(String(item.category) as VehicleCategory, siteCountry) : (tab === "dalys" ? t(siteCountry, "parts") : null),
-      country: siteCountry,
-    }));
-
-    return [...localItems, ...remoteItems];
-  }, [filtered, externalItems, tab, siteCountry, cat]);
 
   function goNearMe() {
     if (!navigator.geolocation) return;
@@ -637,6 +619,42 @@ export default function Home() {
                 </>
               ) : null}
 
+              <div className="mt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSearchNonce((v) => v + 1)}
+                  className="flex-1 rounded-2xl bg-blue-600 px-4 py-3 text-sm font-extrabold text-white hover:bg-blue-500"
+                >
+                  🔍 {siteCountry === "DK" ? "Søg" : "Ieškoti"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQText("");
+                    setBrand("");
+                    setBrandOther("");
+                    setModel("");
+                    setModelOther("");
+                    setCity("");
+                    setPriceMin("");
+                    setPriceMax("");
+                    setMileageMin("");
+                    setMileageMax("");
+                    setFuel("");
+                    setDrive("");
+                    setGearbox("");
+                    setYearMin("");
+                    setYearMax("");
+                    setType("");
+                    setExternalItems([]);
+                    setHasSearchedExternal(false);
+                  }}
+                  className="rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm font-extrabold text-white/85 hover:bg-white/[0.08]"
+                >
+                  ✕ {t(siteCountry, "clear")}
+                </button>
+              </div>
+
               <div className="mt-1 rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-xs font-bold text-white/70">
                 {siteCountry === "DK" ? "Fundet" : "Rasta"}: <span className="text-white">{filtered.length}</span>
               </div>
@@ -655,28 +673,56 @@ export default function Home() {
         <section className="mt-6">
           <div className="mb-3 flex items-center justify-between">
             <div className="text-lg font-black">{siteCountry === "DK" ? "Annoncer" : "Skelbimai"}</div>
-            <div className="text-xs text-white/55">{siteCountry === "DK" ? "Fundet" : "Rasta"}: {combinedResults.length}</div>
-          </div>
-
-          <div className="mb-3 flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-xs font-extrabold text-white/70">
-            <div>
-              {siteCountry === "DK" ? "Autoloke + eksterne portaler i én søgning" : "Autoloke + išoriniai portalai vienoje paieškoje"}
-            </div>
-            {externalLoading ? <div className="text-orange-200">Ieškoma portaluose…</div> : qText.trim().length >= 2 ? <div className="text-white/45">Autoplius • Autogidas • Autobilis • Autosel • Autobonus</div> : null}
+            <div className="text-xs text-white/55">{siteCountry === "DK" ? "Fundet" : "Rasta"}: {filtered.length}</div>
           </div>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {combinedResults.slice(0, 36).map((item) => (
-              <UnifiedSearchCard key={item.id} item={item} />
+            {filtered.slice(0, 18).map((i) => (
+              <ListingCard
+                key={i.id}
+                href={tab === "transportas" ? `/transportas/${i.id}` : `/dalys/${i.id}`}
+                title={buildTitle(i, tab)}
+                subtitle={buildSubtitle(i)}
+                price={typeof i.price === "number" ? i.price : null}
+                img={i.imageUrls?.[0] || null}
+                badge={tab === "transportas" ? (i.category ? categoryLabelLocalized(String(i.category), siteCountry) : null) : t(siteCountry, "parts")}
+                country={siteCountry}
+              />
             ))}
 
-            {combinedResults.length === 0 ? (
+            {filtered.length === 0 ? (
               <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-sm text-white/70">
-                {siteCountry === "DK" ? "Ingen resultater. Prøv at rydde filtrene eller skrive en bredere søgning." : "Nieko nerasta. Pabandyk išvalyti filtrus arba įrašyti platesnę užklausą."}
+                {siteCountry === "DK" ? "Ingen resultater. Prøv at rydde filtrene eller zoome ind på kortet." : "Nieko nerasta. Pabandyk išvalyti filtrus arba priartinti žemėlapį."}
               </div>
             ) : null}
           </div>
         </section>
+
+
+        {hasSearchedExternal ? (
+          <section className="mt-8">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-black text-white">Iš kitų portalų</h2>
+                <div className="text-xs font-extrabold text-white/45">Paieška: {externalQuery || "—"}</div>
+                <div className="text-xs font-extrabold text-white/55">Autoplius, Autogidas, Autobilis, Autosel, Autobonus</div>
+              </div>
+              {externalLoading ? <div className="text-xs font-extrabold text-orange-200">Ieškoma…</div> : null}
+            </div>
+
+            {externalItems.length ? (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {externalItems.map((item) => (
+                  <ExternalListingCard key={item.id} item={item} />
+                ))}
+              </div>
+            ) : !externalLoading ? (
+              <div className="rounded-3xl border border-white/10 bg-white/[0.03] px-4 py-5 text-sm font-extrabold text-white/60">
+                Išorinių rezultatų nerasta pagal dabartinę užklausą.
+              </div>
+            ) : null}
+          </section>
+        ) : null}
       </main>
 
     </>
