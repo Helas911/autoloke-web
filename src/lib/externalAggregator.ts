@@ -18,7 +18,7 @@ type SourceConfig = {
   key: string;
   label: string;
   searchUrl: (args: { query: string; section: ExternalSection; category?: string }) => string;
-  resultLinkPattern?: RegExp;
+  hostPattern: RegExp;
 };
 
 function enc(v: string) {
@@ -30,11 +30,11 @@ function categoryTerm(category?: string) {
     case "motociklai":
       return "motociklai";
     case "sunkvezimiai":
-      return "sunkvezimiai";
+      return "sunkvežimiai";
     case "vandensTransportas":
       return "vandens transportas";
     case "zemesUkioTechnika":
-      return "zemes ukio technika";
+      return "žemės ūkio technika";
     default:
       return "automobiliai";
   }
@@ -45,31 +45,32 @@ function sourceConfigs(): SourceConfig[] {
     {
       key: "autoplius",
       label: "autoplius.lt",
+      hostPattern: /autoplius\.lt/i,
       searchUrl: ({ query, section, category }) => {
         if (section === "dalys") {
-          return `https://autoplius.lt/skelbimai/automobiliu-dalys-paieska?search_text=${enc(query)}`;
+          return `https://m.autoplius.lt/skelbimai/automobiliu-dalys?search_text=${enc(query)}`;
         }
         const base = (() => {
           switch (category) {
             case "motociklai":
-              return "https://autoplius.lt/skelbimai/motociklai";
+              return "https://m.autoplius.lt/skelbimai/motociklai";
             case "sunkvezimiai":
-              return "https://autoplius.lt/skelbimai/komerciniai-automobiliai";
+              return "https://m.autoplius.lt/skelbimai/komerciniai-automobiliai";
             case "vandensTransportas":
-              return "https://autoplius.lt/skelbimai/vandens-transportas";
+              return "https://m.autoplius.lt/skelbimai/vandens-transportas";
             case "zemesUkioTechnika":
-              return "https://autoplius.lt/skelbimai/zemes-ukio-technika";
+              return "https://m.autoplius.lt/skelbimai/zemes-ukio-technika";
             default:
-              return "https://autoplius.lt/skelbimai/naudoti-automobiliai";
+              return "https://m.autoplius.lt/skelbimai/naudoti-automobiliai";
           }
         })();
         return `${base}?search_text=${enc(query)}`;
       },
-      resultLinkPattern: /https?:\/\/autoplius\.lt\/skelbimai\/[^"]+/i,
     },
     {
       key: "autogidas",
       label: "autogidas.lt",
+      hostPattern: /autogidas\.lt/i,
       searchUrl: ({ query, section, category }) => {
         if (section === "dalys") {
           return `https://autogidas.lt/auto-dalys/paieska?keywords=${enc(query)}`;
@@ -90,11 +91,11 @@ function sourceConfigs(): SourceConfig[] {
         })();
         return `https://autogidas.lt/${kind}/paieska?keywords=${enc(query)}`;
       },
-      resultLinkPattern: /https?:\/\/autogidas\.lt\/[^"]*skelbimas[^"]+/i,
     },
     {
       key: "autobilis",
       label: "autobilis.lt",
+      hostPattern: /autobilis\.lt/i,
       searchUrl: ({ query, section, category }) => {
         const q = section === "dalys" ? `${query} auto dalys` : `${query} ${categoryTerm(category)}`;
         return `https://autobilis.lt/?s=${enc(q)}`;
@@ -103,6 +104,7 @@ function sourceConfigs(): SourceConfig[] {
     {
       key: "autosel",
       label: "autosel.lt",
+      hostPattern: /autosel\.lt/i,
       searchUrl: ({ query, section, category }) => {
         const q = section === "dalys" ? `${query} dalys` : `${query} ${categoryTerm(category)}`;
         return `https://autosel.lt/?s=${enc(q)}`;
@@ -111,6 +113,7 @@ function sourceConfigs(): SourceConfig[] {
     {
       key: "autobonus",
       label: "autobonus.lt",
+      hostPattern: /autobonus\.lt/i,
       searchUrl: ({ query, section, category }) => {
         const q = section === "dalys" ? `${query} auto dalys` : `${query} ${categoryTerm(category)}`;
         return `https://autobonus.lt/?s=${enc(q)}`;
@@ -119,20 +122,23 @@ function sourceConfigs(): SourceConfig[] {
   ];
 }
 
-function stripTags(input: string) {
+function decodeHtml(input: string) {
   return input
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">");
+}
+
+function stripTags(input: string) {
+  return decodeHtml(input)
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
     .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
     .replace(/\s+/g, " ")
     .trim();
-}
-
-function isGarbageTitle(input: string) {
-  const v = input.toLowerCase();
-  return !v || v.length < 4 || /href=|src=|class=|service-icon|photo\"|registraci|darbinis t|service-icon-photo|javascript:/.test(v);
 }
 
 function absUrl(url: string, base: string) {
@@ -143,63 +149,107 @@ function absUrl(url: string, base: string) {
   }
 }
 
-function looksLikeListing(url: string, source: SourceConfig) {
-  if (!url || url.startsWith("#") || url.startsWith("javascript:")) return false;
-  if (source.resultLinkPattern) return source.resultLinkPattern.test(url);
-  return /\/\d{4,}|skelb|ad-|listing|auto\//i.test(url);
+function normalizeWhitespace(input: string) {
+  return decodeHtml(input).replace(/\s+/g, " ").trim();
 }
 
-function extractBlocks(html: string) {
-  const blocks: string[] = [];
-  const articleMatches = html.match(/<article[\s\S]*?<\/article>/gi) || [];
-  const divMatches = html.match(/<div[^>]+class="[^"]*(item|card|result|listing|announcement)[^"]*"[\s\S]*?<\/div>/gi) || [];
-  blocks.push(...articleMatches.slice(0, 30));
-  blocks.push(...divMatches.slice(0, 60));
-  return blocks.length ? blocks : [html];
+function cleanTitle(input: string) {
+  const text = normalizeWhitespace(stripTags(input))
+    .replace(/^Žiūrėti\s*/i, "")
+    .replace(/^Plačiau\s*/i, "")
+    .replace(/^Skaityti daugiau\s*/i, "")
+    .replace(/^Peržiūrėti\s*/i, "")
+    .replace(/^(Parduodama|Parduodu)\s*/i, "")
+    .trim();
+
+  if (!text) return "";
+  if (/href\s*=|src\s*=|class\s*=|target\s*=|onclick\s*=/i.test(text)) return "";
+  if (/prideti skelbima|pridėti skelbimą|registruotis|prisijungti|skelbimu|paieska/i.test(text) && text.length < 35) return "";
+  return text.slice(0, 120);
+}
+
+function looksLikeListingUrl(url: string, source: SourceConfig) {
+  if (!url || url.startsWith("#") || url.startsWith("javascript:")) return false;
+  if (!source.hostPattern.test(url)) return false;
+  if (/\/paieska|\/search|\/prisijungti|\/registr|\/kontakt|\/prideti|\/pridėti|\/about|\/terms|\/privacy/i.test(url)) return false;
+  return /skelb|naudoti|automobil|motocikl|komerc|transport|dalys|auto\/|\/\d{4,}|\/ad\//i.test(url);
+}
+
+function extractPrice(context: string) {
+  const m = context.match(/(\d[\d\s.,]{2,}\s?(?:€|eur|Eur|EUR|kr))/i);
+  return m?.[1]?.replace(/\s+/g, " ").trim();
+}
+
+function extractCity(context: string) {
+  const m = context.match(/(Vilnius|Kaunas|Klaipėda|Siauliai|Šiauliai|Panevėžys|Panevezys|Alytus|Marijampolė|Marijampole|Jonava|Mažeikiai|Mazeikiai|Utena|Palanga|Tauragė|Taurage|Telšiai|Telsiai|Plungė|Plunge|Kretinga|Rietavas|Raseiniai|Ukmergė|Ukmerge|Jurbarkas)/i);
+  return m?.[1];
+}
+
+function extractImg(context: string, baseUrl: string) {
+  const m = context.match(/<img[^>]+(?:src|data-src)=["']([^"']+)["']/i);
+  return m ? absUrl(m[1], baseUrl) : undefined;
+}
+
+function pushResult(results: ExternalListing[], seen: Set<string>, source: SourceConfig, url: string, title: string, context: string, pageUrl: string, section: ExternalSection, category?: string) {
+  const fullUrl = absUrl(url, pageUrl);
+  if (!looksLikeListingUrl(fullUrl, source)) return;
+  if (seen.has(fullUrl)) return;
+
+  const clean = cleanTitle(title || context);
+  if (!clean || clean.length < 4) return;
+
+  seen.add(fullUrl);
+  results.push({
+    id: `${source.key}:${fullUrl}`,
+    title: clean,
+    priceText: extractPrice(context),
+    city: extractCity(context),
+    imageUrl: extractImg(context, pageUrl),
+    url: fullUrl,
+    source: source.label,
+    section,
+    category,
+  });
 }
 
 function extractListingsFromHtml(html: string, source: SourceConfig, pageUrl: string, section: ExternalSection, category?: string) {
-  const blocks = extractBlocks(html);
   const results: ExternalListing[] = [];
   const seen = new Set<string>();
+  const cleanedHtml = html.replace(/\n/g, " ");
 
-  for (const block of blocks) {
-    const hrefMatches = [...block.matchAll(/href=["']([^"']+)["']/gi)];
-    const imgMatch = block.match(/<img[^>]+src=["']([^"']+)["']/i);
-    const priceMatch = block.match(/(\d[\d\s.,]{2,}\s?(?:€|eur|Eur|EUR|kr|Kč))/i);
+  // Prefer anchor inner text instead of surrounding HTML.
+  const anchorRe = /<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  let match: RegExpExecArray | null;
 
-    for (const hrefMatch of hrefMatches) {
-      const rawHref = hrefMatch[1];
-      const fullUrl = absUrl(rawHref, pageUrl);
-      if (!looksLikeListing(fullUrl, source)) continue;
-      if (seen.has(fullUrl)) continue;
-      const anchorStart = Math.max(0, hrefMatch.index ?? 0 - 300);
-      const excerpt = block.slice(anchorStart, anchorStart + 900);
-      const title = stripTags(excerpt)
-        .replace(/^(Žiūrėti|Skaityti daugiau|Plačiau)\s*/i, "")
-        .split("|")[0]
-        .trim()
-        .slice(0, 110);
-      if (!title || title.length < 4 || isGarbageTitle(title)) continue;
+  while ((match = anchorRe.exec(cleanedHtml)) && results.length < 12) {
+    const href = match[1];
+    const inner = match[2];
+    const title = cleanTitle(inner);
+    if (!title) continue;
 
-      const cityMatch = excerpt.match(/(Vilnius|Kaunas|Klaipėda|Šiauliai|Panevėžys|Alytus|Marijampolė|Jonava|Mažeikiai|Utena|Palanga|Tauragė|Telšiai|Plungė|Kretinga|Rietavas)/i);
+    const start = Math.max(0, match.index - 300);
+    const end = Math.min(cleanedHtml.length, match.index + match[0].length + 500);
+    const context = cleanedHtml.slice(start, end);
 
-      seen.add(fullUrl);
-      results.push({
-        id: `${source.key}:${fullUrl}`,
-        title,
-        priceText: priceMatch?.[1]?.replace(/\s+/g, " ").trim(),
-        city: cityMatch?.[1],
-        imageUrl: imgMatch ? absUrl(imgMatch[1], pageUrl) : undefined,
-        url: fullUrl,
-        source: source.label,
-        section,
-        category,
-      });
-      break;
+    pushResult(results, seen, source, href, title, context, pageUrl, section, category);
+  }
+
+  // Fallback for sites where title is in heading nearby.
+  if (results.length < 6) {
+    const cardRe = /<(article|div|li)\b[^>]*>([\s\S]{120,2500}?)<\/\1>/gi;
+    while ((match = cardRe.exec(cleanedHtml)) && results.length < 12) {
+      const block = match[2];
+      const href = (block.match(/href=["']([^"']+)["']/i) || [])[1];
+      if (!href) continue;
+
+      const heading = (block.match(/<(h1|h2|h3|h4)[^>]*>([\s\S]*?)<\/\1>/i) || [])[2]
+        || (block.match(/class=["'][^"']*(?:title|name|model)[^"']*["'][^>]*>([\s\S]*?)</i) || [])[1]
+        || "";
+      const title = cleanTitle(heading || block);
+      if (!title) continue;
+
+      pushResult(results, seen, source, href, title, block, pageUrl, section, category);
     }
-
-    if (results.length >= 8) break;
   }
 
   return results;
@@ -211,49 +261,43 @@ async function fetchOne(source: SourceConfig, query: string, section: ExternalSe
     const res = await fetch(url, {
       headers: {
         "user-agent": "Mozilla/5.0 (compatible; AutolokeBot/1.0; +https://autoloke.lt)",
-        accept: "text/html,application/xhtml+xml",
+        accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
       },
       next: { revalidate: 60 * 30 },
     });
 
     if (!res.ok) {
-      return [
-        {
-          id: `${source.key}:fallback:${url}`,
-          title: `${query} (${source.label})`,
-          url,
-          source: source.label,
-          section,
-          category,
-        },
-      ] satisfies ExternalListing[];
+      return [{
+        id: `${source.key}:fallback:${url}`,
+        title: `${query} – ${source.label}`,
+        url,
+        source: source.label,
+        section,
+        category,
+      }] satisfies ExternalListing[];
     }
 
     const html = await res.text();
     const parsed = extractListingsFromHtml(html, source, url, section, category);
     if (parsed.length) return parsed;
 
-    return [
-      {
-        id: `${source.key}:fallback:${url}`,
-        title: `${query} (${source.label})`,
-        url,
-        source: source.label,
-        section,
-        category,
-      },
-    ] satisfies ExternalListing[];
+    return [{
+      id: `${source.key}:fallback:${url}`,
+      title: `${query} – ${source.label}`,
+      url,
+      source: source.label,
+      section,
+      category,
+    }] satisfies ExternalListing[];
   } catch {
-    return [
-      {
-        id: `${source.key}:fallback:${url}`,
-        title: `${query} (${source.label})`,
-        url,
-        source: source.label,
-        section,
-        category,
-      },
-    ] satisfies ExternalListing[];
+    return [{
+      id: `${source.key}:fallback:${url}`,
+      title: `${query} – ${source.label}`,
+      url,
+      source: source.label,
+      section,
+      category,
+    }] satisfies ExternalListing[];
   }
 }
 

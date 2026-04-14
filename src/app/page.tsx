@@ -10,7 +10,7 @@ import { GoogleMap, Marker, MarkerClustererF, useLoadScript } from "@react-googl
 import { useRouter } from "next/navigation";
 
 import { db } from "@/lib/firebase";
-import { LocalListingRow } from "@/components/LocalListingRow";
+import { ListingCard } from "@/components/ListingCard";
 import { cls } from "@/lib/format";
 import { bubbleIcon } from "@/lib/mapMarkers";
 import { citySuggestions, getSiteCenter, getSiteCountry, normalizeItemCountry, priceShort, type SiteCountry } from "@/lib/site";
@@ -108,7 +108,7 @@ export default function Home() {
   const [filterByMap, setFilterByMap] = useState(true);
   const [externalItems, setExternalItems] = useState<ExternalListing[]>([]);
   const [externalLoading, setExternalLoading] = useState(false);
-  const [searchTick, setSearchTick] = useState(0);
+  const [searchNonce, setSearchNonce] = useState(0);
 
   useEffect(() => {
     setSiteCountry(getSiteCountry());
@@ -132,6 +132,7 @@ export default function Home() {
   const brandCat = toBrandCategory(cat);
   const brands = useMemo(() => brandsForCategory(brandCat), [brandCat]);
   const effectiveBrand = brand === OTHER ? brandOther : brand;
+  const effectiveModel = model === OTHER ? modelOther : model;
   const models = useMemo(() => modelsForBrand(brandCat, effectiveBrand), [brandCat, effectiveBrand]);
 
   useEffect(() => {
@@ -144,15 +145,16 @@ export default function Home() {
   const mapCenter = useMemo(() => getSiteCenter(siteCountry), [siteCountry]);
   const cities = useMemo(() => citySuggestions(siteCountry), [siteCountry]);
   const otherText = useMemo(() => otherLabel(siteCountry), [siteCountry]);
-  const effectiveModel = model === OTHER ? modelOther : model;
-  const externalQuery = useMemo(
-    () => [qText.trim(), effectiveBrand.trim(), effectiveModel.trim(), city.trim()].filter(Boolean).join(" ").trim(),
-    [qText, effectiveBrand, effectiveModel, city]
-  );
+
+
 
   useEffect(() => {
-    if (searchTick === 0) return;
-    if (externalQuery.length < 2) {
+    const externalQuery = [qText.trim(), effectiveBrand.trim(), effectiveModel.trim(), city.trim()]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+
+    if (searchNonce === 0 || externalQuery.length < 2) {
       setExternalItems([]);
       setExternalLoading(false);
       return;
@@ -182,7 +184,7 @@ export default function Home() {
       controller.abort();
       clearTimeout(timer);
     };
-  }, [externalQuery, tab, cat, searchTick]);
+  }, [qText, effectiveBrand, effectiveModel, city, tab, cat, searchNonce]);
 
   const filtered = useMemo(() => {
     const q = qText.trim().toLowerCase();
@@ -614,20 +616,33 @@ export default function Home() {
               <div className="mt-2 flex gap-2">
                 <button
                   type="button"
-                  onClick={() => setSearchTick((v) => v + 1)}
-                  className="flex-1 rounded-2xl bg-blue-600 px-4 py-3 text-sm font-black text-white hover:bg-blue-500"
+                  onClick={() => setSearchNonce((v) => v + 1)}
+                  className="flex-1 rounded-2xl bg-blue-600 px-4 py-3 text-sm font-extrabold text-white hover:bg-blue-500"
                 >
                   🔍 {siteCountry === "DK" ? "Søg" : "Ieškoti"}
                 </button>
                 <button
                   type="button"
                   onClick={() => {
-                    setQText(""); setType(""); setBrand(""); setBrandOther(""); setModel(""); setModelOther("");
-                    setCity(""); setPriceMin(""); setPriceMax(""); setMileageMin(""); setMileageMax("");
-                    setFuel(""); setDrive(""); setGearbox(""); setYearMin(""); setYearMax("");
-                    setExternalItems([]); setSearchTick(0);
+                    setQText("");
+                    setBrand("");
+                    setBrandOther("");
+                    setModel("");
+                    setModelOther("");
+                    setCity("");
+                    setPriceMin("");
+                    setPriceMax("");
+                    setMileageMin("");
+                    setMileageMax("");
+                    setFuel("");
+                    setDrive("");
+                    setGearbox("");
+                    setYearMin("");
+                    setYearMax("");
+                    setExternalItems([]);
+                    setSearchNonce(0);
                   }}
-                  className="rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm font-black text-white/85 hover:bg-white/[0.08]"
+                  className="rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm font-extrabold text-white/85 hover:bg-white/[0.08]"
                 >
                   ✕ {siteCountry === "DK" ? "Ryd" : "Išvalyti"}
                 </button>
@@ -654,9 +669,9 @@ export default function Home() {
             <div className="text-xs text-white/55">{siteCountry === "DK" ? "Fundet" : "Rasta"}: {filtered.length}</div>
           </div>
 
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {filtered.slice(0, 18).map((i) => (
-              <LocalListingRow
+              <ListingCard
                 key={i.id}
                 href={tab === "transportas" ? `/transportas/${i.id}` : `/dalys/${i.id}`}
                 title={buildTitle(i, tab)}
@@ -677,7 +692,7 @@ export default function Home() {
         </section>
 
 
-        {searchTick > 0 && externalQuery.length >= 2 ? (
+        {searchNonce > 0 ? (
           <section className="mt-8">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
@@ -688,7 +703,7 @@ export default function Home() {
             </div>
 
             {externalItems.length ? (
-              <div className="space-y-4">
+              <div className="space-y-5">
                 {externalItems.map((item) => (
                   <ExternalListingCard key={item.id} item={item} />
                 ))}

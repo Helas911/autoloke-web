@@ -1,11 +1,12 @@
 "use client";
 
 import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ExternalListingCard } from "@/components/ExternalListingCard";
-import { LocalListingRow } from "@/components/LocalListingRow";
 import type { ExternalListing } from "@/lib/externalAggregator";
 import { db } from "@/lib/firebase";
+import { formatPrice } from "@/lib/format";
 import { getSiteCountry, normalizeItemCountry, type SiteCountry } from "@/lib/site";
 import { canonicalDriveOptions, canonicalFuelOptions, canonicalGearboxOptions, labelDrive, labelFuel, labelGearbox, t } from "@/lib/i18n";
 
@@ -26,8 +27,6 @@ type Ad = {
   category?: string;
   type?: string;
   country?: string;
-  year?: number | string | null;
-  body?: string | null;
 };
 
 export default function TransportasPage() {
@@ -45,7 +44,7 @@ export default function TransportasPage() {
   const [powerTo, setPowerTo] = useState("");
   const [externalItems, setExternalItems] = useState<ExternalListing[]>([]);
   const [externalLoading, setExternalLoading] = useState(false);
-  const [searchTick, setSearchTick] = useState(0);
+  const [searchNonce, setSearchNonce] = useState(0);
 
   useEffect(() => {
     setSiteCountry(getSiteCountry());
@@ -60,9 +59,8 @@ export default function TransportasPage() {
 
 
   useEffect(() => {
-    if (searchTick === 0) return;
     const queryText = qText.trim();
-    if (queryText.length < 2) {
+    if (searchNonce === 0 || queryText.length < 2) {
       setExternalItems([]);
       setExternalLoading(false);
       return;
@@ -92,7 +90,7 @@ export default function TransportasPage() {
       controller.abort();
       clearTimeout(timer);
     };
-  }, [qText, searchTick]);
+  }, [qText, searchNonce]);
 
   const filtered = useMemo(() => {
     const q = qText.trim().toLowerCase();
@@ -183,42 +181,26 @@ export default function TransportasPage() {
         <div className="text-xs font-extrabold text-white/55 sm:text-right">{filtered.length} {t(siteCountry, "adsCount")}</div>
       </div>
 
-      <div className="mt-3 flex gap-2">
-        <button
-          type="button"
-          onClick={() => setSearchTick((v) => v + 1)}
-          className="flex-1 rounded-2xl bg-blue-600 px-4 py-3 text-sm font-black text-white hover:bg-blue-500"
-        >
-          🔍 Ieškoti
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setQText(""); setMileageMin(""); setMileageMax(""); setFuel(""); setDrive(""); setGearbox("");
-            setEngineFrom(""); setEngineTo(""); setPowerFrom(""); setPowerTo(""); setExternalItems([]); setSearchTick(0);
-          }}
-          className="rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm font-black text-white/85 hover:bg-white/[0.08]"
-        >
-          ✕ Išvalyti
-        </button>
-      </div>
-
-      <section className="mt-5 space-y-4">
+      <section className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {filtered.map((a) => (
-          <LocalListingRow
-            key={a.id}
-            href={`/transportas/${a.id}`}
-            title={`${(a.brand ?? "").toString()} ${(a.model ?? "").toString()}`.trim() || "Skelbimas"}
-            subtitle={`${(a.city ?? "").toString() || "—"}${a.year ? ` • ${String(a.year)}` : ""}${a.body ? ` • ${a.body}` : ""}`}
-            price={typeof a.price === "number" ? a.price : null}
-            img={a.imageUrls?.[0] || null}
-            badge={a.category ? String(a.category) : null}
-            country={siteCountry}
-          />
+          <Link key={a.id} href={`/transportas/${a.id}`} className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.06]">
+            <div className="aspect-[16/10] bg-white/5">
+              {a.imageUrls?.[0] ? (
+                <img src={a.imageUrls[0]} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <div className="grid h-full w-full place-items-center text-xs font-extrabold text-white/40">{t(siteCountry, "noPhoto")}</div>
+              )}
+            </div>
+            <div className="p-4">
+              <div className="truncate text-sm font-black">{(a.brand ?? "").toString()} {(a.model ?? "").toString()}</div>
+              <div className="mt-1 text-xs font-extrabold text-white/55">{(a.city ?? "").toString() || "—"} • {(a.category ?? "").toString()} {a.type ? `• ${a.type}` : ""}</div>
+              <div className="mt-3 text-lg font-black">{typeof a.price === "number" ? formatPrice(a.price, siteCountry) : t(siteCountry, "priceNotSpecified")}</div>
+            </div>
+          </Link>
         ))}
       </section>
 
-      {searchTick > 0 && qText.trim().length >= 2 ? (
+      {searchNonce > 0 ? (
         <section className="mt-8">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
@@ -229,7 +211,7 @@ export default function TransportasPage() {
           </div>
 
           {externalItems.length ? (
-            <div className="space-y-4">
+            <div className="space-y-5">
               {externalItems.map((item) => (
                 <ExternalListingCard key={item.id} item={item} />
               ))}
