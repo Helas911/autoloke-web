@@ -10,7 +10,7 @@ import { GoogleMap, Marker, MarkerClustererF, useLoadScript } from "@react-googl
 import { useRouter } from "next/navigation";
 
 import { db } from "@/lib/firebase";
-import { ListingCard } from "@/components/ListingCard";
+import { LocalListingRow } from "@/components/LocalListingRow";
 import { cls } from "@/lib/format";
 import { bubbleIcon } from "@/lib/mapMarkers";
 import { citySuggestions, getSiteCenter, getSiteCountry, normalizeItemCountry, priceShort, type SiteCountry } from "@/lib/site";
@@ -676,9 +676,9 @@ export default function Home() {
             <div className="text-xs text-white/55">{siteCountry === "DK" ? "Fundet" : "Rasta"}: {filtered.length}</div>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="space-y-5">
             {filtered.slice(0, 18).map((i) => (
-              <ListingCard
+              <LocalListingRow
                 key={i.id}
                 href={tab === "transportas" ? `/transportas/${i.id}` : `/dalys/${i.id}`}
                 title={buildTitle(i, tab)}
@@ -711,7 +711,7 @@ export default function Home() {
             </div>
 
             {externalItems.length ? (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="space-y-5">
                 {externalItems.map((item) => (
                   <ExternalListingCard key={item.id} item={item} />
                 ))}

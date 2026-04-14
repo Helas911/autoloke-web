@@ -214,20 +214,42 @@ export default function TransportasPage() {
         <div className="text-xs font-extrabold text-white/55 sm:text-right">{filtered.length} {t(siteCountry, "adsCount")}</div>
       </div>
 
-      <section className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <section className="mt-5 space-y-5">
         {filtered.map((a) => (
-          <Link key={a.id} href={`/transportas/${a.id}`} className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.06]">
-            <div className="aspect-[16/10] bg-white/5">
-              {a.imageUrls?.[0] ? (
-                <img src={a.imageUrls[0]} alt="" className="h-full w-full object-cover" />
-              ) : (
-                <div className="grid h-full w-full place-items-center text-xs font-extrabold text-white/40">{t(siteCountry, "noPhoto")}</div>
-              )}
-            </div>
-            <div className="p-4">
-              <div className="truncate text-sm font-black">{(a.brand ?? "").toString()} {(a.model ?? "").toString()}</div>
-              <div className="mt-1 text-xs font-extrabold text-white/55">{(a.city ?? "").toString() || "—"} • {(a.category ?? "").toString()} {a.type ? `• ${a.type}` : ""}</div>
-              <div className="mt-3 text-lg font-black">{typeof a.price === "number" ? formatPrice(a.price, siteCountry) : t(siteCountry, "priceNotSpecified")}</div>
+          <Link
+            key={a.id}
+            href={`/transportas/${a.id}`}
+            className="group block overflow-hidden rounded-[26px] border border-white/10 bg-white/[0.03] shadow-sm transition hover:border-white/20 hover:bg-white/[0.05]"
+          >
+            <div className="flex flex-col md:flex-row">
+              <div className="relative md:w-[42%]">
+                <div className="h-[220px] w-full bg-white/5 md:h-full">
+                  {a.imageUrls?.[0] ? (
+                    <img src={a.imageUrls[0]} alt="" className="h-full w-full object-cover transition group-hover:scale-[1.02]" />
+                  ) : (
+                    <div className="grid h-full w-full place-items-center text-xs font-extrabold text-white/40">{t(siteCountry, "noPhoto")}</div>
+                  )}
+                </div>
+                <div className="absolute left-3 top-3 rounded-full border border-white/20 bg-black/55 px-3 py-1 text-xs font-extrabold text-white">
+                  {a.category ? String(a.category) : t(siteCountry, "transport")}
+                </div>
+                <div className="px-4 pb-3 pt-2 text-center text-[18px] font-black tracking-tight text-white/60 md:text-[24px]">
+                  Autoloke
+                </div>
+              </div>
+              <div className="flex flex-1 flex-col justify-between p-5 md:p-6">
+                <div>
+                  <div className="mb-3 flex items-start justify-between gap-3">
+                    <h3 className="text-[22px] font-black leading-tight text-white md:text-[30px]">{(a.brand ?? "").toString()} {(a.model ?? "").toString()}</h3>
+                    <div className="text-[32px] leading-none text-white/45">♡</div>
+                  </div>
+                  <p className="text-[16px] leading-[1.35] text-white/65 md:text-[20px]">{[(a.city ?? "").toString() || "—", typeof a.year === "number" ? String(a.year) : "", a.type ? String(a.type) : ""].filter(Boolean).join(" • ")}</p>
+                </div>
+                <div className="mt-5 flex items-end justify-between gap-4">
+                  <div className="inline-flex rounded-[18px] bg-white px-5 py-3 text-[24px] font-black leading-none text-black md:text-[30px]">{typeof a.price === "number" ? formatPrice(a.price, siteCountry) : t(siteCountry, "priceNotSpecified")}</div>
+                  <div className="text-right text-sm font-semibold text-white/45">Atidaryti skelbimą ↗</div>
+                </div>
+              </div>
             </div>
           </Link>
         ))}
