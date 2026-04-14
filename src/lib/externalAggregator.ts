@@ -12,6 +12,7 @@ export type ExternalListing = {
   source: string;
   section: ExternalSection;
   category?: string;
+  isFallback?: boolean;
 };
 
 type SourceConfig = {
@@ -274,6 +275,7 @@ async function fetchOne(source: SourceConfig, query: string, section: ExternalSe
         source: source.label,
         section,
         category,
+        isFallback: true,
       }] satisfies ExternalListing[];
     }
 
@@ -288,6 +290,7 @@ async function fetchOne(source: SourceConfig, query: string, section: ExternalSe
       source: source.label,
       section,
       category,
+      isFallback: true,
     }] satisfies ExternalListing[];
   } catch {
     return [{
@@ -297,6 +300,7 @@ async function fetchOne(source: SourceConfig, query: string, section: ExternalSe
       source: source.label,
       section,
       category,
+      isFallback: true,
     }] satisfies ExternalListing[];
   }
 }

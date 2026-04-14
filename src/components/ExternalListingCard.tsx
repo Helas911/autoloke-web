@@ -17,12 +17,36 @@ function sourceLabel(source?: string) {
   return safeText(source) || "išorinis šaltinis";
 }
 
+function looksReal(item: ExternalListing) {
+  return !item.isFallback && Boolean(safeText(item.priceText) || safeText(item.city) || item.imageUrl);
+}
+
 export function ExternalListingCard({ item }: { item: ExternalListing }) {
   const title = safeText(item.title) || "Skelbimas";
   const details = safeText(item.city) || "Atidaryti originalų skelbimą";
-  const price = safeText(item.priceText) || "Žiūrėti";
+  const price = safeText(item.priceText);
   const image = item.imageUrl || "https://placehold.co/800x500/e8decd/4a4a4a?text=Skelbimas";
   const source = sourceLabel(item.source);
+
+  if (!looksReal(item)) {
+    return (
+      <a
+        href={item.url}
+        target="_blank"
+        rel="noreferrer"
+        className="block overflow-hidden rounded-[20px] border border-white/10 bg-white/[0.03] px-5 py-4 text-white transition hover:bg-white/[0.05]"
+      >
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <div className="text-sm font-extrabold uppercase tracking-wide text-orange-300">{source}</div>
+            <div className="mt-1 text-xl font-black text-white">{title}</div>
+            <div className="mt-1 text-sm text-white/60">Atidaryti paieškos rezultatą originale ↗</div>
+          </div>
+          <div className="rounded-2xl bg-orange-500 px-4 py-2 text-sm font-black text-white">Žiūrėti</div>
+        </div>
+      </a>
+    );
+  }
 
   return (
     <a
@@ -61,7 +85,7 @@ export function ExternalListingCard({ item }: { item: ExternalListing }) {
 
           <div className="mt-6 flex items-end justify-between gap-4">
             <div className="inline-flex rounded-[18px] bg-[#f18418] px-5 py-3 text-[30px] font-black leading-none text-white md:text-[38px]">
-              {price}
+              {price || 'Žiūrėti'}
             </div>
 
             <div className="text-right text-sm font-bold text-[#666]">
