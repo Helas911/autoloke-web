@@ -45,6 +45,7 @@ export default function TransportasPage() {
   const [powerTo, setPowerTo] = useState("");
   const [externalItems, setExternalItems] = useState<ExternalListing[]>([]);
   const [externalLoading, setExternalLoading] = useState(false);
+  const [searchNonce, setSearchNonce] = useState(0);
 
   useEffect(() => {
     setSiteCountry(getSiteCountry());
@@ -60,7 +61,7 @@ export default function TransportasPage() {
 
   useEffect(() => {
     const queryText = qText.trim();
-    if (queryText.length < 2) {
+    if (searchNonce === 0 || queryText.length < 2) {
       setExternalItems([]);
       setExternalLoading(false);
       return;
@@ -84,13 +85,13 @@ export default function TransportasPage() {
       } finally {
         if (!controller.signal.aborted) setExternalLoading(false);
       }
-    }, 550);
+    }, 150);
 
     return () => {
       controller.abort();
       clearTimeout(timer);
     };
-  }, [qText]);
+  }, [qText, searchNonce]);
 
   const filtered = useMemo(() => {
     const q = qText.trim().toLowerCase();
@@ -181,26 +182,34 @@ export default function TransportasPage() {
         <div className="text-xs font-extrabold text-white/55 sm:text-right">{filtered.length} {t(siteCountry, "adsCount")}</div>
       </div>
 
-      <section className="mt-5 space-y-3">
+      <section className="mt-5 space-y-4">
         {filtered.map((a) => (
           <LocalListingRow
             key={a.id}
             href={`/transportas/${a.id}`}
-            title={`${(a.brand ?? "").toString()} ${(a.model ?? "").toString()}`.trim() || t(siteCountry, "transport")}
+            title={`${(a.brand ?? "").toString()} ${(a.model ?? "").toString()}`.trim() || "Skelbimas"}
             subtitle={[
               (a.city ?? "").toString() || "—",
-              a.type ? `${a.type}` : "",
-              a.category ? `${a.category}` : "",
+              typeof a.mileage === "number" ? `${a.mileage} km` : "",
+              a.fuel ?? "",
+              a.gearbox ?? "",
+              typeof a.engineCapacity === "number" ? `${a.engineCapacity} l` : "",
+              typeof a.powerKw === "number" ? `${a.powerKw} kW` : "",
             ].filter(Boolean).join(" • ")}
             price={typeof a.price === "number" ? a.price : null}
             img={a.imageUrls?.[0] || null}
-            badge={a.category ? String(a.category) : t(siteCountry, "transport")}
+            badge={(a.category ?? a.type ?? "Auto").toString()}
             country={siteCountry}
           />
         ))}
+        {filtered.length === 0 ? (
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-sm text-white/70">
+            {siteCountry === "DK" ? "Ingen resultater. Prøv at rydde filtrene eller zoome ind på kortet." : "Nieko nerasta. Pabandyk išvalyti filtrus arba priartinti žemėlapį."}
+          </div>
+        ) : null}
       </section>
 
-      {qText.trim().length >= 2 ? (
+      {searchNonce > 0 ? (
         <section className="mt-8">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
@@ -211,7 +220,7 @@ export default function TransportasPage() {
           </div>
 
           {externalItems.length ? (
-            <div className="space-y-3">
+            <div className="space-y-5">
               {externalItems.map((item) => (
                 <ExternalListingCard key={item.id} item={item} />
               ))}
