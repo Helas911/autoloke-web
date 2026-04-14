@@ -27,7 +27,27 @@ type Ad = {
   category?: string;
   type?: string;
   country?: string;
+  year?: number | string;
+  body?: string;
 };
+
+function localTitle(a: Ad) {
+  const title = `${(a.brand ?? "").toString()} ${(a.model ?? "").toString()}`.trim();
+  return title || (a.title ?? "Skelbimas");
+}
+
+function localDetail(a: Ad) {
+  const bits = [
+    a.fuel ? labelFuel(a.fuel, "LT") : "",
+    a.year ? String(a.year) : "",
+    a.gearbox ? labelGearbox(a.gearbox, "LT") : "",
+    typeof a.powerKw === "number" ? `${a.powerKw} kW` : "",
+    typeof a.mileage === "number" ? `${a.mileage.toLocaleString("lt-LT")} km` : "",
+    a.body || a.type || "",
+    a.city || "",
+  ].filter(Boolean);
+  return bits.join(" | ");
+}
 
 export default function TransportasPage() {
   const [items, setItems] = useState<Ad[]>([]);
@@ -44,8 +64,7 @@ export default function TransportasPage() {
   const [powerTo, setPowerTo] = useState("");
   const [externalItems, setExternalItems] = useState<ExternalListing[]>([]);
   const [externalLoading, setExternalLoading] = useState(false);
-  const [searchNonce, setSearchNonce] = useState(0);
-  const [hasSearchedExternal, setHasSearchedExternal] = useState(false);
+  const [searchTick, setSearchTick] = useState(0);
 
   useEffect(() => {
     setSiteCountry(getSiteCountry());
@@ -57,28 +76,23 @@ export default function TransportasPage() {
     return () => unsub();
   }, []);
 
-
-  const externalQuery = useMemo(() => {
-    return [qText.trim(), fuel.trim(), drive.trim(), gearbox.trim()].filter(Boolean).join(" ").trim();
-  }, [qText, fuel, drive, gearbox]);
-
   useEffect(() => {
-    if (!searchNonce) return;
+    if (searchTick === 0) return;
 
-    if (externalQuery.length < 2) {
+    const queryText = qText.trim();
+    if (queryText.length < 2) {
       setExternalItems([]);
       setExternalLoading(false);
-      setHasSearchedExternal(true);
       return;
     }
 
     const controller = new AbortController();
+
     (async () => {
       try {
         setExternalLoading(true);
-        setHasSearchedExternal(true);
         const params = new URLSearchParams({
-          q: externalQuery,
+          q: queryText,
           section: "transportas",
           category: "automobiliai",
         });
@@ -94,7 +108,7 @@ export default function TransportasPage() {
     })();
 
     return () => controller.abort();
-  }, [searchNonce, externalQuery]);
+  }, [searchTick, qText]);
 
   const filtered = useMemo(() => {
     const q = qText.trim().toLowerCase();
@@ -121,6 +135,22 @@ export default function TransportasPage() {
       return true;
     });
   }, [items, qText, mileageMin, mileageMax, fuel, drive, gearbox, engineFrom, engineTo, powerFrom, powerTo, siteCountry]);
+
+  const clearFilters = () => {
+    setQText("");
+    setMileageMin("");
+    setMileageMax("");
+    setFuel("");
+    setDrive("");
+    setGearbox("");
+    setEngineFrom("");
+    setEngineTo("");
+    setPowerFrom("");
+    setPowerTo("");
+    setExternalItems([]);
+    setExternalLoading(false);
+    setSearchTick(0);
+  };
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-6">
@@ -182,72 +212,62 @@ export default function TransportasPage() {
           <input value={powerFrom} onChange={(e) => setPowerFrom(e.target.value)} placeholder={`kW ${siteCountry === "DK" ? "fra" : "nuo"}`} inputMode="numeric" className="w-full rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm font-extrabold text-white/90 outline-none placeholder:text-white/40" />
           <input value={powerTo} onChange={(e) => setPowerTo(e.target.value)} placeholder={`kW ${siteCountry === "DK" ? "til" : "iki"}`} inputMode="numeric" className="w-full rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm font-extrabold text-white/90 outline-none placeholder:text-white/40" />
         </div>
-        <div className="sm:col-span-2 flex gap-2">
+
+        <div className="sm:col-span-6 flex flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={() => setSearchNonce((v) => v + 1)}
-            className="flex-1 rounded-2xl bg-blue-600 px-4 py-3 text-sm font-extrabold text-white hover:bg-blue-500"
+            onClick={() => setSearchTick((v) => v + 1)}
+            className="rounded-2xl bg-blue-600 px-5 py-3 text-sm font-extrabold text-white hover:bg-blue-500"
           >
-            🔍 {siteCountry === "DK" ? "Søg" : "Ieškoti"}
+            🔍 Ieškoti
           </button>
           <button
             type="button"
-            onClick={() => {
-              setQText("");
-              setMileageMin("");
-              setMileageMax("");
-              setFuel("");
-              setDrive("");
-              setGearbox("");
-              setEngineFrom("");
-              setEngineTo("");
-              setPowerFrom("");
-              setPowerTo("");
-              setExternalItems([]);
-              setHasSearchedExternal(false);
-            }}
-            className="rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm font-extrabold text-white/85 hover:bg-white/[0.08]"
+            onClick={clearFilters}
+            className="rounded-2xl border border-white/12 bg-white/[0.04] px-5 py-3 text-sm font-extrabold text-white/85 hover:bg-white/[0.08]"
           >
-            ✕ {t(siteCountry, "clear")}
+            ✕ Išvalyti
           </button>
+          <div className="ml-auto text-xs font-extrabold text-white/55">{filtered.length} {t(siteCountry, "adsCount")}</div>
         </div>
-        <div className="text-xs font-extrabold text-white/55 sm:text-right">{filtered.length} {t(siteCountry, "adsCount")}</div>
       </div>
 
-      <section className="mt-5 space-y-5">
+      <section className="mt-5 space-y-4">
         {filtered.map((a) => (
-          <Link
-            key={a.id}
-            href={`/transportas/${a.id}`}
-            className="group block overflow-hidden rounded-[26px] border border-white/10 bg-white/[0.03] shadow-sm transition hover:border-white/20 hover:bg-white/[0.05]"
-          >
+          <Link key={a.id} href={`/transportas/${a.id}`} className="block overflow-hidden rounded-[22px] border border-white/10 bg-white/[0.03] hover:bg-white/[0.05]">
             <div className="flex flex-col md:flex-row">
-              <div className="relative md:w-[42%]">
+              <div className="md:w-[38%]">
                 <div className="h-[220px] w-full bg-white/5 md:h-full">
                   {a.imageUrls?.[0] ? (
-                    <img src={a.imageUrls[0]} alt="" className="h-full w-full object-cover transition group-hover:scale-[1.02]" />
+                    <img src={a.imageUrls[0]} alt="" className="h-full w-full object-cover" />
                   ) : (
                     <div className="grid h-full w-full place-items-center text-xs font-extrabold text-white/40">{t(siteCountry, "noPhoto")}</div>
                   )}
                 </div>
-                <div className="absolute left-3 top-3 rounded-full border border-white/20 bg-black/55 px-3 py-1 text-xs font-extrabold text-white">
-                  {a.category ? String(a.category) : t(siteCountry, "transport")}
-                </div>
-                <div className="px-4 pb-3 pt-2 text-center text-[18px] font-black tracking-tight text-white/60 md:text-[24px]">
-                  Autoloke
-                </div>
               </div>
+
               <div className="flex flex-1 flex-col justify-between p-5 md:p-6">
                 <div>
                   <div className="mb-3 flex items-start justify-between gap-3">
-                    <h3 className="text-[22px] font-black leading-tight text-white md:text-[30px]">{(a.brand ?? "").toString()} {(a.model ?? "").toString()}</h3>
+                    <h3 className="text-[28px] font-black leading-tight text-white md:text-[34px]">
+                      {localTitle(a)}
+                    </h3>
                     <div className="text-[32px] leading-none text-white/45">♡</div>
                   </div>
-                  <p className="text-[16px] leading-[1.35] text-white/65 md:text-[20px]">{[(a.city ?? "").toString() || "—", typeof a.year === "number" ? String(a.year) : "", a.type ? String(a.type) : ""].filter(Boolean).join(" • ")}</p>
+
+                  <p className="text-[16px] leading-[1.35] text-white/65 md:text-[20px]">
+                    {localDetail(a) || "—"}
+                  </p>
                 </div>
+
                 <div className="mt-5 flex items-end justify-between gap-4">
-                  <div className="inline-flex rounded-[18px] bg-white px-5 py-3 text-[24px] font-black leading-none text-black md:text-[30px]">{typeof a.price === "number" ? formatPrice(a.price, siteCountry) : t(siteCountry, "priceNotSpecified")}</div>
-                  <div className="text-right text-sm font-semibold text-white/45">Atidaryti skelbimą ↗</div>
+                  <div className="inline-flex rounded-[18px] bg-white px-5 py-3 text-[24px] font-black leading-none text-black md:text-[28px]">
+                    {typeof a.price === "number" ? formatPrice(a.price, siteCountry) : t(siteCountry, "priceNotSpecified")}
+                  </div>
+
+                  <div className="text-right text-sm font-semibold text-white/55">
+                    Autoloke
+                  </div>
                 </div>
               </div>
             </div>
@@ -255,19 +275,18 @@ export default function TransportasPage() {
         ))}
       </section>
 
-      {hasSearchedExternal ? (
+      {qText.trim().length >= 2 ? (
         <section className="mt-8">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-black text-white">Iš kitų portalų</h2>
-              <div className="text-xs font-extrabold text-white/45">Paieška: {externalQuery || "—"}</div>
               <div className="text-xs font-extrabold text-white/55">Autoplius, Autogidas, Autobilis, Autosel, Autobonus</div>
             </div>
             {externalLoading ? <div className="text-xs font-extrabold text-orange-200">Ieškoma…</div> : null}
           </div>
 
           {externalItems.length ? (
-            <div className="space-y-5">
+            <div className="space-y-4">
               {externalItems.map((item) => (
                 <ExternalListingCard key={item.id} item={item} />
               ))}
@@ -279,7 +298,6 @@ export default function TransportasPage() {
           ) : null}
         </section>
       ) : null}
-
     </main>
   );
 }

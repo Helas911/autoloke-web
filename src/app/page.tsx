@@ -10,7 +10,7 @@ import { GoogleMap, Marker, MarkerClustererF, useLoadScript } from "@react-googl
 import { useRouter } from "next/navigation";
 
 import { db } from "@/lib/firebase";
-import { LocalListingRow } from "@/components/LocalListingRow";
+import { ListingCard } from "@/components/ListingCard";
 import { cls } from "@/lib/format";
 import { bubbleIcon } from "@/lib/mapMarkers";
 import { citySuggestions, getSiteCenter, getSiteCountry, normalizeItemCountry, priceShort, type SiteCountry } from "@/lib/site";
@@ -108,8 +108,6 @@ export default function Home() {
   const [filterByMap, setFilterByMap] = useState(true);
   const [externalItems, setExternalItems] = useState<ExternalListing[]>([]);
   const [externalLoading, setExternalLoading] = useState(false);
-  const [searchNonce, setSearchNonce] = useState(0);
-  const [hasSearchedExternal, setHasSearchedExternal] = useState(false);
 
   useEffect(() => {
     setSiteCountry(getSiteCountry());
@@ -147,32 +145,21 @@ export default function Home() {
   const otherText = useMemo(() => otherLabel(siteCountry), [siteCountry]);
 
 
-  const effectiveModel = model === OTHER ? modelOther : model;
-  const externalQuery = useMemo(() => {
-    return [qText.trim(), effectiveBrand.trim(), effectiveModel.trim(), city.trim()]
-      .filter(Boolean)
-      .join(" ")
-      .trim();
-  }, [qText, effectiveBrand, effectiveModel, city]);
 
   useEffect(() => {
-    if (!searchNonce) return;
-
-    if (externalQuery.length < 2) {
+    const queryText = qText.trim();
+    if (queryText.length < 2) {
       setExternalItems([]);
       setExternalLoading(false);
-      setHasSearchedExternal(true);
       return;
     }
 
     const controller = new AbortController();
-
-    (async () => {
+    const timer = setTimeout(async () => {
       try {
         setExternalLoading(true);
-        setHasSearchedExternal(true);
         const params = new URLSearchParams({
-          q: externalQuery,
+          q: queryText,
           section: tab === "dalys" ? "dalys" : "transportas",
           category: tab === "transportas" ? cat : "dalys",
         });
@@ -185,12 +172,13 @@ export default function Home() {
       } finally {
         if (!controller.signal.aborted) setExternalLoading(false);
       }
-    })();
+    }, 550);
 
     return () => {
       controller.abort();
+      clearTimeout(timer);
     };
-  }, [searchNonce, externalQuery, tab, cat]);
+  }, [qText, tab, cat]);
 
   const filtered = useMemo(() => {
     const q = qText.trim().toLowerCase();
@@ -619,42 +607,6 @@ export default function Home() {
                 </>
               ) : null}
 
-              <div className="mt-2 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setSearchNonce((v) => v + 1)}
-                  className="flex-1 rounded-2xl bg-blue-600 px-4 py-3 text-sm font-extrabold text-white hover:bg-blue-500"
-                >
-                  🔍 {siteCountry === "DK" ? "Søg" : "Ieškoti"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setQText("");
-                    setBrand("");
-                    setBrandOther("");
-                    setModel("");
-                    setModelOther("");
-                    setCity("");
-                    setPriceMin("");
-                    setPriceMax("");
-                    setMileageMin("");
-                    setMileageMax("");
-                    setFuel("");
-                    setDrive("");
-                    setGearbox("");
-                    setYearMin("");
-                    setYearMax("");
-                    setType("");
-                    setExternalItems([]);
-                    setHasSearchedExternal(false);
-                  }}
-                  className="rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm font-extrabold text-white/85 hover:bg-white/[0.08]"
-                >
-                  ✕ {t(siteCountry, "clear")}
-                </button>
-              </div>
-
               <div className="mt-1 rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-xs font-bold text-white/70">
                 {siteCountry === "DK" ? "Fundet" : "Rasta"}: <span className="text-white">{filtered.length}</span>
               </div>
@@ -676,9 +628,9 @@ export default function Home() {
             <div className="text-xs text-white/55">{siteCountry === "DK" ? "Fundet" : "Rasta"}: {filtered.length}</div>
           </div>
 
-          <div className="space-y-5">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {filtered.slice(0, 18).map((i) => (
-              <LocalListingRow
+              <ListingCard
                 key={i.id}
                 href={tab === "transportas" ? `/transportas/${i.id}` : `/dalys/${i.id}`}
                 title={buildTitle(i, tab)}
@@ -699,19 +651,18 @@ export default function Home() {
         </section>
 
 
-        {hasSearchedExternal ? (
+        {qText.trim().length >= 2 ? (
           <section className="mt-8">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-lg font-black text-white">Iš kitų portalų</h2>
-                <div className="text-xs font-extrabold text-white/45">Paieška: {externalQuery || "—"}</div>
                 <div className="text-xs font-extrabold text-white/55">Autoplius, Autogidas, Autobilis, Autosel, Autobonus</div>
               </div>
               {externalLoading ? <div className="text-xs font-extrabold text-orange-200">Ieškoma…</div> : null}
             </div>
 
             {externalItems.length ? (
-              <div className="space-y-5">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {externalItems.map((item) => (
                   <ExternalListingCard key={item.id} item={item} />
                 ))}
