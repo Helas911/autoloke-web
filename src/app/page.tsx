@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ExternalListingCard } from "@/components/ExternalListingCard";
+import type { ExternalListing } from "@/lib/externalAggregator";
 import type { CSSProperties } from "react";
 import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import { GoogleMap, Marker, MarkerClustererF, useLoadScript } from "@react-google-maps/api";
@@ -104,6 +106,8 @@ export default function Home() {
   const [yearMin, setYearMin] = useState("");
   const [yearMax, setYearMax] = useState("");
   const [filterByMap, setFilterByMap] = useState(true);
+  const [externalItems, setExternalItems] = useState<ExternalListing[]>([]);
+  const [externalLoading, setExternalLoading] = useState(false);
 
   useEffect(() => {
     setSiteCountry(getSiteCountry());
@@ -139,6 +143,42 @@ export default function Home() {
   const mapCenter = useMemo(() => getSiteCenter(siteCountry), [siteCountry]);
   const cities = useMemo(() => citySuggestions(siteCountry), [siteCountry]);
   const otherText = useMemo(() => otherLabel(siteCountry), [siteCountry]);
+
+
+
+  useEffect(() => {
+    const queryText = qText.trim();
+    if (queryText.length < 2) {
+      setExternalItems([]);
+      setExternalLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      try {
+        setExternalLoading(true);
+        const params = new URLSearchParams({
+          q: queryText,
+          section: tab === "dalys" ? "dalys" : "transportas",
+          category: tab === "transportas" ? cat : "dalys",
+        });
+        const res = await fetch(`/api/external-search?${params.toString()}`, { signal: controller.signal });
+        if (!res.ok) throw new Error("external-search-failed");
+        const json = (await res.json()) as ExternalListing[];
+        setExternalItems(Array.isArray(json) ? json : []);
+      } catch {
+        if (!controller.signal.aborted) setExternalItems([]);
+      } finally {
+        if (!controller.signal.aborted) setExternalLoading(false);
+      }
+    }, 550);
+
+    return () => {
+      controller.abort();
+      clearTimeout(timer);
+    };
+  }, [qText, tab, cat]);
 
   const filtered = useMemo(() => {
     const q = qText.trim().toLowerCase();
@@ -609,6 +649,31 @@ export default function Home() {
             ) : null}
           </div>
         </section>
+
+
+        {qText.trim().length >= 2 ? (
+          <section className="mt-8">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-black text-white">Iš kitų portalų</h2>
+                <div className="text-xs font-extrabold text-white/55">Autoplius, Autogidas, Autobilis, Autosel, Autobonus</div>
+              </div>
+              {externalLoading ? <div className="text-xs font-extrabold text-orange-200">Ieškoma…</div> : null}
+            </div>
+
+            {externalItems.length ? (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {externalItems.map((item) => (
+                  <ExternalListingCard key={item.id} item={item} />
+                ))}
+              </div>
+            ) : !externalLoading ? (
+              <div className="rounded-3xl border border-white/10 bg-white/[0.03] px-4 py-5 text-sm font-extrabold text-white/60">
+                Išorinių rezultatų nerasta pagal dabartinę užklausą.
+              </div>
+            ) : null}
+          </section>
+        ) : null}
       </main>
 
     </>
