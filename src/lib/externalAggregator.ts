@@ -130,6 +130,11 @@ function stripTags(input: string) {
     .trim();
 }
 
+function isGarbageTitle(input: string) {
+  const v = input.toLowerCase();
+  return !v || v.length < 4 || /href=|src=|class=|service-icon|photo\"|registraci|darbinis t|service-icon-photo|javascript:/.test(v);
+}
+
 function absUrl(url: string, base: string) {
   try {
     return new URL(url, base).toString();
@@ -175,7 +180,7 @@ function extractListingsFromHtml(html: string, source: SourceConfig, pageUrl: st
         .split("|")[0]
         .trim()
         .slice(0, 110);
-      if (!title || title.length < 4) continue;
+      if (!title || title.length < 4 || isGarbageTitle(title)) continue;
 
       const cityMatch = excerpt.match(/(Vilnius|Kaunas|Klaipėda|Šiauliai|Panevėžys|Alytus|Marijampolė|Jonava|Mažeikiai|Utena|Palanga|Tauragė|Telšiai|Plungė|Kretinga|Rietavas)/i);
 
@@ -215,7 +220,7 @@ async function fetchOne(source: SourceConfig, query: string, section: ExternalSe
       return [
         {
           id: `${source.key}:fallback:${url}`,
-          title: `${query} – ${source.label}`,
+          title: `${query} (${source.label})`,
           url,
           source: source.label,
           section,
@@ -231,7 +236,7 @@ async function fetchOne(source: SourceConfig, query: string, section: ExternalSe
     return [
       {
         id: `${source.key}:fallback:${url}`,
-        title: `${query} – ${source.label}`,
+        title: `${query} (${source.label})`,
         url,
         source: source.label,
         section,
@@ -242,7 +247,7 @@ async function fetchOne(source: SourceConfig, query: string, section: ExternalSe
     return [
       {
         id: `${source.key}:fallback:${url}`,
-        title: `${query} – ${source.label}`,
+        title: `${query} (${source.label})`,
         url,
         source: source.label,
         section,

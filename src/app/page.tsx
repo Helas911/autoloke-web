@@ -108,6 +108,7 @@ export default function Home() {
   const [filterByMap, setFilterByMap] = useState(true);
   const [externalItems, setExternalItems] = useState<ExternalListing[]>([]);
   const [externalLoading, setExternalLoading] = useState(false);
+  const [searchTick, setSearchTick] = useState(0);
 
   useEffect(() => {
     setSiteCountry(getSiteCountry());
@@ -143,12 +144,15 @@ export default function Home() {
   const mapCenter = useMemo(() => getSiteCenter(siteCountry), [siteCountry]);
   const cities = useMemo(() => citySuggestions(siteCountry), [siteCountry]);
   const otherText = useMemo(() => otherLabel(siteCountry), [siteCountry]);
-
-
+  const effectiveModel = model === OTHER ? modelOther : model;
+  const externalQuery = useMemo(
+    () => [qText.trim(), effectiveBrand.trim(), effectiveModel.trim(), city.trim()].filter(Boolean).join(" ").trim(),
+    [qText, effectiveBrand, effectiveModel, city]
+  );
 
   useEffect(() => {
-    const queryText = qText.trim();
-    if (queryText.length < 2) {
+    if (searchTick === 0) return;
+    if (externalQuery.length < 2) {
       setExternalItems([]);
       setExternalLoading(false);
       return;
@@ -159,7 +163,7 @@ export default function Home() {
       try {
         setExternalLoading(true);
         const params = new URLSearchParams({
-          q: queryText,
+          q: externalQuery,
           section: tab === "dalys" ? "dalys" : "transportas",
           category: tab === "transportas" ? cat : "dalys",
         });
@@ -172,13 +176,13 @@ export default function Home() {
       } finally {
         if (!controller.signal.aborted) setExternalLoading(false);
       }
-    }, 550);
+    }, 150);
 
     return () => {
       controller.abort();
       clearTimeout(timer);
     };
-  }, [qText, tab, cat]);
+  }, [externalQuery, tab, cat, searchTick]);
 
   const filtered = useMemo(() => {
     const q = qText.trim().toLowerCase();
@@ -607,6 +611,28 @@ export default function Home() {
                 </>
               ) : null}
 
+              <div className="mt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSearchTick((v) => v + 1)}
+                  className="flex-1 rounded-2xl bg-blue-600 px-4 py-3 text-sm font-black text-white hover:bg-blue-500"
+                >
+                  🔍 {siteCountry === "DK" ? "Søg" : "Ieškoti"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQText(""); setType(""); setBrand(""); setBrandOther(""); setModel(""); setModelOther("");
+                    setCity(""); setPriceMin(""); setPriceMax(""); setMileageMin(""); setMileageMax("");
+                    setFuel(""); setDrive(""); setGearbox(""); setYearMin(""); setYearMax("");
+                    setExternalItems([]); setSearchTick(0);
+                  }}
+                  className="rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm font-black text-white/85 hover:bg-white/[0.08]"
+                >
+                  ✕ {siteCountry === "DK" ? "Ryd" : "Išvalyti"}
+                </button>
+              </div>
+
               <div className="mt-1 rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-xs font-bold text-white/70">
                 {siteCountry === "DK" ? "Fundet" : "Rasta"}: <span className="text-white">{filtered.length}</span>
               </div>
@@ -651,7 +677,7 @@ export default function Home() {
         </section>
 
 
-        {qText.trim().length >= 2 ? (
+        {searchTick > 0 && externalQuery.length >= 2 ? (
           <section className="mt-8">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
@@ -662,7 +688,7 @@ export default function Home() {
             </div>
 
             {externalItems.length ? (
-              <div className="space-y-5">
+              <div className="space-y-4">
                 {externalItems.map((item) => (
                   <ExternalListingCard key={item.id} item={item} />
                 ))}

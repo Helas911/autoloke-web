@@ -1,7 +1,6 @@
 "use client";
 
 import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ExternalListingCard } from "@/components/ExternalListingCard";
 import { LocalListingRow } from "@/components/LocalListingRow";
@@ -46,6 +45,7 @@ export default function TransportasPage() {
   const [powerTo, setPowerTo] = useState("");
   const [externalItems, setExternalItems] = useState<ExternalListing[]>([]);
   const [externalLoading, setExternalLoading] = useState(false);
+  const [searchTick, setSearchTick] = useState(0);
 
   useEffect(() => {
     setSiteCountry(getSiteCountry());
@@ -60,6 +60,7 @@ export default function TransportasPage() {
 
 
   useEffect(() => {
+    if (searchTick === 0) return;
     const queryText = qText.trim();
     if (queryText.length < 2) {
       setExternalItems([]);
@@ -85,13 +86,13 @@ export default function TransportasPage() {
       } finally {
         if (!controller.signal.aborted) setExternalLoading(false);
       }
-    }, 550);
+    }, 150);
 
     return () => {
       controller.abort();
       clearTimeout(timer);
     };
-  }, [qText]);
+  }, [qText, searchTick]);
 
   const filtered = useMemo(() => {
     const q = qText.trim().toLowerCase();
@@ -182,13 +183,33 @@ export default function TransportasPage() {
         <div className="text-xs font-extrabold text-white/55 sm:text-right">{filtered.length} {t(siteCountry, "adsCount")}</div>
       </div>
 
+      <div className="mt-3 flex gap-2">
+        <button
+          type="button"
+          onClick={() => setSearchTick((v) => v + 1)}
+          className="flex-1 rounded-2xl bg-blue-600 px-4 py-3 text-sm font-black text-white hover:bg-blue-500"
+        >
+          🔍 Ieškoti
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setQText(""); setMileageMin(""); setMileageMax(""); setFuel(""); setDrive(""); setGearbox("");
+            setEngineFrom(""); setEngineTo(""); setPowerFrom(""); setPowerTo(""); setExternalItems([]); setSearchTick(0);
+          }}
+          className="rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm font-black text-white/85 hover:bg-white/[0.08]"
+        >
+          ✕ Išvalyti
+        </button>
+      </div>
+
       <section className="mt-5 space-y-4">
         {filtered.map((a) => (
           <LocalListingRow
             key={a.id}
             href={`/transportas/${a.id}`}
             title={`${(a.brand ?? "").toString()} ${(a.model ?? "").toString()}`.trim() || "Skelbimas"}
-            subtitle={`${(a.city ?? "").toString() || "—"} • ${((a as any).year ?? "").toString()} ${((a as any).body ?? "").toString()}`.trim()}
+            subtitle={`${(a.city ?? "").toString() || "—"}${a.year ? ` • ${String(a.year)}` : ""}${a.body ? ` • ${a.body}` : ""}`}
             price={typeof a.price === "number" ? a.price : null}
             img={a.imageUrls?.[0] || null}
             badge={a.category ? String(a.category) : null}
@@ -197,7 +218,7 @@ export default function TransportasPage() {
         ))}
       </section>
 
-      {qText.trim().length >= 2 ? (
+      {searchTick > 0 && qText.trim().length >= 2 ? (
         <section className="mt-8">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
@@ -208,7 +229,7 @@ export default function TransportasPage() {
           </div>
 
           {externalItems.length ? (
-            <div className="space-y-5">
+            <div className="space-y-4">
               {externalItems.map((item) => (
                 <ExternalListingCard key={item.id} item={item} />
               ))}
