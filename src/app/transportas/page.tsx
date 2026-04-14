@@ -1,11 +1,13 @@
 "use client";
 
 import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ExternalListingCard } from "@/components/ExternalListingCard";
 import LocalListingRow from "@/components/LocalListingRow";
 import type { ExternalListing } from "@/lib/externalAggregator";
 import { db } from "@/lib/firebase";
+import { formatPrice } from "@/lib/format";
 import { getSiteCountry, normalizeItemCountry, type SiteCountry } from "@/lib/site";
 import { canonicalDriveOptions, canonicalFuelOptions, canonicalGearboxOptions, labelDrive, labelFuel, labelGearbox, t } from "@/lib/i18n";
 
@@ -179,16 +181,20 @@ export default function TransportasPage() {
         <div className="text-xs font-extrabold text-white/55 sm:text-right">{filtered.length} {t(siteCountry, "adsCount")}</div>
       </div>
 
-      <section className="mt-5 space-y-4">
+      <section className="mt-5 space-y-3">
         {filtered.map((a) => (
           <LocalListingRow
             key={a.id}
             href={`/transportas/${a.id}`}
-            title={`${(a.brand ?? "").toString()} ${(a.model ?? "").toString()}`.trim() || "Skelbimas"}
-            subtitle={[(a.city ?? "").toString() || "—", a.type || a.category || ""].filter(Boolean).join(" • ")}
+            title={`${(a.brand ?? "").toString()} ${(a.model ?? "").toString()}`.trim() || t(siteCountry, "transport")}
+            subtitle={[
+              (a.city ?? "").toString() || "—",
+              a.type ? `${a.type}` : "",
+              a.category ? `${a.category}` : "",
+            ].filter(Boolean).join(" • ")}
             price={typeof a.price === "number" ? a.price : null}
             img={a.imageUrls?.[0] || null}
-            badge={a.category ? String(a.category) : "Auto"}
+            badge={a.category ? String(a.category) : t(siteCountry, "transport")}
             country={siteCountry}
           />
         ))}
@@ -205,7 +211,7 @@ export default function TransportasPage() {
           </div>
 
           {externalItems.length ? (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {externalItems.map((item) => (
                 <ExternalListingCard key={item.id} item={item} />
               ))}

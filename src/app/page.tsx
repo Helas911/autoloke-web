@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ExternalListingCard } from "@/components/ExternalListingCard";
+import LocalListingRow from "@/components/LocalListingRow";
 import type { ExternalListing } from "@/lib/externalAggregator";
 import type { CSSProperties } from "react";
 import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
@@ -10,7 +11,7 @@ import { GoogleMap, Marker, MarkerClustererF, useLoadScript } from "@react-googl
 import { useRouter } from "next/navigation";
 
 import { db } from "@/lib/firebase";
-import LocalListingRow from "@/components/LocalListingRow";
+import { ListingCard } from "@/components/ListingCard";
 import { cls } from "@/lib/format";
 import { bubbleIcon } from "@/lib/mapMarkers";
 import { citySuggestions, getSiteCenter, getSiteCountry, normalizeItemCountry, priceShort, type SiteCountry } from "@/lib/site";
@@ -628,7 +629,7 @@ export default function Home() {
             <div className="text-xs text-white/55">{siteCountry === "DK" ? "Fundet" : "Rasta"}: {filtered.length}</div>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-3">
             {filtered.slice(0, 18).map((i) => (
               <LocalListingRow
                 key={i.id}
@@ -662,7 +663,7 @@ export default function Home() {
             </div>
 
             {externalItems.length ? (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {externalItems.map((item) => (
                   <ExternalListingCard key={item.id} item={item} />
                 ))}
