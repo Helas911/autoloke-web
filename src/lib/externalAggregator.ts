@@ -28,7 +28,7 @@ type SourceConfig = {
   key: string;
   label: string;
   searchUrl: (args: ResolvedSearchArgs) => string;
-  parse: (html: string, pageUrl: string, source: SourceConfig, args: ResolvedSearchArgs) => ExternalListing[];
+  parse: (html: string, pageUrl: string, source: SourceConfig, args: ResolvedSearchArgs, limit?: number) => ExternalListing[];
 };
 
 type ResolvedSearchArgs = SearchArgs & {
@@ -39,7 +39,8 @@ type ResolvedSearchArgs = SearchArgs & {
 };
 
 const CITY_RE = /(Vilnius|Kaunas|Klaipėda|Klaipeda|Šiauliai|Siauliai|Panevėžys|Panevezys|Alytus|Marijampolė|Marijampole|Jonava|Mažeikiai|Mazeikiai|Utena|Palanga|Tauragė|Taurage|Telšiai|Telsiai|Plungė|Plunge|Kretinga|Rietavas|Raseiniai|Ukmergė|Ukmerge|Jurbarkas|Kelmė|Kelme|Jonava|Prienai|Anykščiai|Anyksciai|Elektrėnai|Elektrenai|Kėdainiai|Kedainiai|Radviliškis|Radviliskis|Šilalė|Silale|Šilutė|Silute|Skuodas|Visaginas|Druskininkai|Varėna|Varena|Ukmergė|Ukmerge)/i;
-const DEFAULT_LIMIT_PER_SOURCE = 12;
+const MAX_PER_SOURCE = 100;
+const MAX_PAGES_PER_SOURCE = 20;
 
 function enc(v: string) {
   return encodeURIComponent(v.trim());
@@ -310,13 +311,13 @@ function buildListing(source: SourceConfig, pageUrl: string, args: ResolvedSearc
   };
 }
 
-function parseSkelbiu(html: string, pageUrl: string, source: SourceConfig, args: ResolvedSearchArgs) {
+function parseSkelbiu(html: string, pageUrl: string, source: SourceConfig, args: ResolvedSearchArgs, limit = MAX_PER_SOURCE) {
   const results: ExternalListing[] = [];
   const seen = new Set<string>();
 
   const re = /<a\b[^>]*href=["']([^"']*\/skelbimai\/[^"']+?-\d+\.html)["'][^>]*>([\s\S]*?)<\/a>/gi;
   let match: RegExpExecArray | null;
-  while ((match = re.exec(html)) && results.length < DEFAULT_LIMIT_PER_SOURCE) {
+  while ((match = re.exec(html)) && results.length < limit) {
     const url = match[1];
     const inner = match[2];
     const context = genericContext(html, match.index, match[0].length);
@@ -329,13 +330,13 @@ function parseSkelbiu(html: string, pageUrl: string, source: SourceConfig, args:
   return results;
 }
 
-function parseAutogidas(html: string, pageUrl: string, source: SourceConfig, args: ResolvedSearchArgs) {
+function parseAutogidas(html: string, pageUrl: string, source: SourceConfig, args: ResolvedSearchArgs, limit = MAX_PER_SOURCE) {
   const results: ExternalListing[] = [];
   const seen = new Set<string>();
 
   const re = /<a\b[^>]*href=["']([^"']*\/skelbimas\/[^"']+?\.html)["'][^>]*>([\s\S]*?)<\/a>/gi;
   let match: RegExpExecArray | null;
-  while ((match = re.exec(html)) && results.length < DEFAULT_LIMIT_PER_SOURCE) {
+  while ((match = re.exec(html)) && results.length < limit) {
     const url = match[1];
     const inner = match[2];
     const context = genericContext(html, match.index, match[0].length);
@@ -348,14 +349,14 @@ function parseAutogidas(html: string, pageUrl: string, source: SourceConfig, arg
   return results;
 }
 
-function parseAutoplius(html: string, pageUrl: string, source: SourceConfig, args: ResolvedSearchArgs) {
+function parseAutoplius(html: string, pageUrl: string, source: SourceConfig, args: ResolvedSearchArgs, limit = MAX_PER_SOURCE) {
   const results: ExternalListing[] = [];
   const seen = new Set<string>();
 
   const re = /<a\b[^>]*href=["']([^"']*\/skelbimai\/[^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
   let match: RegExpExecArray | null;
 
-  while ((match = re.exec(html)) && results.length < DEFAULT_LIMIT_PER_SOURCE) {
+  while ((match = re.exec(html)) && results.length < limit) {
     const url = match[1];
     if (!/\/skelbimai\/(?!naudoti-automobiliai(?:\/|$))/i.test(url)) continue;
     const full = absUrl(url, pageUrl);
@@ -369,6 +370,88 @@ function parseAutoplius(html: string, pageUrl: string, source: SourceConfig, arg
   }
 
   return results;
+}
+
+
+function findNextPageUrl(html: string, currentUrl: string, pageNumber: number) {
+  const sameHost = (candidate: string) => {
+    try {
+      return new URL(candidate, currentUrl).host === new URL(currentUrl).host;
+    } catch {
+      return false;
+    }
+  };
+
+  const candidates: string[] = [];
+
+  const relNext = html.match(/<link[^>]+rel=["']next["'][^>]+href=["']([^"']+)["']/i)?.[1]
+    || html.match(/<a[^>]+rel=["']next["'][^>]+href=["']([^"']+)["']/i)?.[1];
+  if (relNext) candidates.push(absUrl(relNext, currentUrl));
+
+  const anchorRe = /<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = anchorRe.exec(html))) {
+    const href = absUrl(match[1], currentUrl);
+    const inner = stripTags(match[2]).trim();
+    const normalizedInner = normalizeForMatch(inner);
+    if (!sameHost(href)) continue;
+    if (normalizedInner === String(pageNumber + 1)) candidates.push(href);
+    if (/^(next|sekantis|toliau|kitas|›|»|>|→)$/i.test(inner)) candidates.push(href);
+    if (/page=\d+/i.test(href) || /\/psl\//i.test(href) || /\/puslapis\//i.test(href)) candidates.push(href);
+  }
+
+  const uniq = [...new Set(candidates)].filter((href) => href !== currentUrl);
+  for (const href of uniq) {
+    if (/page=(\d+)/i.test(href)) {
+      const n = Number(href.match(/page=(\d+)/i)?.[1]);
+      if (n === pageNumber + 1) return href;
+    }
+    if (/\/psl\/(\d+)/i.test(href)) {
+      const n = Number(href.match(/\/psl\/(\d+)/i)?.[1]);
+      if (n === pageNumber + 1) return href;
+    }
+    if (/\/puslapis\/(\d+)/i.test(href)) {
+      const n = Number(href.match(/\/puslapis\/(\d+)/i)?.[1]);
+      if (n === pageNumber + 1) return href;
+    }
+  }
+
+  return uniq[0];
+}
+
+async function fetchPaged(source: SourceConfig, args: ResolvedSearchArgs) {
+  const items: ExternalListing[] = [];
+  const seen = new Set<string>();
+  const visitedPages = new Set<string>();
+  let currentUrl: string | undefined = source.searchUrl(args);
+  let pageNumber = 1;
+
+  while (currentUrl && items.length < MAX_PER_SOURCE && pageNumber <= MAX_PAGES_PER_SOURCE && !visitedPages.has(currentUrl)) {
+    visitedPages.add(currentUrl);
+    try {
+      const html = await fetchText(currentUrl);
+      const parsed = source.parse(html, currentUrl, source, args, MAX_PER_SOURCE - items.length);
+      for (const item of parsed) {
+        if (!item.url || seen.has(item.url)) continue;
+        seen.add(item.url);
+        items.push(item);
+        if (items.length >= MAX_PER_SOURCE) break;
+      }
+      if (items.length >= MAX_PER_SOURCE) break;
+      const nextUrl = findNextPageUrl(html, currentUrl, pageNumber);
+      if (!nextUrl || visitedPages.has(nextUrl)) break;
+      currentUrl = nextUrl;
+      pageNumber += 1;
+    } catch {
+      break;
+    }
+  }
+
+  if (items.length) {
+    await enrichMissingImages(items);
+  }
+
+  return items;
 }
 
 function sourceConfigs(): SourceConfig[] {
@@ -414,26 +497,11 @@ async function enrichMissingImages(items: ExternalListing[]) {
   return items;
 }
 
-async function fetchOne(source: SourceConfig, args: ResolvedSearchArgs) {
-  const url = source.searchUrl(args);
-
-  try {
-    const html = await fetchText(url);
-    const parsed = source.parse(html, url, source, args);
-    if (parsed.length) {
-      return await enrichMissingImages(parsed);
-    }
-    return [] as ExternalListing[];
-  } catch {
-    return [] as ExternalListing[];
-  }
-}
-
 export async function searchExternalListings(args: SearchArgs) {
   const resolved = parseQueryParts(args);
   if (!resolved.query || resolved.query.length < 2) return [] as ExternalListing[];
 
-  const settled = await Promise.all(sourceConfigs().map((source) => fetchOne(source, resolved)));
+  const settled = await Promise.all(sourceConfigs().map((source) => fetchPaged(source, resolved)));
   const deduped: ExternalListing[] = [];
   const seen = new Set<string>();
 
@@ -443,5 +511,5 @@ export async function searchExternalListings(args: SearchArgs) {
     deduped.push(item);
   }
 
-  return deduped.slice(0, 24);
+  return deduped;
 }
