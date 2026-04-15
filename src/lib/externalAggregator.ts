@@ -39,7 +39,7 @@ type ResolvedSearchArgs = SearchArgs & {
 };
 
 const CITY_RE = /(Vilnius|Kaunas|Klaipėda|Klaipeda|Šiauliai|Siauliai|Panevėžys|Panevezys|Alytus|Marijampolė|Marijampole|Jonava|Mažeikiai|Mazeikiai|Utena|Palanga|Tauragė|Taurage|Telšiai|Telsiai|Plungė|Plunge|Kretinga|Rietavas|Raseiniai|Ukmergė|Ukmerge|Jurbarkas|Kelmė|Kelme|Jonava|Prienai|Anykščiai|Anyksciai|Elektrėnai|Elektrenai|Kėdainiai|Kedainiai|Radviliškis|Radviliskis|Šilalė|Silale|Šilutė|Silute|Skuodas|Visaginas|Druskininkai|Varėna|Varena|Ukmergė|Ukmerge)/i;
-const DEFAULT_LIMIT_PER_SOURCE = 24;
+const DEFAULT_LIMIT_PER_SOURCE = 60;
 
 function enc(v: string) {
   return encodeURIComponent(v.trim());
@@ -353,18 +353,31 @@ function parseAutoplius(html: string, pageUrl: string, source: SourceConfig, arg
   const seen = new Set<string>();
 
   const pushListing = (url: string, title: string, context: string) => {
-    const fullUrl = absUrl(url, pageUrl)
-      .replace("://m.autoplius.lt", "://autoplius.lt")
-      .replace(/\?.*$/, "");
-    if (!/\/skelbimai\/[^\s"']+-\d+\.html(?:$|#)/i.test(fullUrl)) return;
+    const fullUrl = absUrl(url, pageUrl);
+    if (!/autoplius\.lt\/skelbimai\/.+-\d+\.html(?:\?|#|$)/i.test(fullUrl)) return;
     const listing = buildListing(source, pageUrl, args, fullUrl, title, context);
     if (!listing || seen.has(listing.url)) return;
 
-    const priceFromTitle = title.match(/\b\d{1,3}(?:\s\d{3})*\s*(?:€|eur)\b/i)?.[0];
-    if (priceFromTitle) {
-      const value = parseEuroAmount(priceFromTitle);
-      if (value && value >= 100 && value <= 300000) listing.priceText = formatEuroAmount(value);
+    const contextTitle = cleanTitle(title || stripTags(context));
+    if (contextTitle) listing.title = contextTitle;
+
+    const candidates: number[] = [];
+    const titlePrice = contextTitle.match(/(\d{1,3}(?:\s\d{3})+|\d{3,6})\s*(?:€|eur)/i)?.[0];
+    if (titlePrice) {
+      const value = parseEuroAmount(titlePrice);
+      if (value && value >= 100 && value <= 300000) candidates.push(value);
     }
+    const cleanContext = stripTags(context)
+      .replace(/\/(?:\s*)\d+\s*m[ėe]n\.?/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    let m: RegExpExecArray | null;
+    const re = /(\d{1,3}(?:\s\d{3})+|\d{3,6})\s*(?:€|eur)/gi;
+    while ((m = re.exec(cleanContext))) {
+      const value = parseEuroAmount(m[0]);
+      if (value && value >= 100 && value <= 300000) candidates.push(value);
+    }
+    if (candidates.length) listing.priceText = formatEuroAmount(candidates[0]);
 
     if (!listing.imageUrl) {
       const img = extractImg(context, pageUrl);
@@ -375,24 +388,41 @@ function parseAutoplius(html: string, pageUrl: string, source: SourceConfig, arg
     results.push(listing);
   };
 
-  const itemRe = /<a\b[^>]*href=["']([^"']*\/skelbimai\/[^"']+?-\d+\.html[^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi;
   let match: RegExpExecArray | null;
 
-  while ((match = itemRe.exec(html)) && results.length < DEFAULT_LIMIT_PER_SOURCE) {
-    const href = match[1];
-    const anchorText = cleanTitle(match[2]);
-    const context = genericContext(html, match.index, match[0].length, 1000, 2200);
-    pushListing(href, anchorText || stripTags(context), context);
+  const anchorRe = /<a[^>]*href=["']([^"']*\/skelbimai\/[^"']+?-\d+\.html[^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  while ((match = anchorRe.exec(html)) && results.length < DEFAULT_LIMIT_PER_SOURCE) {
+    const href = decodeHtml(match[1]);
+    const context = genericContext(html, match.index, match[0].length, 600, 1200);
+    const title = cleanTitle(`${stripTags(match[2])} ${stripTags(context)}`);
+    pushListing(href, title, context);
   }
 
-  if (results.length < 3) {
-    const rawUrlRe = /https?:\/\/(?:m\.)?autoplius\.lt\/skelbimai\/[^\s"'<>]+?-\d+\.html/gi;
-    while ((match = rawUrlRe.exec(html)) && results.length < DEFAULT_LIMIT_PER_SOURCE) {
-      const href = match[0];
-      const context = genericContext(html, match.index, match[0].length, 300, 1400);
-      const titleMatch = stripTags(context).match(/([A-ZĄČĘĖĮŠŲŪŽ][A-Za-z0-9ĄČĘĖĮŠŲŪŽ\- ]{2,40}\s+[A-Z0-9][A-Za-z0-9\- ]{1,40}\s+(?:19|20)\d{2}(?:[-/.]\d{2})?)/);
-      const title = cleanTitle(titleMatch?.[1] || stripTags(context));
+  if (results.length < 8) {
+    const hrefOnlyRe = /https?:\/\/autoplius\.lt\/skelbimai\/[^\s"'<>]+?-\d+\.html/gi;
+    while ((match = hrefOnlyRe.exec(html)) && results.length < DEFAULT_LIMIT_PER_SOURCE) {
+      const href = decodeHtml(match[0]);
+      const context = genericContext(html, match.index, match[0].length, 350, 900);
+      const title = cleanTitle(stripTags(context));
       pushListing(href, title, context);
+    }
+  }
+
+  if (results.length < 8) {
+    const compactTextRe = /Audi\s+[A-Za-z0-9-]+[\s\S]{0,120}?(\d{1,3}(?:\s\d{3})+)\s*€[\s\S]{0,120}?(Vilnius|Kaunas|Klaipėda|Klaipeda|Panevėžys|Panevezys|Šiauliai|Siauliai|Alytus|Marijampolė|Marijampole|Jonava|Utena|Prienai|Kretinga|Radviliškis|Radviliskis)/gi;
+    while ((match = compactTextRe.exec(stripTags(html))) && results.length < 12) {
+      const textBlock = match[0];
+      if (!textContainsTerms(textBlock, args)) continue;
+      results.push({
+        id: `autoplius:fallback:${results.length}:${args.query}`,
+        title: cleanTitle(textBlock),
+        priceText: formatEuroAmount(parseEuroAmount(match[1] + ' €') || 0),
+        city: match[2],
+        url: buildAutopliusUrl(args),
+        source: source.label,
+        section: args.section,
+        category: args.category,
+      });
     }
   }
 
@@ -410,12 +440,13 @@ function sourceConfigs(): SourceConfig[] {
 async function fetchText(url: string) {
   const res = await fetch(url, {
     headers: {
-      "user-agent": "Mozilla/5.0 (compatible; AutolokeBot/1.0; +https://autoloke.lt)",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
       accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
       "accept-language": "lt,en;q=0.9",
       "cache-control": "no-cache",
       pragma: "no-cache",
-      referer: "https://autoplius.lt/",
+      referer: "https://www.google.com/",
+      "upgrade-insecure-requests": "1",
     },
     redirect: "follow",
     next: { revalidate: 60 * 15 },
