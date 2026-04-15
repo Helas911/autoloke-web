@@ -19,44 +19,24 @@ type SourceConfig = {
   label: string;
   searchUrl: (args: { query: string; section: ExternalSection; category?: string }) => string;
   hostPattern: RegExp;
-  listingPathHints?: RegExp[];
-};
-
-type Candidate = {
-  url: string;
-  title?: string;
-  priceText?: string;
-  city?: string;
-  imageUrl?: string;
-  score: number;
 };
 
 function enc(v: string) {
   return encodeURIComponent(v.trim());
 }
 
-function categoryTerm(category?: string) {
-  switch (category) {
-    case "motociklai":
-      return "motociklai";
-    case "sunkvezimiai":
-      return "sunkvežimiai";
-    case "vandensTransportas":
-      return "vandens transportas";
-    case "zemesUkioTechnika":
-      return "žemės ūkio technika";
-    default:
-      return "automobiliai";
-  }
-}
-
 function sourceConfigs(): SourceConfig[] {
   return [
     {
+      key: "skelbiu",
+      label: "skelbiu.lt",
+      hostPattern: /skelbiu\.lt/i,
+      searchUrl: ({ query }) => `https://www.skelbiu.lt/skelbimai/?keywords=${enc(query)}`,
+    },
+    {
       key: "autoplius",
       label: "autoplius.lt",
-      hostPattern: /(^|\.)autoplius\.lt$/i,
-      listingPathHints: [/\/skelbimai\//i, /-\d+\.html?$/i],
+      hostPattern: /autoplius\.lt/i,
       searchUrl: ({ query, section, category }) => {
         if (section === "dalys") {
           return `https://m.autoplius.lt/skelbimai/automobiliu-dalys?search_text=${enc(query)}`;
@@ -81,8 +61,7 @@ function sourceConfigs(): SourceConfig[] {
     {
       key: "autogidas",
       label: "autogidas.lt",
-      hostPattern: /(^|\.)autogidas\.lt$/i,
-      listingPathHints: [/\/skelbimas/i, /\/automobiliai\//i, /\/motociklai\//i, /-\d+\.html?$/i],
+      hostPattern: /autogidas\.lt/i,
       searchUrl: ({ query, section, category }) => {
         if (section === "dalys") {
           return `https://autogidas.lt/auto-dalys/paieska?keywords=${enc(query)}`;
@@ -104,36 +83,6 @@ function sourceConfigs(): SourceConfig[] {
         return `https://autogidas.lt/${kind}/paieska?keywords=${enc(query)}`;
       },
     },
-    {
-      key: "autobilis",
-      label: "autobilis.lt",
-      hostPattern: /(^|\.)autobilis\.lt$/i,
-      listingPathHints: [/\/skelbimas/i, /\/automobilis/i, /\/motociklas/i, /\/naudotas/i, /-\d+\/?$/i],
-      searchUrl: ({ query, section, category }) => {
-        const q = section === "dalys" ? `${query} auto dalys` : `${query} ${categoryTerm(category)}`;
-        return `https://autobilis.lt/?s=${enc(q)}`;
-      },
-    },
-    {
-      key: "autosel",
-      label: "autosel.lt",
-      hostPattern: /(^|\.)autosel\.lt$/i,
-      listingPathHints: [/\/skelbimas/i, /\/transportas/i, /-\d+\/?$/i],
-      searchUrl: ({ query, section, category }) => {
-        const q = section === "dalys" ? `${query} dalys` : `${query} ${categoryTerm(category)}`;
-        return `https://autosel.lt/?s=${enc(q)}`;
-      },
-    },
-    {
-      key: "autobonus",
-      label: "autobonus.lt",
-      hostPattern: /(^|\.)autobonus\.lt$/i,
-      listingPathHints: [/\/skelbimas/i, /\/transportas/i, /-\d+\/?$/i],
-      searchUrl: ({ query, section, category }) => {
-        const q = section === "dalys" ? `${query} auto dalys` : `${query} ${categoryTerm(category)}`;
-        return `https://autobonus.lt/?s=${enc(q)}`;
-      },
-    },
   ];
 }
 
@@ -144,21 +93,21 @@ function decodeHtml(input: string) {
     .replace(/&quot;/gi, '"')
     .replace(/&#39;/gi, "'")
     .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">");
+    .replace(/&gt;/gi, ">")
+    .replace(/&#160;/gi, " ");
 }
 
 function stripTags(input: string) {
   return decodeHtml(input)
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<noscript[\s\S]*?<\/noscript>/gi, " ")
     .replace(/<[^>]+>/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
 
 function normalizeWhitespace(input: string) {
-  return decodeHtml(input).replace(/\s+/g, " ").trim();
+  return decodeHtml(stripTags(input)).replace(/\s+/g, " ").trim();
 }
 
 function absUrl(url: string, base: string) {
@@ -169,14 +118,50 @@ function absUrl(url: string, base: string) {
   }
 }
 
-function parseAttributes(tag: string) {
-  const attrs: Record<string, string> = {};
-  const attrRe = /([:\w-]+)\s*=\s*(["'])(.*?)\2/gi;
-  let match: RegExpExecArray | null;
-  while ((match = attrRe.exec(tag))) {
-    attrs[match[1].toLowerCase()] = decodeHtml(match[3]);
-  }
-  return attrs;
+function cleanTitle(input: string) {
+  const text = normalizeWhitespace(input)
+    .replace(/^Žiūrėti\s*/i, "")
+    .replace(/^Plačiau\s*/i, "")
+    .replace(/^Peržiūrėti\s*/i, "")
+    .replace(/^Atidaryti\s*/i, "")
+    .replace(/^Skelbimas\s*/i, "")
+    .trim();
+
+  if (!text) return "";
+  if (text.length < 4) return "";
+  if (/^originalas/i.test(text)) return "";
+  if (/prisijungti|registruotis|įdėti skelbimą|idet[iy] skelbim|paieška|paieska/i.test(text) && text.length < 40) return "";
+  if (/email protected|protected/i.test(text)) return "";
+  return text.slice(0, 140);
+}
+
+function looksLikeListingUrl(url: string, source: SourceConfig) {
+  if (!url || url.startsWith("#") || url.startsWith("javascript:")) return false;
+  if (!source.hostPattern.test(url)) return false;
+
+  try {
+    const parsed = new URL(url);
+    if (/\/skelbimai\/?$/.test(parsed.pathname) && parsed.search) return false;
+    if (/\/paieska\/?$/.test(parsed.pathname) && parsed.search) return false;
+  } catch {}
+
+  if (/\/paieska|\/search|\/prisijungti|\/registr|\/kontakt|\/prideti|\/pridėti|\/about|\/terms|\/privacy|\/category\//i.test(url)) return false;
+  if (/autobonus|autosel|autobilis/i.test(url)) return false;
+  return /\/skelbimai\/|\/skelbimas\/|\/naudoti-automobiliai\/|\/automobiliai\/|\/auto-dalys\/|\/komerciniai-automobiliai\/|\/motociklai\/|\/ad\//i.test(url);
+}
+
+function extractPrice(context: string) {
+  const matches = context.match(/(\d[\d\s.,]{1,}\s?(?:€|eur|Eur|EUR|kr))/gi) || [];
+  const usable = matches
+    .map((m) => m.replace(/\s+/g, " ").trim())
+    .filter((m) => /\d/.test(m) && !/^\d{1,2}\s?(€|eur)$/i.test(m));
+  return usable[0];
+}
+
+function extractCity(context: string) {
+  const normalized = normalizeWhitespace(context);
+  const m = normalized.match(/\b(Vilnius|Kaunas|Klaipėda|Klaipeda|Šiauliai|Siauliai|Panevėžys|Panevezys|Alytus|Marijampolė|Marijampole|Jonava|Utena|Palanga|Tauragė|Taurage|Telšiai|Telsiai|Plungė|Plunge|Kretinga|Rietavas|Raseiniai|Ukmergė|Ukmerge|Jurbarkas|Mažeikiai|Mazeikiai)\b/i);
+  return m?.[1];
 }
 
 function pickBestSrc(srcset: string) {
@@ -189,241 +174,153 @@ function pickBestSrc(srcset: string) {
 
 function cleanupImageUrl(url: string | undefined, baseUrl: string) {
   if (!url) return undefined;
-  const clean = absUrl(url.trim(), baseUrl);
+  const clean = absUrl(decodeHtml(url).trim(), baseUrl);
   if (!/^https?:\/\//i.test(clean)) return undefined;
-  if (/logo|sprite|icon|avatar|favicon|placeholder|blank\.gif|base64|data:image\/svg\+xml/i.test(clean)) return undefined;
+  if (/logo|sprite|icon|avatar|favicon|placeholder|blank\.gif|data:image\/svg\+xml|googleads|doubleclick/i.test(clean)) return undefined;
   return clean;
 }
 
-function imageFromTag(tag: string, baseUrl: string) {
-  const attrs = parseAttributes(tag);
-  const srcset = attrs["srcset"] || attrs["data-srcset"];
-  const src =
-    (srcset ? pickBestSrc(srcset) : undefined) ||
-    attrs["data-src"] ||
-    attrs["data-lazy-src"] ||
-    attrs["data-original"] ||
-    attrs["data-image"] ||
-    attrs["src"];
-  return cleanupImageUrl(src, baseUrl);
-}
-
-function extractMetaImage(html: string, baseUrl: string) {
-  const metaRe = /<meta\b[^>]*>/gi;
-  let match: RegExpExecArray | null;
-  while ((match = metaRe.exec(html))) {
-    const attrs = parseAttributes(match[0]);
-    const key = `${attrs.property || ""}|${attrs.name || ""}`.toLowerCase();
-    if (/(^|\|)(og:image|twitter:image)(\||$)/i.test(key)) {
-      const img = cleanupImageUrl(attrs.content, baseUrl);
-      if (img) return img;
-    }
-  }
-  return undefined;
-}
-
-function extractPrice(context: string) {
-  const text = stripTags(context);
-  const patterns = [
-    /(\d[\d\s.]{2,})\s?(€|eur|Eur|EUR)/,
-    /(€)\s?(\d[\d\s.]{2,})/,
-    /(\d[\d\s.]{2,})\s?(kr|KR|Kč|zl)/,
-  ];
-
-  for (const pattern of patterns) {
-    const m = text.match(pattern);
-    if (!m) continue;
-    const raw = m.slice(1).filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
-    if (raw) return raw;
-  }
-  return undefined;
-}
-
-function extractCity(context: string) {
-  const text = stripTags(context);
-  const m = text.match(/\b(Vilnius|Kaunas|Klaipėda|Klaipeda|Šiauliai|Siauliai|Panevėžys|Panevezys|Alytus|Marijampolė|Marijampole|Jonava|Mažeikiai|Mazeikiai|Utena|Palanga|Tauragė|Taurage|Telšiai|Telsiai|Plungė|Plunge|Kretinga|Rietavas|Raseiniai|Ukmergė|Ukmerge|Jurbarkas)\b/i);
+function findAttr(context: string, attrName: string) {
+  const m = context.match(new RegExp(`${attrName}=["']([^"']+)["']`, "i"));
   return m?.[1];
 }
 
-function cleanTitle(input: string) {
-  const text = normalizeWhitespace(stripTags(input))
-    .replace(/^Žiūrėti\s*/i, "")
-    .replace(/^Plačiau\s*/i, "")
-    .replace(/^Skaityti daugiau\s*/i, "")
-    .replace(/^Peržiūrėti\s*/i, "")
-    .replace(/^Parduodama\s*/i, "")
-    .replace(/^Parduodu\s*/i, "")
-    .replace(/^Skelbimas\s*/i, "")
-    .replace(/^Atidaryti originalų\s*/i, "")
-    .trim();
+function extractImg(context: string, baseUrl: string) {
+  const metaCandidates = [
+    context.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)?.[1],
+    context.match(/<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i)?.[1],
+  ].filter(Boolean) as string[];
 
-  if (!text) return "";
-  if (/href\s*=|src\s*=|class\s*=|target\s*=|onclick\s*=/i.test(text)) return "";
-  if (/^(autoplius|autogidas|autobilis|autosel|autobonus)\.?lt$/i.test(text)) return "";
-  if (/^(prisijungti|registruotis|ieškoti|paieška|pridėti skelbimą|prideti skelbima)$/i.test(text)) return "";
-  return text.slice(0, 140);
-}
-
-function titleFromBlock(block: string) {
-  const attrTitle = block.match(/\btitle=["']([^"']+)["']/i)?.[1];
-  const heading = block.match(/<(h1|h2|h3|h4)[^>]*>([\s\S]*?)<\/\1>/i)?.[2];
-  const imgAlt = block.match(/<img\b[^>]*\balt=["']([^"']+)["']/i)?.[1];
-  const strong = block.match(/<(strong|b)[^>]*>([\s\S]*?)<\/\1>/i)?.[2];
-
-  for (const candidate of [attrTitle, heading, imgAlt, strong, block]) {
-    const clean = cleanTitle(candidate || "");
-    if (clean && clean.length >= 4) return clean;
+  for (const candidate of metaCandidates) {
+    const clean = cleanupImageUrl(candidate, baseUrl);
+    if (clean) return clean;
   }
 
-  return "";
-}
-
-function unwrapRedirectUrl(raw: string, pageUrl: string) {
-  const full = absUrl(raw, pageUrl);
-  try {
-    const url = new URL(full);
-    for (const key of ["url", "u", "redirect", "r"]) {
-      const nested = url.searchParams.get(key);
-      if (nested && /^https?:/i.test(nested)) return nested;
-    }
-    return url.toString();
-  } catch {
-    return full;
-  }
-}
-
-function looksLikeListingUrl(url: string, source: SourceConfig) {
-  if (!url || url.startsWith("#") || url.startsWith("javascript:")) return false;
-
-  let parsed: URL;
-  try {
-    parsed = new URL(url);
-  } catch {
-    return false;
+  const imgTagMatches = context.match(/<(img|source)\b[^>]*>/gi) || [];
+  for (const tag of imgTagMatches) {
+    const srcset = findAttr(tag, "srcset") || findAttr(tag, "data-srcset");
+    const src =
+      (srcset ? pickBestSrc(srcset) : undefined) ||
+      findAttr(tag, "data-src") ||
+      findAttr(tag, "data-lazy-src") ||
+      findAttr(tag, "data-original") ||
+      findAttr(tag, "src");
+    const clean = cleanupImageUrl(src, baseUrl);
+    if (clean) return clean;
   }
 
-  if (!source.hostPattern.test(parsed.hostname)) return false;
-  if (/\.(jpg|jpeg|png|gif|webp|svg|pdf)$/i.test(parsed.pathname)) return false;
-  if (/\/paieska|\/search|\/prisijungti|\/registr|\/kontakt|\/prideti|\/pridėti|\/about|\/terms|\/privacy|\/tag\//i.test(parsed.pathname)) return false;
-  if (parsed.pathname === "/" || parsed.pathname.length < 8) return false;
-
-  if (source.listingPathHints?.some((hint) => hint.test(parsed.pathname))) return true;
-  if (/\d{4,}/.test(parsed.pathname)) return true;
-
-  const segments = parsed.pathname.split("/").filter(Boolean);
-  return segments.length >= 2 && segments.some((segment) => segment.length >= 8 && /[a-zA-Z]/.test(segment));
+  return undefined;
 }
 
-function scoreCandidate(candidate: Candidate) {
-  let score = 0;
-  if (candidate.imageUrl) score += 4;
-  if (candidate.priceText) score += 3;
-  if (candidate.city) score += 1;
-  if (candidate.title && candidate.title.length >= 6) score += 3;
-  if (candidate.title && /\d{4,}/.test(candidate.title)) score += 1;
-  return score + candidate.score;
+function addResult(results: ExternalListing[], seen: Set<string>, source: SourceConfig, item: Omit<ExternalListing, "id" | "source" | "section" | "category">, section: ExternalSection, category?: string) {
+  const fullUrl = absUrl(item.url, source.searchUrl({ query: "", section, category }));
+  if (!looksLikeListingUrl(fullUrl, source)) return;
+  if (seen.has(fullUrl)) return;
+
+  const title = cleanTitle(item.title);
+  if (!title) return;
+
+  seen.add(fullUrl);
+  results.push({
+    id: `${source.key}:${fullUrl}`,
+    title,
+    priceText: item.priceText?.replace(/\s+/g, " ").trim(),
+    city: item.city?.trim(),
+    imageUrl: item.imageUrl,
+    url: fullUrl,
+    source: source.label,
+    section,
+    category,
+  });
 }
 
-function extractCandidatesFromHtml(html: string, source: SourceConfig, pageUrl: string) {
-  const candidates: Candidate[] = [];
-  const normalizedHtml = html.replace(/\n/g, " ");
+function parseSkelbiu(html: string, pageUrl: string, source: SourceConfig, section: ExternalSection, category?: string) {
+  const results: ExternalListing[] = [];
+  const seen = new Set<string>();
+  const anchorRe = /<a\b[^>]*href=["']([^"']*\/skelbimai\/[^"']+)["'][^>]*>([\s\S]{60,2500}?)<\/a>/gi;
+  let match: RegExpExecArray | null;
 
-  const blockRe = /<(article|li|div|section)\b[^>]*>([\s\S]{120,5000}?)<\/\1>/gi;
-  let blockMatch: RegExpExecArray | null;
+  while ((match = anchorRe.exec(html)) && results.length < 12) {
+    const href = absUrl(match[1], pageUrl);
+    if (/\?keywords=/.test(href)) continue;
+    const inner = match[2];
+    const title =
+      inner.match(/<(h2|h3|h4)[^>]*>([\s\S]*?)<\/\1>/i)?.[2] ||
+      inner.match(/title=["']([^"']+)["']/i)?.[1] ||
+      inner;
+    const imageUrl = extractImg(inner, pageUrl);
+    const priceText = extractPrice(inner);
+    const city = extractCity(inner);
+    addResult(results, seen, source, { title, url: href, imageUrl, priceText, city }, section, category);
+  }
 
-  while ((blockMatch = blockRe.exec(normalizedHtml))) {
-    const block = blockMatch[0];
-    const hrefs = [...block.matchAll(/<a\b[^>]*href=["']([^"']+)["'][^>]*>/gi)].map((m) => m[1]);
-    if (!hrefs.length) continue;
+  return results;
+}
 
-    const imageTags = block.match(/<(img|source)\b[^>]*>/gi) || [];
-    const title = titleFromBlock(block);
+function parseAutoplius(html: string, pageUrl: string, source: SourceConfig, section: ExternalSection, category?: string) {
+  const results: ExternalListing[] = [];
+  const seen = new Set<string>();
+  const blockRe = /<(article|div)\b[^>]*>([\s\S]{120,3200}?)<\/\1>/gi;
+  let match: RegExpExecArray | null;
+
+  while ((match = blockRe.exec(html)) && results.length < 12) {
+    const block = match[2];
+    const href = block.match(/href=["']([^"']*(?:\/skelbimai\/|\/naudoti-automobiliai\/)[^"']+)["']/i)?.[1];
+    if (!href) continue;
+    const title =
+      block.match(/<(h2|h3|h4)[^>]*>([\s\S]*?)<\/\1>/i)?.[2] ||
+      block.match(/title=["']([^"']+)["']/i)?.[1] ||
+      block;
+    const imageUrl = extractImg(block, pageUrl);
     const priceText = extractPrice(block);
     const city = extractCity(block);
-    const imageUrl = imageTags.map((tag) => imageFromTag(tag, pageUrl)).find(Boolean);
-
-    for (const rawHref of hrefs) {
-      const fullUrl = unwrapRedirectUrl(rawHref, pageUrl);
-      if (!looksLikeListingUrl(fullUrl, source)) continue;
-      candidates.push({
-        url: fullUrl,
-        title,
-        priceText,
-        city,
-        imageUrl,
-        score: imageUrl ? 5 : priceText ? 3 : 0,
-      });
-    }
+    addResult(results, seen, source, { title, url: href, imageUrl, priceText, city }, section, category);
   }
 
-  const anchorRe = /<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
-  let anchorMatch: RegExpExecArray | null;
-
-  while ((anchorMatch = anchorRe.exec(normalizedHtml))) {
-    const rawHref = anchorMatch[1];
-    const fullUrl = unwrapRedirectUrl(rawHref, pageUrl);
-    if (!looksLikeListingUrl(fullUrl, source)) continue;
-
-    const start = Math.max(0, anchorMatch.index - 500);
-    const end = Math.min(normalizedHtml.length, anchorMatch.index + anchorMatch[0].length + 1500);
-    const context = normalizedHtml.slice(start, end);
-    const title = cleanTitle(anchorMatch[2]) || titleFromBlock(context);
-    const imageTags = context.match(/<(img|source)\b[^>]*>/gi) || [];
-    const imageUrl = imageTags.map((tag) => imageFromTag(tag, pageUrl)).find(Boolean);
-
-    candidates.push({
-      url: fullUrl,
-      title,
-      priceText: extractPrice(context),
-      city: extractCity(context),
-      imageUrl,
-      score: imageUrl ? 2 : 0,
-    });
-  }
-
-  return candidates;
+  return results;
 }
 
-function dedupeAndFinalize(candidates: Candidate[], source: SourceConfig, section: ExternalSection, category?: string) {
-  const best = new Map<string, Candidate>();
+function parseAutogidas(html: string, pageUrl: string, source: SourceConfig, section: ExternalSection, category?: string) {
+  const results: ExternalListing[] = [];
+  const seen = new Set<string>();
+  const blockRe = /<(article|div|li)\b[^>]*>([\s\S]{120,3200}?)<\/\1>/gi;
+  let match: RegExpExecArray | null;
 
-  for (const candidate of candidates) {
-    const title = cleanTitle(candidate.title || "");
-    if (title.length < 3) continue;
-
-    const existing = best.get(candidate.url);
-    const next: Candidate = {
-      ...candidate,
-      title,
-      score: scoreCandidate({ ...candidate, title }),
-    };
-
-    if (!existing || next.score > scoreCandidate(existing)) {
-      best.set(candidate.url, next);
-    }
+  while ((match = blockRe.exec(html)) && results.length < 12) {
+    const block = match[2];
+    const href = block.match(/href=["']([^"']*(?:\/skelbimas\/|\/automobiliai\/|\/auto-dalys\/)[^"']+)["']/i)?.[1];
+    if (!href) continue;
+    const title =
+      block.match(/<(h2|h3|h4)[^>]*>([\s\S]*?)<\/\1>/i)?.[2] ||
+      block.match(/title=["']([^"']+)["']/i)?.[1] ||
+      block;
+    const imageUrl = extractImg(block, pageUrl);
+    const priceText = extractPrice(block);
+    const city = extractCity(block);
+    addResult(results, seen, source, { title, url: href, imageUrl, priceText, city }, section, category);
   }
 
-  return [...best.values()]
-    .sort((a, b) => scoreCandidate(b) - scoreCandidate(a))
-    .slice(0, 10)
-    .map((item) => ({
-      id: `${source.key}:${item.url}`,
-      title: item.title || `${source.label} skelbimas`,
-      priceText: item.priceText,
-      city: item.city,
-      imageUrl: item.imageUrl,
-      url: item.url,
-      source: source.label,
-      section,
-      category,
-    } satisfies ExternalListing));
+  return results;
+}
+
+function parseBySource(html: string, source: SourceConfig, pageUrl: string, section: ExternalSection, category?: string) {
+  switch (source.key) {
+    case "skelbiu":
+      return parseSkelbiu(html, pageUrl, source, section, category);
+    case "autoplius":
+      return parseAutoplius(html, pageUrl, source, section, category);
+    case "autogidas":
+      return parseAutogidas(html, pageUrl, source, section, category);
+    default:
+      return [];
+  }
 }
 
 async function enrichMissingImages(items: ExternalListing[]) {
-  const subset = items.filter((item) => !item.imageUrl).slice(0, 3);
+  const missing = items.filter((item) => !item.imageUrl).slice(0, 5);
 
   await Promise.all(
-    subset.map(async (item) => {
+    missing.map(async (item) => {
       try {
         const res = await fetch(item.url, {
           headers: {
@@ -434,24 +331,18 @@ async function enrichMissingImages(items: ExternalListing[]) {
         });
         if (!res.ok) return;
         const html = await res.text();
-        const fromMeta = extractMetaImage(html, item.url);
-        if (fromMeta) {
-          item.imageUrl = fromMeta;
-          return;
-        }
-
-        const imgTags = html.match(/<(img|source)\b[^>]*>/gi) || [];
-        item.imageUrl = imgTags.map((tag) => imageFromTag(tag, item.url)).find(Boolean);
-      } catch {
-        // ignore individual enrichment failures
-      }
+        item.imageUrl = extractImg(html, item.url);
+        if (!item.priceText) item.priceText = extractPrice(html);
+        if (!item.city) item.city = extractCity(html);
+      } catch {}
     })
   );
+
+  return items;
 }
 
 async function fetchOne(source: SourceConfig, query: string, section: ExternalSection, category?: string) {
   const url = source.searchUrl({ query, section, category });
-
   try {
     const res = await fetch(url, {
       headers: {
@@ -461,42 +352,13 @@ async function fetchOne(source: SourceConfig, query: string, section: ExternalSe
       next: { revalidate: 60 * 30 },
     });
 
-    if (!res.ok) {
-      return [{
-        id: `${source.key}:fallback:${url}`,
-        title: `${query} – ${source.label}`,
-        url,
-        source: source.label,
-        section,
-        category,
-      }] satisfies ExternalListing[];
-    }
+    if (!res.ok) return [] as ExternalListing[];
 
     const html = await res.text();
-    const parsed = dedupeAndFinalize(extractCandidatesFromHtml(html, source, url), source, section, category);
-
-    if (parsed.length) {
-      await enrichMissingImages(parsed);
-      return parsed;
-    }
-
-    return [{
-      id: `${source.key}:fallback:${url}`,
-      title: `${query} – ${source.label}`,
-      url,
-      source: source.label,
-      section,
-      category,
-    }] satisfies ExternalListing[];
+    const parsed = parseBySource(html, source, url, section, category);
+    return enrichMissingImages(parsed);
   } catch {
-    return [{
-      id: `${source.key}:fallback:${url}`,
-      title: `${query} – ${source.label}`,
-      url,
-      source: source.label,
-      section,
-      category,
-    }] satisfies ExternalListing[];
+    return [] as ExternalListing[];
   }
 }
 
@@ -513,5 +375,12 @@ export async function searchExternalListings(args: {
     configs.map((source) => fetchOne(source, cleanQuery, args.section, args.category))
   );
 
-  return settled.flat().slice(0, 24);
+  const merged = settled.flat();
+
+  const dedup = new Map<string, ExternalListing>();
+  for (const item of merged) {
+    if (!dedup.has(item.url)) dedup.set(item.url, item);
+  }
+
+  return Array.from(dedup.values()).filter((item) => !!item.title).slice(0, 24);
 }

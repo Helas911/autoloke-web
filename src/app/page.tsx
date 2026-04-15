@@ -697,7 +697,7 @@ export default function Home() {
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-lg font-black text-white">Iš kitų portalų</h2>
-                <div className="text-xs font-extrabold text-white/55">Autoplius, Autogidas, Autobilis, Autosel, Autobonus</div>
+                <div className="text-xs font-extrabold text-white/55">Skelbiu, Autoplius, Autogidas</div>
               </div>
               {externalLoading ? <div className="text-xs font-extrabold text-orange-200">Ieškoma…</div> : null}
             </div>
