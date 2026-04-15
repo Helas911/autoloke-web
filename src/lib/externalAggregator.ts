@@ -136,6 +136,7 @@ function stripTags(input: string) {
   return decodeHtml(input)
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<noscript[\s\S]*?<\/noscript>/gi, " ")
     .replace(/<[^>]+>/g, " ")
     .replace(/\s+/g, " ")
     .trim();
@@ -153,18 +154,66 @@ function normalizeWhitespace(input: string) {
   return decodeHtml(input).replace(/\s+/g, " ").trim();
 }
 
+function titleCaseWord(word: string) {
+  if (!word) return word;
+  return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+}
+
+function cleanupTitleEdges(input: string) {
+  return input
+    .replace(/^[-–—|•:]+/, "")
+    .replace(/[-–—|•:]+$/, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+function prettifyTitle(input: string) {
+  const words = input.split(" ").filter(Boolean);
+  if (!words.length) return "";
+
+  return cleanupTitleEdges(words.map((word) => {
+    if (/^[A-Z0-9-]{2,}$/.test(word)) return word;
+    if (/^\d/.test(word)) return word;
+    if (word.includes("/")) return word;
+    return titleCaseWord(word);
+  }).join(" "));
+}
+
 function cleanTitle(input: string) {
-  const text = normalizeWhitespace(stripTags(input))
+  let text = normalizeWhitespace(stripTags(input))
     .replace(/^Žiūrėti\s*/i, "")
     .replace(/^Plačiau\s*/i, "")
     .replace(/^Skaityti daugiau\s*/i, "")
     .replace(/^Peržiūrėti\s*/i, "")
-    .replace(/^(Parduodama|Parduodu)\s*/i, "")
+    .replace(/^Parduodama\s*/i, "")
+    .replace(/^Parduodu\s*/i, "")
+    .replace(/^Skelbimas\s*/i, "")
+    .replace(/\b(Atidaryti originalų?|Originalas|Plačiau|Daugiau|Žiūrėti)\b.*$/i, "")
+    .replace(/\s+/g, " ")
     .trim();
 
   if (!text) return "";
   if (/href\s*=|src\s*=|class\s*=|target\s*=|onclick\s*=/i.test(text)) return "";
   if (/prideti skelbima|pridėti skelbimą|registruotis|prisijungti|skelbimu|paieska/i.test(text) && text.length < 35) return "";
+
+  const separators = ["|", "•", "\n"];
+  for (const sep of separators) {
+    if (text.includes(sep)) {
+      const parts = text.split(sep).map((p) => p.trim()).filter(Boolean);
+      const best = parts.find((part) => /\d/.test(part) || /[a-zA-Ząčęėįšųūž]/i.test(part));
+      if (best) {
+        text = best;
+        break;
+      }
+    }
+  }
+
+  text = text.replace(/\b(?:Vilnius|Kaunas|Klaipėda|Šiauliai|Panevėžys|Alytus|Marijampolė|Jonava|Mažeikiai|Utena)\b.*$/i, "").trim();
+  text = text.replace(/\b\d[\d\s.,]{2,}\s?(?:€|eur|Eur|EUR|kr)\b.*$/i, "").trim();
+  text = cleanupTitleEdges(text);
+  text = prettifyTitle(text);
+
+  if (text.length < 4) return "";
   return text.slice(0, 120);
 }
 
@@ -175,19 +224,98 @@ function looksLikeListingUrl(url: string, source: SourceConfig) {
   return /skelb|naudoti|automobil|motocikl|komerc|transport|dalys|auto\/|\/\d{4,}|\/ad\//i.test(url);
 }
 
+function normalizePrice(text: string) {
+  const clean = text.replace(/\s+/g, " ").trim();
+  const currency = /kr/i.test(clean) ? "kr" : "€";
+  const numberPart = clean
+    .replace(/[^\d.,\s]/g, "")
+    .replace(/\.(?=\d{3}(\D|$))/g, " ")
+    .replace(/,(?=\d{3}(\D|$))/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!numberPart || !/\d/.test(numberPart)) return undefined;
+  return `${numberPart} ${currency}`.trim();
+}
+
 function extractPrice(context: string) {
-  const m = context.match(/(\d[\d\s.,]{2,}\s?(?:€|eur|Eur|EUR|kr))/i);
-  return m?.[1]?.replace(/\s+/g, " ").trim();
+  const metaCandidate = context.match(/(?:class|data-testid|itemprop|aria-label)=["'][^"']*(?:price|kaina)[^"']*["'][^>]*>([^<]{2,32})</i)?.[1];
+  if (metaCandidate) {
+    const normalized = normalizePrice(metaCandidate);
+    if (normalized) return normalized;
+  }
+
+  const m = context.match(/(\d[\d\s.,]{1,18}\s?(?:€|eur|Eur|EUR|kr))/i);
+  return m ? normalizePrice(m[1]) : undefined;
+}
+
+function normalizeCity(text: string) {
+  return cleanupTitleEdges(normalizeWhitespace(text))
+    .replace(/^Miestas:?\s*/i, "")
+    .replace(/^Vieta:?\s*/i, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }
 
 function extractCity(context: string) {
+  const labelled = context.match(/(?:Miestas|Vieta|Miestelis)[:\s<]+([^<\n]{2,40})/i)?.[1];
+  if (labelled) return normalizeCity(labelled);
+
   const m = context.match(/(Vilnius|Kaunas|Klaipėda|Siauliai|Šiauliai|Panevėžys|Panevezys|Alytus|Marijampolė|Marijampole|Jonava|Mažeikiai|Mazeikiai|Utena|Palanga|Tauragė|Taurage|Telšiai|Telsiai|Plungė|Plunge|Kretinga|Rietavas|Raseiniai|Ukmergė|Ukmerge|Jurbarkas)/i);
+  return m ? normalizeCity(m[1]) : undefined;
+}
+
+function pickBestSrc(srcset: string) {
+  const candidates = srcset
+    .split(",")
+    .map((part) => part.trim().split(/\s+/)[0])
+    .filter(Boolean);
+  return candidates[candidates.length - 1];
+}
+
+function cleanupImageUrl(url: string | undefined, baseUrl: string) {
+  if (!url) return undefined;
+  const clean = absUrl(decodeHtml(url).trim(), baseUrl);
+  if (!/^https?:\/\//i.test(clean)) return undefined;
+  if (/logo|sprite|icon|avatar|favicon|placeholder|blank\.gif|data:image\/svg\+xml/i.test(clean)) return undefined;
+  return clean;
+}
+
+function findAttr(context: string, attrPattern: string) {
+  const m = context.match(new RegExp(`${attrPattern}=["']([^"']+)["']`, "i"));
   return m?.[1];
 }
 
 function extractImg(context: string, baseUrl: string) {
-  const m = context.match(/<img[^>]+(?:src|data-src)=["']([^"']+)["']/i);
-  return m ? absUrl(m[1], baseUrl) : undefined;
+  const ogImage = context.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)?.[1]
+    || context.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i)?.[1];
+  const twitterImage = context.match(/<meta[^>]+name=["']twitter:image(?::src)?["'][^>]+content=["']([^"']+)["']/i)?.[1]
+    || context.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:image(?::src)?["']/i)?.[1];
+
+  for (const candidate of [ogImage, twitterImage]) {
+    const clean = cleanupImageUrl(candidate, baseUrl);
+    if (clean) return clean;
+  }
+
+  const imgTagMatches = context.match(/<(img|source)\b[^>]*>/gi) || [];
+  for (const tag of imgTagMatches) {
+    const srcset = findAttr(tag, "srcset") || findAttr(tag, "data-srcset");
+    const src =
+      (srcset ? pickBestSrc(srcset) : undefined) ||
+      findAttr(tag, "data-src") ||
+      findAttr(tag, "data-lazy-src") ||
+      findAttr(tag, "data-original") ||
+      findAttr(tag, "src");
+
+    const clean = cleanupImageUrl(src, baseUrl);
+    if (clean) return clean;
+  }
+
+  const bg = context.match(/background-image\s*:\s*url\((['"]?)([^)'"\s]+)\1\)/i)?.[2];
+  const cleanBg = cleanupImageUrl(bg, baseUrl);
+  if (cleanBg) return cleanBg;
+
+  return undefined;
 }
 
 function pushResult(results: ExternalListing[], seen: Set<string>, source: SourceConfig, url: string, title: string, context: string, pageUrl: string, section: ExternalSection, category?: string) {
@@ -217,7 +345,6 @@ function extractListingsFromHtml(html: string, source: SourceConfig, pageUrl: st
   const seen = new Set<string>();
   const cleanedHtml = html.replace(/\n/g, " ");
 
-  // Prefer anchor inner text instead of surrounding HTML.
   const anchorRe = /<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
   let match: RegExpExecArray | null;
 
@@ -227,16 +354,15 @@ function extractListingsFromHtml(html: string, source: SourceConfig, pageUrl: st
     const title = cleanTitle(inner);
     if (!title) continue;
 
-    const start = Math.max(0, match.index - 300);
-    const end = Math.min(cleanedHtml.length, match.index + match[0].length + 500);
+    const start = Math.max(0, match.index - 1000);
+    const end = Math.min(cleanedHtml.length, match.index + match[0].length + 1800);
     const context = cleanedHtml.slice(start, end);
 
     pushResult(results, seen, source, href, title, context, pageUrl, section, category);
   }
 
-  // Fallback for sites where title is in heading nearby.
   if (results.length < 6) {
-    const cardRe = /<(article|div|li)\b[^>]*>([\s\S]{120,2500}?)<\/\1>/gi;
+    const cardRe = /<(article|div|li)\b[^>]*>([\s\S]{140,5000}?)<\/\1>/gi;
     while ((match = cardRe.exec(cleanedHtml)) && results.length < 12) {
       const block = match[2];
       const href = (block.match(/href=["']([^"']+)["']/i) || [])[1];
