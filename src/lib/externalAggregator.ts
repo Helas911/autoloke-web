@@ -106,6 +106,11 @@ function cleanTitle(input: string) {
     .replace(/^Parduodu\s*/i, "")
     .replace(/^Parduodama\s*/i, "")
     .replace(/^Skelbimas\s*/i, "")
+    .replace(/\s*[;|•-]\s*\d[\d\s.,]{1,12}\s*(?:€|eur)\s*\/\s*mėn\.?[\s\S]*$/i, "")
+    .replace(/\s+\d[\d\s.,]{1,12}\s*(?:€|eur)\s*\/\s*mėn\.?[\s\S]*$/i, "")
+    .replace(/Finansavimo sąlygos[\s\S]*$/i, "")
+    .replace(/Ši skaičiuoklė[\s\S]*$/i, "")
+    .replace(/\s{2,}/g, " ")
     .trim();
 
   if (!text) return "";
@@ -160,13 +165,38 @@ function extractImg(context: string, baseUrl: string) {
   return undefined;
 }
 
+function normalizePriceText(raw: string) {
+  const digits = raw.replace(/[^\d]/g, "");
+  if (!digits) return undefined;
+  return `${Number(digits).toLocaleString("lt-LT").replace(/,/g, " ")} €`;
+}
+
 function extractPrice(context: string) {
   const cleaned = stripTags(context);
-  const m = cleaned.match(/(\d[\d\s.,]{1,12}\s?€)/);
-  if (m?.[1]) return m[1].replace(/\s+/g, " ").trim();
-  const eur = cleaned.match(/(\d[\d\s.,]{1,12}\s?(?:eur|EUR))/);
-  if (eur?.[1]) return eur[1].replace(/\s+/g, " ").trim();
-  return undefined;
+  const re = /(\d[\d\s.,]{0,12})\s*(€|eur|EUR)/gi;
+  const candidates: Array<{ raw: string; value: number; monthly: boolean }> = [];
+  let match: RegExpExecArray | null;
+
+  while ((match = re.exec(cleaned))) {
+    const raw = `${match[1]} ${match[2]}`.replace(/\s+/g, " ").trim();
+    const digits = match[1].replace(/[^\d]/g, "");
+    if (!digits) continue;
+
+    const value = Number(digits);
+    if (!Number.isFinite(value) || value <= 0) continue;
+
+    const tail = cleaned.slice(match.index, Math.min(cleaned.length, match.index + 28)).toLowerCase();
+    const monthly = /\/\s*mėn|\/\s*men|per\s*m[eė]n|m[eė]n\.?/i.test(tail);
+    candidates.push({ raw, value, monthly });
+  }
+
+  if (!candidates.length) return undefined;
+
+  const nonMonthly = candidates.filter((c) => !c.monthly);
+  const winner = (nonMonthly.length ? nonMonthly : candidates)
+    .sort((a, b) => b.value - a.value)[0];
+
+  return normalizePriceText(winner.raw);
 }
 
 function extractCity(context: string) {
