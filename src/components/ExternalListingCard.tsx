@@ -9,9 +9,11 @@ function safeText(v?: string) {
 
 function sourceLabel(source?: string) {
   const s = (source || "").toLowerCase();
-  if (s.includes("skelbiu")) return "skelbiu.lt";
   if (s.includes("autoplius")) return "autoplius.lt";
   if (s.includes("autogidas")) return "autogidas.lt";
+  if (s.includes("autobilis")) return "autobilis.lt";
+  if (s.includes("autosel")) return "autosel.lt";
+  if (s.includes("autobonus")) return "autobonus.lt";
   return safeText(source) || "išorinis šaltinis";
 }
 
@@ -37,7 +39,7 @@ function placeholderDataUrl(source: string) {
 
 export function ExternalListingCard({ item }: { item: ExternalListing }) {
   const title = safeText(item.title) || "Skelbimas";
-  const details = [safeText(item.city), safeText(item.priceText)].filter(Boolean).join(" • ") || "Atidaryti originalų skelbimą";
+  const details = safeText(item.city) || "Atidaryti originalų skelbimą";
   const price = safeText(item.priceText) || "Žiūrėti";
   const source = sourceLabel(item.source);
   const placeholder = useMemo(() => placeholderDataUrl(source), [source]);
@@ -72,7 +74,7 @@ export function ExternalListingCard({ item }: { item: ExternalListing }) {
               <h3 className="truncate text-[18px] font-black text-white md:text-[22px]">{title}</h3>
               <p className="mt-1 line-clamp-2 text-sm font-semibold leading-5 text-white/60">{details}</p>
             </div>
-            <div className="text-[24px] leading-none text-white/40">↗</div>
+            <div className="text-[24px] leading-none text-white/40">♡</div>
           </div>
 
           <div className="mt-3 flex items-end justify-between gap-3">
