@@ -45,7 +45,6 @@ export default function TransportasPage() {
   const [powerTo, setPowerTo] = useState("");
   const [externalItems, setExternalItems] = useState<ExternalListing[]>([]);
   const [externalLoading, setExternalLoading] = useState(false);
-  const [externalOnlyWithPhotos, setExternalOnlyWithPhotos] = useState(false);
   const [searchNonce, setSearchNonce] = useState(0);
 
   useEffect(() => {
@@ -93,11 +92,6 @@ export default function TransportasPage() {
       clearTimeout(timer);
     };
   }, [qText, searchNonce]);
-
-  const shownExternalItems = useMemo(() => {
-    if (!externalOnlyWithPhotos) return externalItems;
-    return externalItems.filter((item) => !!item.imageUrl);
-  }, [externalItems, externalOnlyWithPhotos]);
 
   const filtered = useMemo(() => {
     const q = qText.trim().toLowerCase();
@@ -217,35 +211,23 @@ export default function TransportasPage() {
 
       {searchNonce > 0 ? (
         <section className="mt-8">
-          <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mb-3 flex items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-black text-white">Iš kitų portalų</h2>
               <div className="text-xs font-extrabold text-white/55">Autoplius, Autogidas, Autobilis, Autosel, Autobonus</div>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setExternalOnlyWithPhotos((v) => !v)}
-                className={externalOnlyWithPhotos
-                  ? "rounded-full border border-white bg-white px-3 py-2 text-xs font-black text-black transition"
-                  : "rounded-full border border-white/12 bg-white/[0.04] px-3 py-2 text-xs font-black text-white/80 transition hover:bg-white/[0.08]"}
-              >
-                {externalOnlyWithPhotos ? "✓ " : ""}Rodyti tik su nuotraukomis
-              </button>
-              <div className="text-xs font-extrabold text-white/55">Rasta: {shownExternalItems.length}</div>
-              {externalLoading ? <div className="text-xs font-extrabold text-orange-200">Ieškoma…</div> : null}
-            </div>
+            {externalLoading ? <div className="text-xs font-extrabold text-orange-200">Ieškoma…</div> : null}
           </div>
 
-          {shownExternalItems.length ? (
+          {externalItems.length ? (
             <div className="space-y-5">
-              {shownExternalItems.map((item) => (
+              {externalItems.map((item) => (
                 <ExternalListingCard key={item.id} item={item} />
               ))}
             </div>
           ) : !externalLoading ? (
             <div className="rounded-3xl border border-white/10 bg-white/[0.03] px-4 py-5 text-sm font-extrabold text-white/60">
-              {externalOnlyWithPhotos ? "Nerasta išorinių rezultatų su nuotraukomis." : "Išorinių rezultatų nerasta pagal dabartinę užklausą."}
+              Išorinių rezultatų nerasta pagal dabartinę užklausą.
             </div>
           ) : null}
         </section>
