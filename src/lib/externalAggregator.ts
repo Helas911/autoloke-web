@@ -267,10 +267,10 @@ function buildSkelbiuUrl(args: ResolvedSearchArgs) {
 function buildAutopliusUrl(args: ResolvedSearchArgs) {
   const b = slugify(args.brand);
   const m = slugify(args.model);
-  if (args.section === "transportas" && b && m) return `https://m.autoplius.lt/skelbimai/naudoti-automobiliai/${b}/${m}`;
-  if (args.section === "transportas" && b) return `https://m.autoplius.lt/skelbimai/naudoti-automobiliai/${b}?qt=${enc(args.query)}`;
-  if (args.section === "dalys") return `https://m.autoplius.lt/skelbimai/automobiliu-dalys?search_text=${enc(args.query)}`;
-  return `https://m.autoplius.lt/skelbimai/naudoti-automobiliai?search_text=${enc(args.query)}`;
+  if (args.section === "transportas" && b && m) return `https://autoplius.lt/skelbimai/naudoti-automobiliai/${b}/${m}`;
+  if (args.section === "transportas" && b) return `https://autoplius.lt/skelbimai/naudoti-automobiliai/${b}?qt=${enc(args.query)}`;
+  if (args.section === "dalys") return `https://autoplius.lt/skelbimai/automobiliu-dalys?search_text=${enc(args.query)}`;
+  return `https://autoplius.lt/skelbimai/naudoti-automobiliai?search_text=${enc(args.query)}`;
 }
 
 function buildAutogidasUrl(args: ResolvedSearchArgs) {
@@ -353,23 +353,21 @@ function parseAutoplius(html: string, pageUrl: string, source: SourceConfig, arg
   const seen = new Set<string>();
 
   const pushListing = (url: string, title: string, context: string) => {
-    const fullUrl = absUrl(url, pageUrl).replace("://autoplius.lt", "://m.autoplius.lt");
-    if (!/\/skelbimai\/.+-\d+\.html(?:\?|#|$)/i.test(fullUrl)) return;
-    if (/\/naudoti-automobiliai\/[^/]+\/?$/i.test(fullUrl)) return;
+    const fullUrl = absUrl(url, pageUrl)
+      .replace("://m.autoplius.lt", "://autoplius.lt")
+      .replace(/\?.*$/, "");
+    if (!/\/skelbimai\/[^\s"']+-\d+\.html(?:$|#)/i.test(fullUrl)) return;
     const listing = buildListing(source, pageUrl, args, fullUrl, title, context);
     if (!listing || seen.has(listing.url)) return;
 
     const priceFromTitle = title.match(/\b\d{1,3}(?:\s\d{3})*\s*(?:€|eur)\b/i)?.[0];
     if (priceFromTitle) {
       const value = parseEuroAmount(priceFromTitle);
-      if (value && value >= 100 && value <= 300000) {
-        listing.priceText = formatEuroAmount(value);
-      }
+      if (value && value >= 100 && value <= 300000) listing.priceText = formatEuroAmount(value);
     }
 
     if (!listing.imageUrl) {
-      const imgBlock = context.match(/<img\b[^>]+(?:src|data-src|data-original)=["'][^"']+["'][^>]*>/i)?.[0] || "";
-      const img = extractImg(imgBlock || context, pageUrl);
+      const img = extractImg(context, pageUrl);
       if (img) listing.imageUrl = img;
     }
 
@@ -383,17 +381,18 @@ function parseAutoplius(html: string, pageUrl: string, source: SourceConfig, arg
   while ((match = itemRe.exec(html)) && results.length < DEFAULT_LIMIT_PER_SOURCE) {
     const href = match[1];
     const anchorText = cleanTitle(match[2]);
-    const context = genericContext(html, match.index, match[0].length, 800, 1800);
-    const mergedTitle = cleanTitle(`${anchorText} ${stripTags(context)}`);
-    pushListing(href, mergedTitle || anchorText || stripTags(context), context);
+    const context = genericContext(html, match.index, match[0].length, 1000, 2200);
+    pushListing(href, anchorText || stripTags(context), context);
   }
 
-  if (results.length < 6) {
-    const compactRe = /<a\b[^>]*href=["']([^"']*\/skelbimai\/[^"']+?-\d+\.html[^"']*)["'][^>]*>\s*\[?\s*\d+\s*([^\]]+?)\s*\]?<\/a>/gi;
-    while ((match = compactRe.exec(html)) && results.length < DEFAULT_LIMIT_PER_SOURCE) {
-      const href = match[1];
-      const context = genericContext(html, match.index, match[0].length, 200, 500);
-      pushListing(href, match[2], context);
+  if (results.length < 3) {
+    const rawUrlRe = /https?:\/\/(?:m\.)?autoplius\.lt\/skelbimai\/[^\s"'<>]+?-\d+\.html/gi;
+    while ((match = rawUrlRe.exec(html)) && results.length < DEFAULT_LIMIT_PER_SOURCE) {
+      const href = match[0];
+      const context = genericContext(html, match.index, match[0].length, 300, 1400);
+      const titleMatch = stripTags(context).match(/([A-ZĄČĘĖĮŠŲŪŽ][A-Za-z0-9ĄČĘĖĮŠŲŪŽ\- ]{2,40}\s+[A-Z0-9][A-Za-z0-9\- ]{1,40}\s+(?:19|20)\d{2}(?:[-/.]\d{2})?)/);
+      const title = cleanTitle(titleMatch?.[1] || stripTags(context));
+      pushListing(href, title, context);
     }
   }
 
@@ -416,6 +415,7 @@ async function fetchText(url: string) {
       "accept-language": "lt,en;q=0.9",
       "cache-control": "no-cache",
       pragma: "no-cache",
+      referer: "https://autoplius.lt/",
     },
     redirect: "follow",
     next: { revalidate: 60 * 15 },
