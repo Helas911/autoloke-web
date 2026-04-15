@@ -52,7 +52,8 @@ function decodeHtml(input: string) {
     .replace(/&quot;/gi, '"')
     .replace(/&#39;/gi, "'")
     .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">");
+    .replace(/&gt;/gi, ">")
+    .replace(/&euro;|&#8364;/gi, "€");
 }
 
 function stripTags(input: string) {
@@ -106,11 +107,10 @@ function cleanTitle(input: string) {
     .replace(/^Parduodu\s*/i, "")
     .replace(/^Parduodama\s*/i, "")
     .replace(/^Skelbimas\s*/i, "")
-    .replace(/\s*[;|•-]\s*\d[\d\s.,]{1,12}\s*(?:€|eur)\s*\/\s*mėn\.?[\s\S]*$/i, "")
-    .replace(/\s+\d[\d\s.,]{1,12}\s*(?:€|eur)\s*\/\s*mėn\.?[\s\S]*$/i, "")
-    .replace(/Finansavimo sąlygos[\s\S]*$/i, "")
-    .replace(/Ši skaičiuoklė[\s\S]*$/i, "")
-    .replace(/\s{2,}/g, " ")
+    .replace(/\b\d[\d\s]{0,12}(?:[.,]\d{2})?\s*(?:€|eur)\s*\/?\s*m[ėe]n\.?\b/gi, "")
+    .replace(/\bFinansavimo sąlygos.*$/i, "")
+    .replace(/\bŠi skaičiuoklė.*$/i, "")
+    .replace(/\s+/g, " ")
     .trim();
 
   if (!text) return "";
@@ -165,38 +165,56 @@ function extractImg(context: string, baseUrl: string) {
   return undefined;
 }
 
-function normalizePriceText(raw: string) {
-  const digits = raw.replace(/[^\d]/g, "");
-  if (!digits) return undefined;
-  return `${Number(digits).toLocaleString("lt-LT").replace(/,/g, " ")} €`;
+function parseEuroAmount(raw: string) {
+  const normalized = raw
+    .replace(/\u00A0/g, " ")
+    .replace(/\s+/g, " ")
+    .replace(/(?:€|eur)$/i, "")
+    .trim();
+
+  const numeric = normalized
+    .replace(/\s+/g, "")
+    .replace(/,(\d{2})$/, "")
+    .replace(/\.(\d{2})$/, "")
+    .replace(/[^\d]/g, "");
+
+  const value = Number(numeric);
+  if (!Number.isFinite(value)) return null;
+  return value;
+}
+
+function formatEuroAmount(value: number) {
+  return `${new Intl.NumberFormat("lt-LT").format(value)} €`;
 }
 
 function extractPrice(context: string) {
-  const cleaned = stripTags(context);
-  const re = /(\d[\d\s.,]{0,12})\s*(€|eur|EUR)/gi;
-  const candidates: Array<{ raw: string; value: number; monthly: boolean }> = [];
+  const cleaned = stripTags(context)
+    .replace(/\u00A0/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!cleaned) return undefined;
+
+  const withoutMonthly = cleaned
+    .replace(/\b\d[\d\s]{0,12}(?:[.,]\d{2})?\s*(?:€|eur)\s*\/?\s*m[ėe]n\.?\b/gi, " ")
+    .replace(/\bnuo\s+\d[\d\s]{0,12}(?:[.,]\d{2})?\s*(?:€|eur)\s*\/?\s*m[ėe]n\.?\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const candidateRegex = /\b(\d{1,3}(?:\s\d{3})+|\d{3,6})(?:[.,]\d{2})?\s*(?:€|eur)\b/gi;
+  const candidates: number[] = [];
   let match: RegExpExecArray | null;
 
-  while ((match = re.exec(cleaned))) {
-    const raw = `${match[1]} ${match[2]}`.replace(/\s+/g, " ").trim();
-    const digits = match[1].replace(/[^\d]/g, "");
-    if (!digits) continue;
-
-    const value = Number(digits);
-    if (!Number.isFinite(value) || value <= 0) continue;
-
-    const tail = cleaned.slice(match.index, Math.min(cleaned.length, match.index + 28)).toLowerCase();
-    const monthly = /\/\s*mėn|\/\s*men|per\s*m[eė]n|m[eė]n\.?/i.test(tail);
-    candidates.push({ raw, value, monthly });
+  while ((match = candidateRegex.exec(withoutMonthly))) {
+    const value = parseEuroAmount(match[0]);
+    if (value === null) continue;
+    if (value < 100 || value > 300000) continue;
+    candidates.push(value);
   }
 
   if (!candidates.length) return undefined;
 
-  const nonMonthly = candidates.filter((c) => !c.monthly);
-  const winner = (nonMonthly.length ? nonMonthly : candidates)
-    .sort((a, b) => b.value - a.value)[0];
-
-  return normalizePriceText(winner.raw);
+  return formatEuroAmount(candidates[0]);
 }
 
 function extractCity(context: string) {
