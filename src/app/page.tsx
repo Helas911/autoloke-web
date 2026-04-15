@@ -166,9 +166,6 @@ export default function Home() {
         setExternalLoading(true);
         const params = new URLSearchParams({
           q: externalQuery,
-          brand: effectiveBrand.trim(),
-          model: effectiveModel.trim(),
-          city: city.trim(),
           section: tab === "dalys" ? "dalys" : "transportas",
           category: tab === "transportas" ? cat : "dalys",
         });
