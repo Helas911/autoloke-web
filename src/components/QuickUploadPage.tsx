@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { uploadImage } from "@/lib/upload";
+import { useAuth } from "@/lib/useAuth";
 
 const BRANDS = [
   "Audi",
@@ -49,7 +51,7 @@ const TEXT = {
     submit: "PASKELBTI DABAR",
     loading: "Keliama...",
     done: "Skelbimas įkeltas sėkmingai.",
-    footer: "Be registracijos. Vėliau galėsi papildyti daugiau informacijos.",
+    footer: "Skelbimas bus priskirtas tavo paskyrai, todėl vėliau galėsi redaguoti arba ištrinti.",
     firebaseError: "Firebase neprijungtas. Patikrink .env ir firebase konfigūraciją.",
     validationError: "Pridėk bent nuotrauką, kainą ir telefono numerį.",
     unknownError: "Nepavyko įkelti skelbimo.",
@@ -84,7 +86,7 @@ const TEXT = {
     submit: "OPRET ANNONCE NU",
     loading: "Opretter...",
     done: "Annoncen er oprettet.",
-    footer: "Uden registrering. Du kan tilføje flere oplysninger senere.",
+    footer: "Annoncen knyttes til din konto, så du senere kan redigere eller slette den.",
     firebaseError: "Firebase er ikke tilsluttet. Tjek .env og Firebase-konfigurationen.",
     validationError: "Tilføj mindst ét billede, pris og telefonnummer.",
     unknownError: "Kunne ikke oprette annoncen.",
@@ -111,6 +113,7 @@ function detectLocale(fallback: Locale): Locale {
 }
 
 export default function QuickUploadPage({ initialLocale = "lt" as Locale }) {
+  const { user, loading: authLoading } = useAuth();
   const [locale, setLocale] = useState<Locale>(initialLocale);
   const [brand, setBrand] = useState("");
   const [city, setCity] = useState("");
@@ -128,7 +131,7 @@ export default function QuickUploadPage({ initialLocale = "lt" as Locale }) {
 
   const t = TEXT[locale];
 
-  const canSubmit = useMemo(() => photos.length > 0 && price.trim().length > 0 && phone.trim().length > 0, [photos, price, phone]);
+  const canSubmit = useMemo(() => !!user && photos.length > 0 && price.trim().length > 0 && phone.trim().length > 0, [user, photos, price, phone]);
 
   const progress = useMemo(() => {
     let value = 0;
@@ -144,6 +147,10 @@ export default function QuickUploadPage({ initialLocale = "lt" as Locale }) {
       setError(t.firebaseError);
       return;
     }
+    if (!user) {
+      setError(locale === "dk" ? "Log ind først, så annoncen kan knyttes til din konto." : "Pirmiausia prisijunk, kad skelbimas būtų priskirtas tavo paskyrai.");
+      return;
+    }
     if (!canSubmit) {
       setError(t.validationError);
       return;
@@ -156,7 +163,10 @@ export default function QuickUploadPage({ initialLocale = "lt" as Locale }) {
 
       const tempId = `${t.country.toLowerCase()}_quick_${Date.now()}`;
       const imageUrls = await Promise.all(
-        photos.map((file, i) => uploadImage({ path: `ads/${t.country}/quick/${tempId}/${i}-${file.name}`, file }))
+        photos.map((file, i) => {
+          const safeName = (file.name || "foto.jpg").replace(/[^a-zA-Z0-9._-]/g, "_");
+          return uploadImage({ path: `ads/${user.uid}/quick/${tempId}/${i}-${safeName}`, file });
+        })
       );
 
       const numericPrice = Number(String(price).replace(/[^\d]/g, "")) || 0;
@@ -175,6 +185,8 @@ export default function QuickUploadPage({ initialLocale = "lt" as Locale }) {
         city: city.trim() || t.defaultCity,
         phone: normalizePhone(phone),
         imageUrls,
+        ownerUid: user.uid,
+        ownerEmail: user.email || "",
         source: "quick_upload",
         sourceLabel: t.sourceLabel,
         status: "active",
@@ -193,6 +205,32 @@ export default function QuickUploadPage({ initialLocale = "lt" as Locale }) {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (authLoading) {
+    return <main className="min-h-screen bg-neutral-950 p-6 text-white">Kraunama...</main>;
+  }
+
+  if (!user) {
+    const loginHref = locale === "dk" ? "/prisijungti?next=/saelg" : "/prisijungti?next=/parduoti";
+    return (
+      <main className="min-h-screen bg-neutral-950 text-white">
+        <div className="mx-auto flex min-h-screen max-w-lg flex-col justify-center px-5 py-10">
+          <div className="rounded-3xl border border-white/10 bg-neutral-900 p-6 shadow-2xl">
+            <div className="mb-3 inline-flex rounded-full border border-yellow-400/30 bg-yellow-400/10 px-3 py-1 text-xs font-semibold text-yellow-300">Autoloke</div>
+            <h1 className="text-3xl font-black">{locale === "dk" ? "Log ind først" : "Pirmiausia prisijunk"}</h1>
+            <p className="mt-3 text-sm text-white/70">
+              {locale === "dk"
+                ? "Så bliver annoncen knyttet til din konto, og du kan senere slette eller redigere den."
+                : "Taip skelbimas bus priskirtas tavo paskyrai ir vėliau galėsi jį ištrinti arba redaguoti."}
+            </p>
+            <Link href={loginHref} className="mt-5 block rounded-2xl bg-yellow-400 px-5 py-4 text-center text-base font-black text-black hover:opacity-95">
+              {locale === "dk" ? "Log ind og fortsæt" : "Prisijungti ir tęsti"}
+            </Link>
+          </div>
+        </div>
+      </main>
+    );
   }
 
   return (

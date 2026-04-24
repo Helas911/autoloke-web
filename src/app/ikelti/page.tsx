@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import type { CSSProperties } from "react";
 import { addDoc, collection, serverTimestamp, doc, updateDoc } from "firebase/firestore";
 import { GoogleMap, Marker, useLoadScript } from "@react-google-maps/api";
@@ -36,7 +37,7 @@ function toBrandCategory(cat: VehicleCategory): BrandCategory {
 const OTHER = "__other__";
 
 export default function IkeltiPage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { isLoaded } = useLoadScript({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
   });
@@ -268,6 +269,24 @@ export default function IkeltiPage() {
     } finally {
       setBusy(false);
     }
+  }
+
+  if (authLoading) {
+    return <main className="p-6 text-white">Kraunama...</main>;
+  }
+
+  if (!user) {
+    return (
+      <main className="mx-auto max-w-lg px-4 py-10 text-white">
+        <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
+          <h1 className="text-2xl font-black">Pirmiausia prisijunk</h1>
+          <p className="mt-2 text-sm text-white/65">Tada skelbimas bus priskirtas tavo paskyrai ir galėsi jį redaguoti arba ištrinti.</p>
+          <Link href="/prisijungti?next=/ikelti" className="mt-5 block rounded-2xl bg-white px-5 py-3 text-center font-black text-black">
+            Prisijungti ir tęsti
+          </Link>
+        </div>
+      </main>
+    );
   }
 
   return (

@@ -1,119 +1,134 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
+import { useEffect, useState } from "react";
+import { collection, deleteDoc, doc, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { deleteFolder } from "@/lib/upload";
 import { useAuth } from "@/lib/useAuth";
-import type { Ad, Part } from "@/lib/types";
-import { ListingCard } from "@/components/ListingCard";
-import { getSiteCountry } from "@/lib/site";
-import { t } from "@/lib/i18n";
+
+type Listing = {
+  id: string;
+  kind: "ads" | "parts";
+  title?: string;
+  brand?: string;
+  model?: string;
+  price?: number;
+  currency?: string;
+  city?: string;
+  imageUrls?: string[];
+  ownerUid?: string;
+};
 
 export default function ManoPage() {
-  const { user, loading } = useAuth();
-  const country = getSiteCountry();
-  const [ads, setAds] = useState<Ad[]>([]);
-  const [parts, setParts] = useState<Part[]>([]);
+  const { user, loading: authLoading } = useAuth();
+  const [items, setItems] = useState<Listing[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function loadItems() {
+    if (!user || !db) {
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setErr(null);
+
+    try {
+      const [adsSnap, partsSnap] = await Promise.all([
+        getDocs(query(collection(db, "ads"), where("ownerUid", "==", user.uid))),
+        getDocs(query(collection(db, "parts"), where("ownerUid", "==", user.uid))),
+      ]);
+
+      const ads = adsSnap.docs.map((d) => ({ id: d.id, kind: "ads" as const, ...d.data() } as Listing));
+      const parts = partsSnap.docs.map((d) => ({ id: d.id, kind: "parts" as const, ...d.data() } as Listing));
+
+      setItems([...ads, ...parts]);
+    } catch (e: any) {
+      setErr(e?.message || "Nepavyko užkrauti skelbimų.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function removeItem(item: Listing) {
+    if (!user || !db) return;
+    if (!confirm("Tikrai ištrinti šį skelbimą?")) return;
+
+    try {
+      setErr(null);
+      await deleteDoc(doc(db, item.kind, item.id));
+      await deleteFolder(`${item.kind}/${user.uid}/${item.id}`).catch(() => undefined);
+      setItems((prev) => prev.filter((x) => !(x.kind === item.kind && x.id === item.id)));
+    } catch (e: any) {
+      setErr(e?.message || "Nepavyko ištrinti skelbimo.");
+    }
+  }
 
   useEffect(() => {
-    const q1 = query(collection(db, "ads"), orderBy("createdAt", "desc"));
-    const unsub1 = onSnapshot(q1, (snap) => {
-      setAds(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })));
-    });
+    if (!authLoading) loadItems();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, user?.uid]);
 
-    const q2 = query(collection(db, "parts"), orderBy("createdAt", "desc"));
-    const unsub2 = onSnapshot(q2, (snap) => {
-      setParts(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })));
-    });
-
-    return () => {
-      unsub1();
-      unsub2();
-    };
-  }, []);
-
-  const myAds = useMemo(() => ads.filter((a) => user?.uid && a.ownerUid === user.uid), [ads, user?.uid]);
-  const myParts = useMemo(() => parts.filter((p) => user?.uid && p.ownerUid === user.uid), [parts, user?.uid]);
-
-  if (loading) {
-    return (
-      <main className="mx-auto max-w-6xl px-4 py-6">
-        <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-8 text-white/70">{t(country, "loading")}</div>
-      </main>
-    );
-  }
+  if (authLoading || loading) return <main className="p-6 text-white">Kraunama...</main>;
 
   if (!user) {
     return (
-      <main className="mx-auto max-w-6xl px-4 py-6">
-        <h1 className="text-2xl font-black">{t(country, "myAccount")}</h1>
-        <div className="mt-3 rounded-3xl border border-white/10 bg-white/[0.03] p-8">
-          <div className="text-white/70">{t(country, "yourListingsNeedLogin")}</div>
-          <div className="mt-4 flex gap-2">
-            <Link href="/prisijungti" className="rounded-full bg-white px-5 py-3 text-sm font-extrabold text-black hover:bg-white/90">
-              {t(country, "login")}
-            </Link>
-            <Link href="/registracija" className="rounded-full border border-white/15 bg-white/5 px-5 py-3 text-sm font-extrabold text-white hover:bg-white/10">
-              {t(country, "register")}
-            </Link>
-          </div>
-        </div>
+      <main className="mx-auto max-w-lg px-4 py-10 text-white">
+        <h1 className="text-2xl font-black">Prisijunkite</h1>
+        <p className="mt-2 text-white/60">Prisijungus matysite savo skelbimus ir galėsite juos ištrinti.</p>
+        <Link href="/prisijungti?next=/mano" className="mt-5 inline-block rounded-2xl bg-white px-5 py-3 font-black text-black">
+          Prisijungti
+        </Link>
       </main>
     );
   }
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-6">
-      <div className="flex items-center justify-between gap-3">
+    <main className="mx-auto max-w-3xl px-4 py-6 pb-24 text-white">
+      <div className="mb-5 flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-black">{t(country, "myListings")}</h1>
-          <div className="mt-1 text-sm text-white/60">{user.email}</div>
+          <h1 className="text-2xl font-black">Mano skelbimai</h1>
+          <p className="text-sm text-white/55">Čia rodomi tik su jūsų paskyra sukurti skelbimai.</p>
         </div>
-        <Link href="/ikelti" className="rounded-full bg-white px-4 py-2 text-sm font-extrabold text-black hover:bg-white/90">
-          ➕ {t(country, "upload")}
-        </Link>
+        <Link href="/ikelti" className="rounded-2xl bg-white px-4 py-3 text-sm font-black text-black">Įkelti</Link>
       </div>
 
-      <h2 className="mt-6 text-lg font-black">{t(country, "transport")}</h2>
-      <section className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {myAds.map((a) => (
-          <ListingCard
-            key={a.id}
-            href={`/transportas/${a.id}`}
-            title={`${a.brand ?? ""} ${a.model ?? ""}`.trim() || (a.title ?? "Skelbimas")}
-            subtitle={[a.city, a.type].filter(Boolean).join(" • ")}
-            price={typeof a.price === "number" ? a.price : null}
-            img={a.imageUrls?.[0] ?? null}
-            badge={t(country, "myAccount")}
-            country={(a.country as any) || "LT"}
-          />
-        ))}
-      </section>
-      {!myAds.length ? <Empty text="Neturi transporto skelbimų." /> : null}
+      {err ? <div className="mb-4 rounded-2xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-100">{err}</div> : null}
 
-      <h2 className="mt-8 text-lg font-black">{t(country, "parts")}</h2>
-      <section className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {myParts.map((p) => (
-          <ListingCard
-            key={p.id}
-            href={`/dalys/${p.id}`}
-            title={p.title || "Detalė"}
-            subtitle={[p.city, [p.brand, p.model].filter(Boolean).join(" ")].filter(Boolean).join(" • ")}
-            price={typeof p.price === "number" ? p.price : null}
-            img={p.imageUrls?.[0] ?? null}
-            badge={t(country, "myAccount")}
-            country={(p.country as any) || "LT"}
-          />
-        ))}
-      </section>
-      {!myParts.length ? <Empty text="Neturi dalių skelbimų." /> : null}
+      {items.length === 0 ? (
+        <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 text-white/70">
+          Skelbimų nėra. Nauji skelbimai atsiras čia, kai juos įkelsite prisijungę.
+        </div>
+      ) : null}
+
+      <div className="grid gap-3">
+        {items.map((item) => {
+          const name = item.title || [item.brand, item.model].filter(Boolean).join(" ") || (item.kind === "parts" ? "Detalės skelbimas" : "Transporto skelbimas");
+          return (
+            <article key={`${item.kind}-${item.id}`} className="flex gap-3 rounded-3xl border border-white/10 bg-white/[0.03] p-3">
+              <div className="h-24 w-28 shrink-0 overflow-hidden rounded-2xl bg-white/5">
+                {item.imageUrls?.[0] ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={item.imageUrls[0]} alt="" className="h-full w-full object-cover" />
+                ) : null}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="font-black">{name}</div>
+                <div className="mt-1 text-sm text-white/60">{item.city || "Miestas nenurodytas"}</div>
+                <div className="mt-1 text-sm font-bold">{item.price ? `${item.price} ${item.currency || "€"}` : "Kaina nenurodyta"}</div>
+                <button
+                  onClick={() => removeItem(item)}
+                  className="mt-3 rounded-xl bg-red-600 px-4 py-2 text-sm font-black text-white hover:bg-red-500"
+                >
+                  Ištrinti
+                </button>
+              </div>
+            </article>
+          );
+        })}
+      </div>
     </main>
-  );
-}
-
-function Empty({ text }: { text: string }) {
-  return (
-    <div className="mt-3 rounded-3xl border border-white/10 bg-white/[0.03] p-6 text-sm text-white/60">{text}</div>
   );
 }

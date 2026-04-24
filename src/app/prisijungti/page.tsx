@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { auth, googleProvider } from "@/lib/firebase";
 import { getSiteCountry } from "@/lib/site";
 import { t } from "@/lib/i18n";
@@ -13,6 +13,13 @@ export default function PrisijungtiPage() {
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const country = getSiteCountry();
+  const [nextPath, setNextPath] = useState("/mano");
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const next = params.get("next") || "/mano";
+    if (next.startsWith("/") && !next.startsWith("//")) setNextPath(next);
+  }, []);
 
   async function loginWithGoogle() {
     setErr(null);
@@ -20,7 +27,7 @@ export default function PrisijungtiPage() {
     try {
       if (!auth || !googleProvider) throw new Error(country === "DK" ? "Google-login er ikke klar" : "Google prisijungimas neparuoštas");
       await signInWithPopup(auth as any, googleProvider as any);
-      window.location.href = "/mano";
+      window.location.href = nextPath;
     } catch (e: any) {
       setErr(e?.message ?? (country === "DK" ? "Google-login mislykkedes" : "Nepavyko prisijungti su Google"));
     } finally {
@@ -34,7 +41,7 @@ export default function PrisijungtiPage() {
     setBusy(true);
     try {
       await signInWithEmailAndPassword(auth, email.trim(), pass);
-      window.location.href = "/mano";
+      window.location.href = nextPath;
     } catch (e: any) {
       setErr(e?.message ?? (country === "DK" ? "Login mislykkedes" : "Nepavyko prisijungti"));
     } finally {
@@ -86,7 +93,7 @@ export default function PrisijungtiPage() {
 
         <div className="text-center text-sm text-white/60">
           {t(country, "noAccount")} {" "}
-          <Link className="font-extrabold text-white hover:underline" href="/registracija">
+          <Link className="font-extrabold text-white hover:underline" href={`/registracija?next=${encodeURIComponent(nextPath)}`}>
             {t(country, "register")}
           </Link>
         </div>
