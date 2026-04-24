@@ -1,5 +1,5 @@
 import QuickUploadPage from "@/components/QuickUploadPage";
 
 export default function Page() {
-  return <QuickUploadPage initialLocale="lt" />;
+  return <QuickUploadPage initialLocale="dk" />;
 }

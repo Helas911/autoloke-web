@@ -1,38 +1,57 @@
-# Ultra greitas Autoloke įkėlimas
+# Autoloke LT + DK greitas skelbimo įkėlimas
 
-Įdėk šiuos failus į savo Next.js projektą:
+Įkelk šiuos failus į savo Next.js projektą.
 
+## Failai
+
+- `src/components/QuickUploadPage.tsx`
 - `src/app/parduoti/page.tsx`
+- `src/app/saelg/page.tsx`
 - `src/app/greitai/page.tsx`
+- `src/app/opret-annonce/page.tsx`
 
-Nuorodos:
+## Nuorodos
 
-- `https://autoloke.lt/parduoti`
-- `https://autoloke.lt/greitai`
-
-## Ką daro
-
-- leidžia labai greitai įkelti skelbimą telefonu
-- svarbiausi laukai: nuotraukos, kaina, telefonas
-- papildomi, bet neprivalomi: markė, miestas, komentaras
-- saugo į `ads` kolekciją Firestore
-- kelia nuotraukas į Firebase Storage
-- pažymi šaltinį: `source: "quick_upload"`
-
-## Reikalavimai
-
-Projektas turi turėti šiuos failus ir alias:
-
-- `@/lib/firebase`
-- `@/lib/upload`
-- `tsconfig` alias `@/*`
-- Firebase env reikšmes
-
-## FB postui naudok
+LT Facebook postams:
 
 `https://autoloke.lt/greitai`
 
-Pvz. tekstas:
+arba tiesiogiai:
 
-> 🚗 Nori parduoti auto? Įkelk skelbimą greitai ir paprastai 👇
-> https://autoloke.lt/greitai
+`https://autoloke.lt/parduoti`
+
+DK Facebook postams:
+
+`https://autoloke.dk/saelg`
+
+arba:
+
+`https://autoloke.dk/opret-annonce`
+
+## Kaip veikia
+
+- `autoloke.lt/greitai` nukreipia į `/parduoti`.
+- `autoloke.dk/greitai` nukreipia į `/saelg`.
+- Pagal domeną `.dk` puslapis automatiškai rodo danų kalbą.
+- Į Firestore `ads` įrašo `country: LT` arba `country: DK`.
+- LT naudoja `currency: EUR`.
+- DK naudoja `currency: DKK`.
+- Nuotraukas kelia į Firebase Storage.
+
+## Deploy
+
+Terminale:
+
+```bash
+npm run build
+```
+
+Jei klaidų nėra:
+
+```bash
+git add .
+git commit -m "Add LT and DK quick upload pages"
+git push
+```
+
+Vercel po `git push` paleis automatiškai.
