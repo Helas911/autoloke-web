@@ -20,15 +20,22 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-50 border-b border-white/10 bg-black/70 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
-        <Link href="/" className="flex items-center gap-3">
-          <span className="grid h-11 w-11 place-items-center rounded-2xl bg-white/10 text-xl">🚗</span>
-          <div className="leading-tight">
+        <Link href="/" className="flex min-w-0 items-center gap-3">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-white/10 text-xl">🚗</span>
+          <div className="min-w-0 leading-tight">
             <div className="text-2xl font-black tracking-tight">Autoloke</div>
-            <div className="text-[11px] font-semibold text-white/60">{t(country, "siteTagline")}</div>
+            <div className="hidden text-[11px] font-semibold text-white/60 sm:block">{t(country, "siteTagline")}</div>
           </div>
         </Link>
 
         <div className="flex flex-wrap items-center justify-end gap-2">
+          <Link
+            href="/skelbimu-lenta"
+            className="rounded-full border border-yellow-400/30 bg-yellow-500/15 px-3 py-2 text-xs font-extrabold text-yellow-100 hover:bg-yellow-500/25 sm:text-sm"
+          >
+            📌 Lenta
+          </Link>
+
           {loading ? null : user ? (
             <>
               <Link
