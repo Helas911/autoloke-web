@@ -1,6 +1,7 @@
 export type VehicleCategory =
   | "automobiliai"
   | "motociklai"
+  | "dviraciai"
   | "sunkvezimiai"
   | "vandensTransportas"
   | "zemesUkioTechnika";
@@ -9,6 +10,7 @@ export const VEHICLE_CATEGORIES: { id: VehicleCategory; label: string; icon: str
   { id: "automobiliai", label: "Auto", icon: "🚗" },
   { id: "vandensTransportas", label: "Vandens", icon: "🚤" },
   { id: "motociklai", label: "Motociklai", icon: "🏍️" },
+  { id: "dviraciai", label: "Dviračiai", icon: "🚲" },
   { id: "sunkvezimiai", label: "Sunkvežimiai", icon: "🚚" },
   { id: "zemesUkioTechnika", label: "Ž.Ū. technika", icon: "🚜" },
 ];
@@ -16,6 +18,7 @@ export const VEHICLE_CATEGORIES: { id: VehicleCategory; label: string; icon: str
 export const VEHICLE_TYPES: Record<VehicleCategory, string[]> = {
   automobiliai: ["Sedanas", "Universalas", "Hečbekas", "Visureigis", "Kupė", "Kabrioletas", "Vienatūris", "Komercinis"],
   motociklai: ["Keturračiai", "Krosiniai", "Kelioniniai", "Sportiniai", "Čioperiai", "Enduro", "Motoroleriai"],
+  dviraciai: ["Dviračiai", "Elektriniai dviračiai", "Kalnų dviračiai", "Miesto dviračiai", "Plento dviračiai", "Paspirtukai", "Elektriniai paspirtukai", "Dalys", "Kita"],
   sunkvezimiai: ["Vilkikai", "Sunkvežimiai", "Mikroautobusai", "Autobusai", "Priekabos", "Speciali technika"],
   vandensTransportas: ["Valtys", "Kateriai", "Jachtos", "Vandens motociklai", "Varikliai", "Kita"],
   zemesUkioTechnika: ["Traktoriai", "Kombainai", "Padargai", "Krautuvai", "Miškininkystės", "Kita"],
