@@ -12,12 +12,56 @@ const inputClass =
 const cities = ["Vilnius", "Kaunas", "Klaipėda", "Šiauliai", "Panevėžys", "Alytus", "Marijampolė", "Jurbarkas", "Tauragė", "Telšiai", "Utena"];
 
 const requestCategories = [
-  "Ieškau detalės",
   "Perku automobilį",
+  "Ieškau detalių",
+  "Ardomi automobiliai",
   "Superku automobilius",
   "Ieškau motociklo",
   "Perku techniką",
   "Kita",
+];
+
+const actionCards = [
+  {
+    title: "Parduodu automobilį",
+    subtitle: "Įkelk normalų transporto pardavimo skelbimą",
+    icon: "🚗",
+    href: "/ikelti",
+    type: "link",
+    className: "border-white/15 bg-white/[0.06] hover:bg-white/[0.10]",
+  },
+  {
+    title: "Perku automobilį",
+    subtitle: "Įdėk skelbimą, kokio automobilio ieškai",
+    icon: "🔎",
+    category: "Perku automobilį",
+    type: "category",
+    className: "border-blue-400/25 bg-blue-500/10 hover:bg-blue-500/20",
+  },
+  {
+    title: "Ieškau detalių",
+    subtitle: "Rask reikiamas dalis pagal markę ir modelį",
+    icon: "🛠",
+    category: "Ieškau detalių",
+    type: "category",
+    className: "border-yellow-400/25 bg-yellow-500/10 hover:bg-yellow-500/20",
+  },
+  {
+    title: "Ardomi automobiliai",
+    subtitle: "Įdėk ardomą automobilį, kad žmonės rastų dalis",
+    icon: "♻️",
+    category: "Ardomi automobiliai",
+    type: "category",
+    className: "border-red-400/25 bg-red-500/10 hover:bg-red-500/20",
+  },
+  {
+    title: "Superku automobilius",
+    subtitle: "Supirkimo skelbimai visoms markėms",
+    icon: "💰",
+    category: "Superku automobilius",
+    type: "category",
+    className: "border-green-400/25 bg-green-500/10 hover:bg-green-500/20",
+  },
 ];
 
 const brands = [
@@ -59,13 +103,27 @@ type RequestItem = {
 };
 
 function buildTitle(item: RequestItem) {
-  const category = item.category || "Ieškau";
+  const category = item.category || "Skelbimas";
   const text = [item.brand, item.model, item.part].filter(Boolean).join(" ").trim();
+
   if (category === "Superku automobilius") return item.part || "Superku visų markių automobilius";
+  if (category === "Ardomi automobiliai") return `Ardomas ${text || "automobilis"}`;
   if (category === "Perku automobilį") return `Perku ${text || "automobilį"}`;
+  if (category === "Ieškau detalių") return `Ieškau ${text || "detalių"}`;
   if (category === "Ieškau motociklo") return `Ieškau ${text || "motociklo"}`;
   if (category === "Perku techniką") return `Perku ${text || "techniką"}`;
+
   return `${category} ${text}`.trim();
+}
+
+function categoryBadge(category?: string) {
+  if (category === "Perku automobilį") return "🔎 Perka";
+  if (category === "Ieškau detalių") return "🛠 Ieško detalių";
+  if (category === "Ardomi automobiliai") return "♻️ Ardo";
+  if (category === "Superku automobilius") return "💰 Superka";
+  if (category === "Ieškau motociklo") return "🏍 Motociklas";
+  if (category === "Perku techniką") return "🚜 Technika";
+  return "📌 Skelbimas";
 }
 
 export default function Page() {
@@ -79,7 +137,7 @@ export default function Page() {
   const [filterBrand, setFilterBrand] = useState("");
   const [filterCity, setFilterCity] = useState("");
 
-  const [category, setCategory] = useState("Ieškau detalės");
+  const [category, setCategory] = useState("Ieškau detalių");
   const [brand, setBrand] = useState("");
   const [model, setModel] = useState("");
   const [part, setPart] = useState("");
@@ -113,6 +171,13 @@ export default function Page() {
     });
   }, [items, q, filterCategory, filterBrand, filterCity]);
 
+  function chooseCategory(nextCategory: string) {
+    setCategory(nextCategory);
+    setFilterCategory(nextCategory);
+    setMessage("");
+    setTimeout(() => document.getElementById("skelbimo-forma")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+  }
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setMessage("");
@@ -127,12 +192,11 @@ export default function Page() {
       return;
     }
 
-    if (category === "Superku automobilius" && !part.trim()) {
-      setPart("Superku visų markių automobilius");
-    }
+    const cleanBrand = brand.trim() || (category === "Superku automobilius" ? "Visos markės" : "");
+    const cleanPart = part.trim() || (category === "Superku automobilius" ? "Superku visų markių automobilius" : "");
 
-    if (category !== "Superku automobilius" && !part.trim()) {
-      setMessage("Įrašyk ko ieškai arba ką perki.");
+    if (category !== "Superku automobilius" && !cleanPart) {
+      setMessage("Įrašyk skelbimo tekstą: ko ieškai, ką perki arba ką ardai.");
       return;
     }
 
@@ -140,9 +204,9 @@ export default function Page() {
       setSaving(true);
       await addDoc(collection(db, "partRequests"), {
         category,
-        brand: brand.trim() || (category === "Superku automobilius" ? "Visos markės" : ""),
+        brand: cleanBrand,
         model: model.trim(),
-        part: part.trim() || "Superku visų markių automobilius",
+        part: cleanPart,
         city: city.trim(),
         phone: phone.trim(),
         imageUrl: imageUrl.trim(),
@@ -151,7 +215,7 @@ export default function Page() {
         createdAt: serverTimestamp(),
       });
 
-      setCategory("Ieškau detalės");
+      setCategory("Ieškau detalių");
       setBrand("");
       setModel("");
       setPart("");
@@ -172,20 +236,38 @@ export default function Page() {
       <section className="overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.03]">
         <div className="bg-[radial-gradient(70%_90%_at_20%_0%,rgba(250,204,21,0.18),transparent_60%)] p-5 sm:p-7">
           <div className="inline-flex rounded-full border border-yellow-400/25 bg-yellow-500/10 px-3 py-1 text-xs font-black text-yellow-100">
-            🔎 Ieškau / Perku / Superku
+            📌 Skelbimų lenta
           </div>
-          <h1 className="mt-4 text-3xl font-black tracking-tight sm:text-5xl">Pirkimo skelbimai</h1>
+          <h1 className="mt-4 text-3xl font-black tracking-tight sm:text-5xl">Ką norite padaryti?</h1>
           <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-white/65 sm:text-base">
-            Čia žmonės gali įdėti, ko ieško: detalių, automobilių, motociklų arba skelbimą „Superku visų markių automobilius“.
+            Aiškiai pasirinkite skelbimo tipą: parduoti automobilį, pirkti automobilį, ieškoti detalių, įdėti ardomą automobilį arba supirkimo skelbimą.
           </p>
         </div>
       </section>
 
+      <section className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        {actionCards.map((card) =>
+          card.type === "link" ? (
+            <Link key={card.title} href={card.href || "/ikelti"} className={`rounded-3xl border p-5 text-left transition ${card.className}`}>
+              <div className="mb-2 text-3xl">{card.icon}</div>
+              <div className="text-lg font-black">{card.title}</div>
+              <div className="mt-1 text-sm font-semibold text-white/55">{card.subtitle}</div>
+            </Link>
+          ) : (
+            <button key={card.title} type="button" onClick={() => chooseCategory(card.category || "Ieškau detalių")} className={`rounded-3xl border p-5 text-left transition ${card.className}`}>
+              <div className="mb-2 text-3xl">{card.icon}</div>
+              <div className="text-lg font-black">{card.title}</div>
+              <div className="mt-1 text-sm font-semibold text-white/55">{card.subtitle}</div>
+            </button>
+          )
+        )}
+      </section>
+
       <section className="mt-4 grid gap-4 lg:grid-cols-[420px_1fr]">
-        <form onSubmit={onSubmit} className="rounded-[28px] border border-white/10 bg-white/[0.03] p-4 sm:p-5">
+        <form id="skelbimo-forma" onSubmit={onSubmit} className="rounded-[28px] border border-white/10 bg-white/[0.03] p-4 sm:p-5">
           <div className="mb-4">
-            <h2 className="text-xl font-black">Įdėti pirkimo skelbimą</h2>
-            <p className="mt-1 text-sm font-semibold text-white/55">Pvz.: Superku visų markių automobilius, ieškau BMW E60 ratlankių.</p>
+            <h2 className="text-xl font-black">Įdėti skelbimą į lentą</h2>
+            <p className="mt-1 text-sm font-semibold text-white/55">Pardavimo skelbimui naudok „Parduodu automobilį“, o čia dėk pirkimo, paieškos, ardymo ir supirkimo skelbimus.</p>
           </div>
 
           {!loading && !user ? (
@@ -213,7 +295,15 @@ export default function Page() {
             <input
               value={part}
               onChange={(e) => setPart(e.target.value)}
-              placeholder={category === "Superku automobilius" ? "Pvz. Superku visų markių automobilius" : "Ko ieškai / ką perki"}
+              placeholder={
+                category === "Ardomi automobiliai"
+                  ? "Pvz. Ardomas BMW E60"
+                  : category === "Superku automobilius"
+                    ? "Pvz. Superku visų markių automobilius"
+                    : category === "Perku automobilį"
+                      ? "Pvz. Perku BMW 320 dyzelį"
+                      : "Ko ieškai / ką perki"
+              }
               className={inputClass}
             />
             <input value={city} onChange={(e) => setCity(e.target.value)} list="request-cities" placeholder="Miestas" className={inputClass} />
@@ -235,7 +325,7 @@ export default function Page() {
         <div className="rounded-[28px] border border-white/10 bg-white/[0.03] p-4 sm:p-5">
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h2 className="text-xl font-black">Ieško / perka / superka</h2>
+              <h2 className="text-xl font-black">Skelbimų lenta</h2>
               <p className="mt-1 text-sm font-semibold text-white/55">Rasta: {filtered.length}</p>
             </div>
           </div>
@@ -263,7 +353,7 @@ export default function Page() {
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <div className="mb-2 inline-flex rounded-full border border-yellow-400/25 bg-yellow-500/10 px-3 py-1 text-xs font-black text-yellow-100">
-                        {item.category || "Ieškau"}
+                        {categoryBadge(item.category)}
                       </div>
                       <h3 className="text-lg font-black">{buildTitle(item)}</h3>
                       <p className="mt-1 text-sm font-semibold text-white/55">{item.city || "Miestas nenurodytas"}</p>
