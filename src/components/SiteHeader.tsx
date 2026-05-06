@@ -33,7 +33,7 @@ export function SiteHeader() {
             href="/skelbimu-lenta"
             className="rounded-full border border-yellow-400/30 bg-yellow-500/15 px-3 py-2 text-xs font-extrabold text-yellow-100 hover:bg-yellow-500/25 sm:text-sm"
           >
-            🔎 Ieškau
+            📌 Skelbimų lenta
           </Link>
 
           {loading ? null : user ? (
