@@ -4,6 +4,7 @@ import "./globals.css";
 import { SiteHeader } from "@/components/SiteHeader";
 import { BottomNav } from "@/components/BottomNav";
 import { HtmlLang } from "@/components/HtmlLang";
+import { HomeUploadButton } from "@/components/HomeUploadButton";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -60,6 +61,7 @@ export default function RootLayout({
         </div>
 
         <SiteHeader />
+        <HomeUploadButton />
         {children}
         <BottomNav />
       </body>
