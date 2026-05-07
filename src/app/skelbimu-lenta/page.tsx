@@ -48,6 +48,13 @@ function title(item: Item) {
   return text || item.category || "Skelbimas";
 }
 
+function errorText(error: unknown) {
+  const code = typeof error === "object" && error && "code" in error ? String((error as any).code) : "";
+  if (code === "permission-denied") return "Nepavyko įdėti: Firebase taisyklėse reikia leisti kolekciją partRequests.";
+  if (!db) return "Nepavyko įdėti: Firebase neprijungtas.";
+  return "Nepavyko įdėti skelbimo. Pabandyk dar kartą.";
+}
+
 export default function Page() {
   const { user, loading } = useAuth();
   const [items, setItems] = useState<Item[]>([]);
@@ -91,6 +98,7 @@ export default function Page() {
     e.preventDefault();
     setMessage("");
     if (!user) return setMessage("Norint įdėti skelbimą, reikia prisijungti.");
+    if (!db) return setMessage("Firebase neprijungtas.");
     if (!phone.trim()) return setMessage("Įrašyk telefono numerį.");
     if (category !== "Superku automobilius" && !adTitle.trim()) return setMessage("Įrašyk skelbimo tekstą.");
 
@@ -110,8 +118,8 @@ export default function Page() {
       });
       setBrand(""); setModel(""); setAdTitle(""); setCity(""); setPhone(""); setImageUrl(""); setDescription("");
       setMessage("Skelbimas įdėtas.");
-    } catch {
-      setMessage("Nepavyko įdėti skelbimo. Patikrink Firebase taisykles.");
+    } catch (err) {
+      setMessage(errorText(err));
     } finally {
       setSaving(false);
     }
