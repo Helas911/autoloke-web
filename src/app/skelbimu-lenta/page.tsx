@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { addDoc, collection, onSnapshot, orderBy, query, serverTimestamp } from "firebase/firestore";
+import { addDoc, collection, deleteDoc, doc, onSnapshot, orderBy, query, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/useAuth";
 
@@ -29,6 +29,7 @@ type Item = {
   phone?: string;
   description?: string;
   imageUrl?: string;
+  ownerUid?: string;
 };
 
 function badge(category?: string) {
@@ -87,6 +88,18 @@ export default function Page() {
       return true;
     });
   }, [items, filter, search]);
+
+  async function removeItem(id: string) {
+    if (!db) return;
+    const ok = window.confirm("Ištrinti skelbimą?");
+    if (!ok) return;
+
+    try {
+      await deleteDoc(doc(db, "partRequests", id));
+    } catch {
+      alert("Nepavyko ištrinti skelbimo");
+    }
+  }
 
   function choose(c: string) {
     setCategory(c);
@@ -179,7 +192,14 @@ export default function Page() {
                   <h3 className="text-lg font-black">{title(item)}</h3>
                   <p className="mt-1 text-sm font-semibold text-white/55">{item.city || "Miestas nenurodytas"}</p>
                   {item.description ? <p className="mt-3 text-sm leading-6 text-white/70">{item.description}</p> : null}
-                  {item.phone ? <a href={`tel:${item.phone}`} className="mt-3 inline-flex rounded-full bg-white px-4 py-2 text-sm font-black text-black">Skambinti</a> : null}
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {item.phone ? <a href={`tel:${item.phone}`} className="inline-flex rounded-full bg-white px-4 py-2 text-sm font-black text-black">Skambinti</a> : null}
+                    {user?.uid === item.ownerUid ? (
+                      <button onClick={() => removeItem(item.id)} className="rounded-full border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm font-black text-red-100">
+                        🗑 Ištrinti
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
               </article>
             ))}
