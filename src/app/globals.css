@@ -43,7 +43,11 @@ input::placeholder, textarea::placeholder{
   white-space:nowrap;
 }
 
-
 html, body {
   overflow-x: hidden;
+}
+
+/* Home page: hide duplicate upload button inside filter sidebar. Top button stays visible. */
+aside a[href="/ikelti"]{
+  display:none !important;
 }
