@@ -18,18 +18,15 @@ body{
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* Controls: make native select/options readable in dark UI */
 select, option{
   background-color:#0b0b10;
   color: rgba(255,255,255,0.95);
 }
 
-/* Placeholder readability */
 input::placeholder, textarea::placeholder{
   color: rgba(255,255,255,0.45);
 }
 
-/* Marker label helper */
 .priceLabel{
   background:#2563eb;
   color:#ffffff;
@@ -47,7 +44,19 @@ html, body {
   overflow-x: hidden;
 }
 
-/* Home page: hide duplicate upload button inside filter sidebar. Top button stays visible. */
 aside a[href="/ikelti"]{
   display:none !important;
+}
+
+main > a[href="/ikelti"]{
+  display:flex !important;
+  align-items:center;
+  justify-content:center;
+  max-width:240px !important;
+  width:240px !important;
+  margin:0 auto 14px auto !important;
+  padding:10px 14px !important;
+  border-radius:18px !important;
+  font-size:15px !important;
+  font-weight:800 !important;
 }
