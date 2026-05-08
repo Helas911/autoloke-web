@@ -9,25 +9,25 @@ import { citySuggestions, getSiteCountry, type SiteCountry } from "@/lib/site";
 
 const inputClass = "w-full rounded-2xl border border-white/12 bg-white/[0.06] px-4 py-3 text-sm text-white outline-none placeholder:text-white/40";
 
-type Cat = "buyCar" | "needParts" | "partsCars" | "buyAllCars" | "needMoto" | "buyMachines" | "other";
+type Cat = "buyCar" | "needParts" | "partsCars" | "buyAllCars" | "rentCars" | "rentVans" | "rentTrailers" | "rentMoto" | "rentMachines" | "needMoto" | "buyMachines" | "other";
 
-const categories: Cat[] = ["buyCar", "needParts", "partsCars", "buyAllCars", "needMoto", "buyMachines", "other"];
-const brands = ["Audi", "BMW", "Mercedes-Benz", "Volkswagen", "Volvo", "Toyota", "Opel", "Ford", "Peugeot", "Renault", "Skoda", "Nissan", "Kia", "Hyundai", "Mazda", "Honda", "Citroen", "Fiat", "Seat"];
+const categories: Cat[] = ["buyCar", "needParts", "partsCars", "buyAllCars", "rentCars", "rentVans", "rentTrailers", "rentMoto", "rentMachines", "needMoto", "buyMachines", "other"];
+const brands = ["Audi", "BMW", "Mercedes-Benz", "Volkswagen", "Volvo", "Toyota", "Opel", "Ford", "Peugeot", "Renault", "Skoda", "Nissan", "Kia", "Hyundai", "Mazda", "Honda", "Citroen", "Fiat", "Seat", "Chrysler", "Jeep", "Dodge", "Saab", "Subaru", "Suzuki", "Mitsubishi", "Lexus", "Land Rover", "Jaguar", "Porsche", "Tesla", "Mini", "Alfa Romeo", "Chevrolet", "Dacia", "Cupra", "Smart", "Kita"];
 
 const labels = {
   LT: {
     board: "📌 Skelbimų lenta",
-    hero: "Ką norite rasti arba pirkti?",
-    heroText: "Čia dėkite pirkimo, dalių paieškos, ardomų automobilių ir supirkimo skelbimus.",
+    hero: "Ką norite rasti, pirkti arba išsinuomoti?",
+    heroText: "Čia dėkite pirkimo, dalių paieškos, ardomų automobilių, supirkimo ir transporto nuomos skelbimus.",
     formTitle: "Įdėti skelbimą į lentą",
-    formText: "Pirkimas, dalių paieška, ardomi automobiliai ir supirkimas.",
+    formText: "Pirkimas, dalių paieška, ardomi automobiliai, supirkimas ir transporto nuoma.",
     needLogin: "Norint įdėti skelbimą, reikia prisijungti.",
     login: "Prisijungti",
     brand: "Markė",
     allBrands: "Visos markės",
     other: "Kita",
     model: "Modelis arba palik tuščią",
-    title: "Pvz. BMW E60 ratlankiai arba superku auto",
+    title: "Pvz. Chrysler Sebring ratai, superku auto arba nuomoju automobilį",
     city: "Miestas",
     phone: "Telefonas",
     image: "Nuotraukos URL, nebūtina",
@@ -53,6 +53,11 @@ const labels = {
       needParts: "Ieškau detalių",
       partsCars: "Ardomi automobiliai",
       buyAllCars: "Superku automobilius",
+      rentCars: "Automobilių nuoma",
+      rentVans: "Mikroautobusų nuoma",
+      rentTrailers: "Priekabų nuoma",
+      rentMoto: "Motociklų nuoma",
+      rentMachines: "Technikos nuoma",
       needMoto: "Ieškau motociklo",
       buyMachines: "Perku techniką",
       other: "Kita",
@@ -62,21 +67,26 @@ const labels = {
       needParts: "Rask reikiamas dalis pagal markę ir modelį",
       partsCars: "Įdėk ardomą automobilį, kad žmonės rastų dalis",
       buyAllCars: "Supirkimo skelbimai visoms markėms",
+      rentCars: "Nuomojami automobiliai, kaina ir miestas vienoje vietoje",
+      rentVans: "Mikroautobusų nuoma kelionėms, darbui ar pervežimui",
+      rentTrailers: "Priekabų, traliukų ir platformų nuoma",
+      rentMoto: "Motociklų, motorolerių ir keturračių nuoma",
+      rentMachines: "Statybinės, žemės ūkio ir kitos technikos nuoma",
     },
   },
   DK: {
     board: "📌 Opslagstavle",
-    hero: "Hvad vil du finde eller købe?",
-    heroText: "Her kan du oprette købsannoncer, søge reservedele, finde biler til dele og bilkøbere.",
+    hero: "Hvad vil du finde, købe eller leje?",
+    heroText: "Her kan du oprette købsannoncer, søge reservedele, finde biler til dele, bilkøbere og transportudlejning.",
     formTitle: "Opret annonce på opslagstavlen",
-    formText: "Køb, søgning efter reservedele, biler til dele og bilopkøb.",
+    formText: "Køb, reservedele, biler til dele, bilopkøb og transportudlejning.",
     needLogin: "Du skal logge ind for at oprette en annonce.",
     login: "Log ind",
     brand: "Mærke",
     allBrands: "Alle mærker",
     other: "Andet",
     model: "Model eller lad feltet være tomt",
-    title: "Fx BMW E60 fælge eller køber bil",
+    title: "Fx Chrysler Sebring fælge, køber bil eller udlejer bil",
     city: "By",
     phone: "Telefon",
     image: "Billede-URL, valgfrit",
@@ -102,6 +112,11 @@ const labels = {
       needParts: "Søger reservedele",
       partsCars: "Biler til dele",
       buyAllCars: "Bilopkøb",
+      rentCars: "Biludlejning",
+      rentVans: "Varevognsudlejning",
+      rentTrailers: "Trailerudlejning",
+      rentMoto: "Motorcykeludlejning",
+      rentMachines: "Maskinudlejning",
       needMoto: "Søger motorcykel",
       buyMachines: "Køber maskiner",
       other: "Andet",
@@ -111,13 +126,18 @@ const labels = {
       needParts: "Find reservedele efter mærke og model",
       partsCars: "Opret en bil til dele, så andre kan finde reservedele",
       buyAllCars: "Købsannoncer for alle bilmærker",
+      rentCars: "Biler til leje med pris, by og telefon",
+      rentVans: "Varevogne til leje til ture, arbejde eller transport",
+      rentTrailers: "Trailere, autotrailere og platforme til leje",
+      rentMoto: "Motorcykler, scootere og ATV til leje",
+      rentMachines: "Entreprenør-, landbrugs- og andre maskiner til leje",
     },
   },
 } as const;
 
-const cardKeys: Cat[] = ["buyCar", "needParts", "partsCars", "buyAllCars"];
-const cardIcons: Record<Cat, string> = { buyCar: "🔎", needParts: "🛠", partsCars: "♻️", buyAllCars: "💰", needMoto: "🏍", buyMachines: "🚜", other: "📌" };
-const cardColors: Record<Cat, string> = { buyCar: "border-blue-400/25 bg-blue-500/10", needParts: "border-yellow-400/25 bg-yellow-500/10", partsCars: "border-red-400/25 bg-red-500/10", buyAllCars: "border-green-400/25 bg-green-500/10", needMoto: "border-white/10 bg-white/5", buyMachines: "border-white/10 bg-white/5", other: "border-white/10 bg-white/5" };
+const cardKeys: Cat[] = ["buyCar", "needParts", "partsCars", "buyAllCars", "rentCars", "rentVans", "rentTrailers", "rentMachines"];
+const cardIcons: Record<Cat, string> = { buyCar: "🔎", needParts: "🛠", partsCars: "♻️", buyAllCars: "💰", rentCars: "🚗", rentVans: "🚐", rentTrailers: "🛻", rentMoto: "🏍", rentMachines: "🚜", needMoto: "🏍", buyMachines: "🚜", other: "📌" };
+const cardColors: Record<Cat, string> = { buyCar: "border-blue-400/25 bg-blue-500/10", needParts: "border-yellow-400/25 bg-yellow-500/10", partsCars: "border-red-400/25 bg-red-500/10", buyAllCars: "border-green-400/25 bg-green-500/10", rentCars: "border-cyan-400/25 bg-cyan-500/10", rentVans: "border-sky-400/25 bg-sky-500/10", rentTrailers: "border-indigo-400/25 bg-indigo-500/10", rentMoto: "border-purple-400/25 bg-purple-500/10", rentMachines: "border-lime-400/25 bg-lime-500/10", needMoto: "border-white/10 bg-white/5", buyMachines: "border-white/10 bg-white/5", other: "border-white/10 bg-white/5" };
 
 type Item = { id: string; category?: Cat | string; brand?: string; model?: string; title?: string; city?: string; phone?: string; description?: string; imageUrl?: string; ownerUid?: string; country?: string };
 
