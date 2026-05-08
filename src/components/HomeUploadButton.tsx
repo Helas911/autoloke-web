@@ -2,11 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { getSiteCountry } from "@/lib/site";
 
 export function HomeUploadButton() {
   const pathname = usePathname();
+  const country = getSiteCountry();
 
   if (pathname !== "/") return null;
+
+  const label = country === "DK" ? "Opret annonce" : "Įkelti skelbimą";
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 pt-4">
@@ -14,7 +18,7 @@ export function HomeUploadButton() {
         href="/ikelti"
         className="flex items-center justify-center rounded-2xl border border-white/10 bg-white px-4 py-3 text-base font-black text-black shadow-lg transition hover:bg-white/90"
       >
-        ➕ Įkelti skelbimą
+        ➕ {label}
       </Link>
     </div>
   );
