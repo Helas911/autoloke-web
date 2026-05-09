@@ -198,6 +198,7 @@ export function t(country: SiteCountry, key: I18nKey): string {
 const categoryLabels = {
   LT: {
     automobiliai: "Auto",
+    automobiliuNuoma: "Automobilių nuoma",
     motociklai: "Motociklai",
     sunkvezimiai: "Sunkvežimiai",
     vandensTransportas: "Vandens",
@@ -205,6 +206,7 @@ const categoryLabels = {
   },
   DK: {
     automobiliai: "Biler",
+    automobiliuNuoma: "Biludlejning",
     motociklai: "Motorcykler",
     sunkvezimiai: "Lastbiler",
     vandensTransportas: "Vand",
