@@ -5,11 +5,12 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { addDoc, collection, onSnapshot, orderBy, query, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/useAuth";
+import { brandsForCategory, modelsForBrand, type BrandCategory } from "@/lib/brands_models";
 
-const inputClass = "w-full rounded-2xl border border-white/12 bg-white/[0.06] px-4 py-3 text-sm text-white outline-none placeholder:text-white/40";
+const inputClass = "w-full rounded-2xl border border-white/12 bg-white/[0.06] px-4 py-3 text-sm text-white outline-none placeholder:text-white/40 disabled:opacity-45";
+const OTHER = "__other__";
 
 const categories = ["Perku automobilį", "Ieškau detalių", "Ardomi automobiliai", "Superku automobilius", "Ieškau motociklo", "Perku techniką", "Kita"];
-const brands = ["Visos markės", "Audi", "BMW", "Mercedes-Benz", "Volkswagen", "Volvo", "Toyota", "Opel", "Ford", "Peugeot", "Renault", "Skoda", "Nissan", "Kia", "Hyundai", "Mazda", "Honda", "Citroen", "Fiat", "Seat", "Kita"];
 const cities = ["Vilnius", "Kaunas", "Klaipėda", "Šiauliai", "Panevėžys", "Alytus", "Marijampolė", "Jurbarkas", "Tauragė", "Telšiai", "Utena"];
 
 const cards = [
@@ -30,6 +31,12 @@ type Item = {
   description?: string;
   imageUrl?: string;
 };
+
+function brandCategoryForRequest(category: string): BrandCategory {
+  if (category === "Ieškau motociklo") return "motociklai";
+  if (category === "Perku techniką") return "zu_technika";
+  return "automobiliai";
+}
 
 function badge(category?: string) {
   if (category === "Perku automobilį") return "🔎 Perka";
@@ -65,12 +72,33 @@ export default function Page() {
 
   const [category, setCategory] = useState("Ieškau detalių");
   const [brand, setBrand] = useState("");
+  const [brandOther, setBrandOther] = useState("");
   const [model, setModel] = useState("");
+  const [modelOther, setModelOther] = useState("");
   const [adTitle, setAdTitle] = useState("");
   const [city, setCity] = useState("");
   const [phone, setPhone] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [description, setDescription] = useState("");
+
+  const brandCat = useMemo(() => brandCategoryForRequest(category), [category]);
+  const brands = useMemo(() => brandsForCategory(brandCat), [brandCat]);
+  const effectiveBrand = brand === OTHER ? brandOther : brand;
+  const effectiveModel = model === OTHER ? modelOther : model;
+  const models = useMemo(() => modelsForBrand(brandCat, effectiveBrand), [brandCat, effectiveBrand]);
+
+  useEffect(() => {
+    setBrand("");
+    setBrandOther("");
+    setModel("");
+    setModelOther("");
+  }, [brandCat]);
+
+  useEffect(() => {
+    if (brand !== OTHER) setBrandOther("");
+    if (model !== OTHER) setModelOther("");
+    if (model && model !== OTHER && models.length && !models.includes(model)) setModel("");
+  }, [brand, model, models]);
 
   useEffect(() => {
     if (!db) return;
@@ -106,8 +134,8 @@ export default function Page() {
       setSaving(true);
       await addDoc(collection(db, "partRequests"), {
         category,
-        brand: brand.trim() || (category === "Superku automobilius" ? "Visos markės" : ""),
-        model: model.trim(),
+        brand: effectiveBrand.trim() || (category === "Superku automobilius" ? "Visos markės" : ""),
+        model: effectiveModel.trim(),
         title: adTitle.trim() || "Superku visų markių automobilius",
         city: city.trim(),
         phone: phone.trim(),
@@ -116,7 +144,7 @@ export default function Page() {
         ownerUid: user.uid,
         createdAt: serverTimestamp(),
       });
-      setBrand(""); setModel(""); setAdTitle(""); setCity(""); setPhone(""); setImageUrl(""); setDescription("");
+      setBrand(""); setBrandOther(""); setModel(""); setModelOther(""); setAdTitle(""); setCity(""); setPhone(""); setImageUrl(""); setDescription("");
       setMessage("Skelbimas įdėtas.");
     } catch (err) {
       setMessage(errorText(err));
@@ -150,8 +178,18 @@ export default function Page() {
           {!loading && !user ? <div className="mb-4 rounded-2xl border border-yellow-400/25 bg-yellow-500/10 p-4 text-sm font-bold text-yellow-50">Norint įdėti skelbimą, reikia prisijungti. <Link href="/prisijungti" className="underline">Prisijungti</Link></div> : null}
           <div className="grid gap-3">
             <select value={category} onChange={(e) => setCategory(e.target.value)} className={inputClass}>{categories.map((c) => <option key={c} value={c} className="bg-black">{c}</option>)}</select>
-            <select value={brand} onChange={(e) => setBrand(e.target.value)} className={inputClass}><option value="" className="bg-black">Markė</option>{brands.map((b) => <option key={b} value={b} className="bg-black">{b}</option>)}</select>
-            <input value={model} onChange={(e) => setModel(e.target.value)} placeholder="Modelis arba palik tuščią" className={inputClass} />
+            <select value={brand} onChange={(e) => { setBrand(e.target.value); setModel(""); }} className={inputClass}>
+              <option value="" className="bg-black">Markė</option>
+              {brands.map((b) => <option key={b} value={b} className="bg-black">{b}</option>)}
+              <option value={OTHER} className="bg-black">Kita</option>
+            </select>
+            {brand === OTHER ? <input value={brandOther} onChange={(e) => setBrandOther(e.target.value)} placeholder="Įrašyk markę" className={inputClass} /> : null}
+            <select value={model} onChange={(e) => setModel(e.target.value)} disabled={!effectiveBrand} className={inputClass}>
+              <option value="" className="bg-black">{effectiveBrand ? "Modelis" : "Pirma pasirink markę"}</option>
+              {models.map((m) => <option key={m} value={m} className="bg-black">{m}</option>)}
+              {effectiveBrand ? <option value={OTHER} className="bg-black">Kitas modelis</option> : null}
+            </select>
+            {model === OTHER ? <input value={modelOther} onChange={(e) => setModelOther(e.target.value)} placeholder="Įrašyk modelį" className={inputClass} /> : null}
             <input value={adTitle} onChange={(e) => setAdTitle(e.target.value)} placeholder="Pvz. BMW E60 ratlankiai arba superku auto" className={inputClass} />
             <input value={city} onChange={(e) => setCity(e.target.value)} list="request-cities" placeholder="Miestas" className={inputClass} />
             <datalist id="request-cities">{cities.map((c) => <option key={c} value={c} />)}</datalist>
