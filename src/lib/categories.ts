@@ -1,5 +1,6 @@
 export type VehicleCategory =
   | "automobiliai"
+  | "automobiliuNuoma"
   | "motociklai"
   | "dviraciai"
   | "sunkvezimiai"
@@ -8,6 +9,7 @@ export type VehicleCategory =
 
 export const VEHICLE_CATEGORIES: { id: VehicleCategory; label: string; icon: string }[] = [
   { id: "automobiliai", label: "Auto", icon: "🚗" },
+  { id: "automobiliuNuoma", label: "Automobilių nuoma", icon: "🔑" },
   { id: "vandensTransportas", label: "Vandens", icon: "🚤" },
   { id: "motociklai", label: "Motociklai", icon: "🏍️" },
   { id: "dviraciai", label: "Dviračiai", icon: "🚲" },
@@ -17,6 +19,17 @@ export const VEHICLE_CATEGORIES: { id: VehicleCategory; label: string; icon: str
 
 export const VEHICLE_TYPES: Record<VehicleCategory, string[]> = {
   automobiliai: ["Sedanas", "Universalas", "Hečbekas", "Visureigis", "Kupė", "Kabrioletas", "Vienatūris", "Komercinis"],
+  automobiliuNuoma: [
+    "Lengvieji automobiliai",
+    "Visureigiai",
+    "Mikroautobusai",
+    "Komerciniai automobiliai",
+    "Prabangūs automobiliai",
+    "Automobiliai su vairuotoju",
+    "Ilgalaikė nuoma",
+    "Trumpalaikė nuoma",
+    "Kita",
+  ],
   motociklai: ["Keturračiai", "Krosiniai", "Kelioniniai", "Sportiniai", "Čioperiai", "Enduro", "Motoroleriai"],
   dviraciai: ["Dviračiai", "Elektriniai dviračiai", "Kalnų dviračiai", "Miesto dviračiai", "Plento dviračiai", "Paspirtukai", "Elektriniai paspirtukai", "Dalys", "Kita"],
   sunkvezimiai: ["Vilkikai", "Sunkvežimiai", "Mikroautobusai", "Autobusai", "Priekabos", "Speciali technika"],
@@ -32,4 +45,8 @@ export function categoryLabel(cat?: string | null): string {
 export function categoryIcon(cat?: string | null): string {
   const found = VEHICLE_CATEGORIES.find((c) => c.id === cat);
   return found?.icon ?? "🚗";
+}
+
+export function isRentalCategory(cat?: string | null): boolean {
+  return cat === "automobiliuNuoma";
 }
