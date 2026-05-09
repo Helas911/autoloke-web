@@ -1,1 +1,1 @@
-REPLACE_WITH_UPDATED_CONTENT
+export { default } from "../page";
