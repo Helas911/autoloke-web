@@ -5,6 +5,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { BottomNav } from "@/components/BottomNav";
 import { HtmlLang } from "@/components/HtmlLang";
 import { HomeUploadButton } from "@/components/HomeUploadButton";
+import { SellerFloatingPanel } from "@/components/SellerFloatingPanel";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -63,6 +64,7 @@ export default function RootLayout({
         <SiteHeader />
         <HomeUploadButton />
         {children}
+        <SellerFloatingPanel />
         <BottomNav />
       </body>
     </html>
