@@ -6,16 +6,10 @@ import { BottomNav } from "@/components/BottomNav";
 import { HtmlLang } from "@/components/HtmlLang";
 import { HomeUploadButton } from "@/components/HomeUploadButton";
 import { SellerFloatingPanel } from "@/components/SellerFloatingPanel";
+import { CompanySellerUploadPanel } from "@/components/CompanySellerUploadPanel";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
+const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://autoloke.lt"),
@@ -30,14 +24,7 @@ export const metadata: Metadata = {
       "x-default": "https://autoloke.lt",
     },
   },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
-      index: true,
-      follow: true,
-    },
-  },
+  robots: { index: true, follow: true, googleBot: { index: true, follow: true } },
   openGraph: {
     title: "Autoloke",
     description: "Transporto ir dalių marketplace Lietuvai ir Danijai.",
@@ -48,11 +35,7 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="lt" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-[#0b0b0d] text-white`}>
@@ -63,6 +46,7 @@ export default function RootLayout({
 
         <SiteHeader />
         <HomeUploadButton />
+        <CompanySellerUploadPanel />
         {children}
         <SellerFloatingPanel />
         <BottomNav />
