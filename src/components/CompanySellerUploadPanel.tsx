@@ -10,6 +10,15 @@ import { slugifySeller } from "@/lib/sellers";
 
 type Listing = { id: string; ownerUid?: string; sellerName?: string; createdAt?: any };
 type SellerProfile = { enabled: boolean; sellerName: string; sellerWebsite: string; sellerWorkingHours: string; sellerLogoUrl: string; sellerCoverUrl: string };
+type SellerPayload = {
+  sellerType: "company";
+  sellerId: string;
+  sellerName: string;
+  sellerWebsite?: string;
+  sellerWorkingHours?: string;
+  sellerLogoUrl?: string;
+  sellerCoverUrl?: string;
+};
 
 const STORAGE_KEY = "autoloke_company_seller_profile";
 const emptyProfile: SellerProfile = { enabled: false, sellerName: "", sellerWebsite: "", sellerWorkingHours: "", sellerLogoUrl: "", sellerCoverUrl: "" };
@@ -35,7 +44,7 @@ export function CompanySellerUploadPanel() {
     } catch {}
   }, [isUploadPage]);
 
-  const sellerPayload = useMemo(() => {
+  const sellerPayload = useMemo<SellerPayload | null>(() => {
     const sellerName = profile.sellerName.trim();
     if (!profile.enabled || !sellerName) return null;
     return {
@@ -51,6 +60,7 @@ export function CompanySellerUploadPanel() {
 
   useEffect(() => {
     if (!isUploadPage || !user?.uid || !sellerPayload) return;
+    const payload = sellerPayload;
 
     async function patchNewest(collectionName: "ads" | "parts", docs: Listing[]) {
       const recentOwnDocs = docs
@@ -60,7 +70,7 @@ export function CompanySellerUploadPanel() {
         .slice(0, 3);
 
       for (const item of recentOwnDocs) {
-        await updateDoc(doc(db, collectionName, item.id), sellerPayload);
+        await updateDoc(doc(db, collectionName, item.id), payload);
         setApplied(true);
       }
     }
