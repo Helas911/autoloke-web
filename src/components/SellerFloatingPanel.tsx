@@ -32,7 +32,6 @@ function parseListingPath(pathname: string) {
   if (parts[0] !== "transportas" && parts[0] !== "dalys") return null;
   return {
     collectionName: parts[0] === "transportas" ? "ads" : "parts",
-    type: parts[0] as "transportas" | "dalys",
     id: decodeURIComponent(parts[1]),
   };
 }
@@ -110,37 +109,37 @@ export function SellerFloatingPanel() {
   const otherItems = [...otherAds, ...otherParts].slice(0, 3);
 
   return (
-    <div className="fixed bottom-20 left-3 right-3 z-40 mx-auto max-w-6xl md:bottom-5 md:left-auto md:right-5 md:w-[340px]">
-      <div className="rounded-3xl border border-white/15 bg-black/85 p-4 shadow-2xl backdrop-blur">
+    <section className="mx-auto w-full max-w-6xl px-4 pb-28 pt-2">
+      <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="text-xs font-extrabold uppercase tracking-wide text-white/50">Pardavėjas</div>
-            <Link href={`/pardavejai/${sellerId}`} className="mt-1 block truncate text-lg font-black text-white hover:underline">
+            <Link href={`/pardavejai/${sellerId}`} className="mt-1 block truncate text-2xl font-black text-white hover:underline">
               {sellerName}
             </Link>
-            <div className="mt-1 text-xs font-semibold text-white/55">
+            <div className="mt-1 text-sm font-semibold text-white/55">
               {[sellerCity, sellerPhone].filter(Boolean).join(" • ") || "Visi šio pardavėjo skelbimai"}
             </div>
           </div>
           <Link
             href={`/pardavejai/${sellerId}`}
-            className="shrink-0 rounded-full bg-white px-3 py-2 text-xs font-black text-black hover:bg-white/90"
+            className="shrink-0 rounded-full bg-white px-5 py-3 text-sm font-black text-black hover:bg-white/90"
           >
             Visi
           </Link>
         </div>
 
         {otherItems.length ? (
-          <div className="mt-3 border-t border-white/10 pt-3">
-            <div className="mb-2 text-xs font-extrabold text-white/55">Kiti šio pardavėjo skelbimai</div>
-            <div className="space-y-2">
+          <div className="mt-4 border-t border-white/10 pt-4">
+            <div className="mb-3 text-sm font-extrabold text-white/55">Kiti šio pardavėjo skelbimai</div>
+            <div className="grid gap-2 md:grid-cols-3">
               {otherItems.map((item) => (
                 <Link
                   key={`${item.badge}-${item.id}`}
                   href={item.href}
                   className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] p-2 hover:bg-white/[0.08]"
                 >
-                  <div className="h-12 w-16 shrink-0 overflow-hidden rounded-xl bg-white/[0.04]">
+                  <div className="h-14 w-20 shrink-0 overflow-hidden rounded-xl bg-white/[0.04]">
                     {item.imageUrls?.[0] ? <img src={item.imageUrls[0]} alt="" className="h-full w-full object-cover" /> : null}
                   </div>
                   <div className="min-w-0 flex-1">
@@ -153,6 +152,6 @@ export function SellerFloatingPanel() {
           </div>
         ) : null}
       </div>
-    </div>
+    </section>
   );
 }
