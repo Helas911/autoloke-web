@@ -7,56 +7,75 @@ import type { ExternalListing, ExternalSection } from "@/lib/externalAggregator"
 
 type SearchSection = ExternalSection | "visi";
 
+type PortalLink = {
+  name: string;
+  url: string;
+  note: string;
+};
+
 function normalizeSection(section: SearchSection): ExternalSection {
   return section === "dalys" ? "dalys" : "transportas";
 }
 
-function fallbackItems(query: string): ExternalListing[] {
-  const q = encodeURIComponent(query);
+function portalLinks(query: string, section: SearchSection): PortalLink[] {
+  const q = encodeURIComponent(query.trim());
+  const isParts = section === "dalys";
+
+  if (isParts) {
+    return [
+      {
+        name: "Autoplius dalys",
+        url: `https://autoplius.lt/skelbimai/automobiliu-dalys?search_text=${q}`,
+        note: "Ieškoti dalių Autoplius portale",
+      },
+      {
+        name: "Autogidas dalys",
+        url: `https://autogidas.lt/auto-dalys/paieska?keywords=${q}`,
+        note: "Ieškoti dalių Autogidas portale",
+      },
+      {
+        name: "Skelbiu",
+        url: `https://www.skelbiu.lt/skelbimai/?keywords=${q}`,
+        note: "Ieškoti Skelbiu portale",
+      },
+    ];
+  }
 
   return [
     {
-      id: `autoplius-${query}`,
-      title: `Ieškoti „${query}“ Autoplius`,
+      name: "Autoplius",
       url: `https://autoplius.lt/skelbimai/naudoti-automobiliai?search_text=${q}`,
-      source: "Autoplius",
-      section: "transportas",
-      city: "Atidaryti Autoplius paiešką",
-      priceText: "Ieškoti",
+      note: "Ieškoti transporto Autoplius portale",
     },
     {
-      id: `autogidas-${query}`,
-      title: `Ieškoti „${query}“ Autogidas`,
+      name: "Autogidas",
       url: `https://autogidas.lt/skelbimai/automobiliai/?keywords=${q}`,
-      source: "Autogidas",
-      section: "transportas",
-      city: "Atidaryti Autogidas paiešką",
-      priceText: "Ieškoti",
+      note: "Ieškoti transporto Autogidas portale",
     },
     {
-      id: `skelbiu-${query}`,
-      title: `Ieškoti „${query}“ Skelbiu`,
+      name: "Skelbiu",
       url: `https://www.skelbiu.lt/skelbimai/?keywords=${q}`,
-      source: "Skelbiu",
-      section: "transportas",
-      city: "Atidaryti Skelbiu paiešką",
-      priceText: "Ieškoti",
+      note: "Ieškoti Skelbiu portale",
     },
   ];
 }
 
 export default function BendraPaieskaPage() {
   const [q, setQ] = useState("");
+  const [lastQuery, setLastQuery] = useState("");
   const [section, setSection] = useState<SearchSection>("transportas");
   const [onlyWithPhotos, setOnlyWithPhotos] = useState(false);
   const [items, setItems] = useState<ExternalListing[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [fallbackMode, setFallbackMode] = useState(false);
 
   const visibleItems = useMemo(() => {
     if (!onlyWithPhotos) return items;
     return items.filter((item) => Boolean(item.imageUrl));
   }, [items, onlyWithPhotos]);
+
+  const links = useMemo(() => (lastQuery ? portalLinks(lastQuery, section) : []), [lastQuery, section]);
 
   async function runSearch(event?: FormEvent<HTMLFormElement>) {
     event?.preventDefault();
@@ -65,6 +84,8 @@ export default function BendraPaieskaPage() {
 
     setLoading(true);
     setSearched(true);
+    setLastQuery(query);
+    setFallbackMode(false);
 
     try {
       const sections: ExternalSection[] = section === "visi" ? ["transportas", "dalys"] : [normalizeSection(section)];
@@ -88,16 +109,20 @@ export default function BendraPaieskaPage() {
       const merged = responses.flat();
       const unique = Array.from(new Map(merged.map((item) => [item.url, item])).values());
 
-      if (unique.length === 0) {
-        setItems(fallbackItems(query));
-      } else {
-        setItems(unique);
-      }
+      setItems(unique);
+      setFallbackMode(unique.length === 0);
     } catch {
-      setItems(fallbackItems(query));
+      setItems([]);
+      setFallbackMode(true);
     } finally {
       setLoading(false);
     }
+  }
+
+  function openAllPortals() {
+    links.forEach((link, index) => {
+      window.setTimeout(() => window.open(link.url, "_blank", "noopener,noreferrer"), index * 120);
+    });
   }
 
   const sourceCount = useMemo(() => new Set(visibleItems.map((item) => item.source)).size, [visibleItems]);
@@ -115,16 +140,16 @@ export default function BendraPaieskaPage() {
               Viena paieška – visi portalai vienoje vietoje.
             </h1>
             <p className="mt-4 max-w-2xl text-base font-semibold leading-7 text-white/65 md:text-lg">
-              Įvesk markę, modelį ar dalį. Autoloke surinks rezultatus iš išorinių portalų ir parodys viename sąraše.
+              Įvesk markę, modelį ar dalį. Pirmiausia bandome parodyti skelbimus čia, o jei portalai blokuoja – duodame tiesiogines paieškos nuorodas.
             </p>
           </div>
 
           <div className="rounded-3xl border border-white/10 bg-black/35 p-4">
             <div className="text-sm font-black text-white/75">Kodėl naudoti?</div>
             <div className="mt-3 grid gap-2 text-sm font-semibold text-white/60">
-              <div>✅ mažiau vaikščiojimo per skirtingus puslapius</div>
-              <div>✅ patogu lyginti kainas</div>
-              <div>✅ viena vieta visiems portalams</div>
+              <div>✅ viena vieta paieškai</div>
+              <div>✅ greitos nuorodos į portalus</div>
+              <div>✅ šalia gali įkelti skelbimą į Autoloke</div>
             </div>
           </div>
         </div>
@@ -142,7 +167,7 @@ export default function BendraPaieskaPage() {
               disabled={loading || q.trim().length < 2}
               className="min-h-14 rounded-2xl bg-white px-6 text-base font-black text-black transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-45"
             >
-              {loading ? "Ieškoma..." : "Ieškoti visur"}
+              {loading ? "Ieškoma..." : "Ieškoti"}
             </button>
           </div>
 
@@ -184,10 +209,10 @@ export default function BendraPaieskaPage() {
       <section className="mt-6 flex flex-col gap-3 rounded-3xl border border-white/10 bg-white/[0.03] p-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="text-sm font-black text-white/80">
-            {searched ? `${visibleItems.length} rezultatų` : "Įvesk paiešką ir spausk „Ieškoti visur“"}
+            {searched ? (fallbackMode ? "Portalų paieškos nuorodos" : `${visibleItems.length} rezultatų`) : "Įvesk paiešką ir spausk „Ieškoti“"}
           </div>
           <div className="mt-1 text-xs font-semibold text-white/45">
-            {searched && visibleItems.length ? `Šaltiniai: ${sourceCount}` : "Pvz.: BMW E60, Audi A6"}
+            {searched && !fallbackMode && visibleItems.length ? `Šaltiniai: ${sourceCount}` : "Pvz.: BMW E60, Audi A6"}
           </div>
         </div>
 
@@ -205,11 +230,48 @@ export default function BendraPaieskaPage() {
         </div>
       ) : null}
 
-      <div className="mt-5 grid gap-3">
-        {visibleItems.map((item) => (
-          <ExternalListingCard key={`${item.source}-${item.url}`} item={item} />
-        ))}
-      </div>
+      {!loading && fallbackMode && links.length ? (
+        <section className="mt-5 rounded-[28px] border border-yellow-400/20 bg-yellow-500/10 p-4">
+          <div className="text-lg font-black text-yellow-50">Portalai neleido parodyti skelbimų čia</div>
+          <p className="mt-2 text-sm font-semibold leading-6 text-yellow-50/70">
+            Todėl pateikiame tiesiogines veikiančias paieškos nuorodas. Tai nėra netikri rezultatai – paspaudus atsidarys tikra paieška pasirinktame portale.
+          </p>
+
+          <button
+            type="button"
+            onClick={openAllPortals}
+            className="mt-4 w-full rounded-2xl bg-white px-5 py-4 text-center text-base font-black text-black transition hover:bg-white/90"
+          >
+            Atidaryti visus portalus
+          </button>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            {links.map((link) => (
+              <a
+                key={link.name}
+                href={link.url}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-2xl border border-white/10 bg-black/35 p-4 transition hover:border-blue-300/50 hover:bg-black/50"
+              >
+                <div className="text-xl font-black text-white">{link.name}</div>
+                <div className="mt-2 min-h-10 text-sm font-semibold text-white/55">{link.note}</div>
+                <div className="mt-4 rounded-xl bg-white px-4 py-3 text-center text-sm font-black text-black">
+                  Ieškoti „{lastQuery}“ ↗
+                </div>
+              </a>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {!loading && !fallbackMode && visibleItems.length ? (
+        <div className="mt-5 grid gap-3">
+          {visibleItems.map((item) => (
+            <ExternalListingCard key={`${item.source}-${item.url}`} item={item} />
+          ))}
+        </div>
+      ) : null}
     </main>
   );
 }
