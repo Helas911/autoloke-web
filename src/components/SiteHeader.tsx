@@ -11,6 +11,7 @@ export function SiteHeader() {
   const { user, loading } = useAuth();
   const country = getSiteCountry();
   const boardLabel = country === "DK" ? "📌 Opslagstavle" : "📌 Skelbimų lenta";
+  const searchLabel = country === "DK" ? "🔎 Fælles søgning" : "🔎 Bendra paieška";
 
   async function onLogout() {
     if (!auth) return;
@@ -25,11 +26,20 @@ export function SiteHeader() {
           <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-white/10 text-xl">🚗</span>
           <div className="min-w-0 leading-tight">
             <div className="text-2xl font-black tracking-tight">Autoloke</div>
-            <div className="hidden text-[11px] font-semibold text-white/60 sm:block">{t(country, "siteTagline")}</div>
+            <div className="hidden text-[11px] font-semibold text-white/60 sm:block">
+              Viena paieška – visi portalai vienoje vietoje.
+            </div>
           </div>
         </Link>
 
         <div className="flex flex-wrap items-center justify-end gap-2">
+          <Link
+            href="/bendra-paieska"
+            className="rounded-full border border-blue-400/30 bg-blue-500/15 px-3 py-2 text-xs font-extrabold text-blue-100 hover:bg-blue-500/25 sm:text-sm"
+          >
+            {searchLabel}
+          </Link>
+
           <Link
             href="/skelbimu-lenta"
             className="rounded-full border border-yellow-400/30 bg-yellow-500/15 px-3 py-2 text-xs font-extrabold text-yellow-100 hover:bg-yellow-500/25 sm:text-sm"
