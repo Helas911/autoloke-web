@@ -11,6 +11,40 @@ function normalizeSection(section: SearchSection): ExternalSection {
   return section === "dalys" ? "dalys" : "transportas";
 }
 
+function fallbackItems(query: string): ExternalListing[] {
+  const q = encodeURIComponent(query);
+
+  return [
+    {
+      id: `autoplius-${query}`,
+      title: `Ieškoti „${query}“ Autoplius`,
+      url: `https://autoplius.lt/skelbimai/naudoti-automobiliai?search_text=${q}`,
+      source: "Autoplius",
+      section: "transportas",
+      city: "Atidaryti Autoplius paiešką",
+      priceText: "Ieškoti",
+    },
+    {
+      id: `autogidas-${query}`,
+      title: `Ieškoti „${query}“ Autogidas`,
+      url: `https://autogidas.lt/skelbimai/automobiliai/?keywords=${q}`,
+      source: "Autogidas",
+      section: "transportas",
+      city: "Atidaryti Autogidas paiešką",
+      priceText: "Ieškoti",
+    },
+    {
+      id: `skelbiu-${query}`,
+      title: `Ieškoti „${query}“ Skelbiu`,
+      url: `https://www.skelbiu.lt/skelbimai/?keywords=${q}`,
+      source: "Skelbiu",
+      section: "transportas",
+      city: "Atidaryti Skelbiu paiešką",
+      priceText: "Ieškoti",
+    },
+  ];
+}
+
 export default function BendraPaieskaPage() {
   const [q, setQ] = useState("");
   const [section, setSection] = useState<SearchSection>("transportas");
@@ -18,7 +52,6 @@ export default function BendraPaieskaPage() {
   const [items, setItems] = useState<ExternalListing[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
-  const [error, setError] = useState("");
 
   const visibleItems = useMemo(() => {
     if (!onlyWithPhotos) return items;
@@ -32,7 +65,6 @@ export default function BendraPaieskaPage() {
 
     setLoading(true);
     setSearched(true);
-    setError("");
 
     try {
       const sections: ExternalSection[] = section === "visi" ? ["transportas", "dalys"] : [normalizeSection(section)];
@@ -46,7 +78,8 @@ export default function BendraPaieskaPage() {
           });
 
           const res = await fetch(`/api/external-search?${params.toString()}`);
-          if (!res.ok) throw new Error("Nepavyko atlikti bendros paieškos");
+          if (!res.ok) return [];
+
           const data = (await res.json()) as ExternalListing[];
           return Array.isArray(data) ? data : [];
         })
@@ -54,10 +87,14 @@ export default function BendraPaieskaPage() {
 
       const merged = responses.flat();
       const unique = Array.from(new Map(merged.map((item) => [item.url, item])).values());
-      setItems(unique);
+
+      if (unique.length === 0) {
+        setItems(fallbackItems(query));
+      } else {
+        setItems(unique);
+      }
     } catch {
-      setItems([]);
-      setError("Paieška šiuo metu nepavyko. Pabandykite dar kartą arba pakeiskite raktažodį.");
+      setItems(fallbackItems(query));
     } finally {
       setLoading(false);
     }
@@ -67,14 +104,14 @@ export default function BendraPaieskaPage() {
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 pb-28 pt-6">
-      <section className="overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.04] p-5 shadow-2xl md:p-8">
+      <section className="overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.04] p-4 shadow-2xl md:p-8">
         <div className="mb-5 inline-flex rounded-full border border-blue-400/25 bg-blue-500/10 px-4 py-2 text-sm font-black text-blue-100">
           🔎 Autoloke bendra paieška
         </div>
 
-        <div className="grid gap-7 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
+        <div className="grid gap-5 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
           <div>
-            <h1 className="text-4xl font-black tracking-tight text-white md:text-6xl">
+            <h1 className="text-3xl font-black leading-tight tracking-tight text-white md:text-6xl">
               Viena paieška – visi portalai vienoje vietoje.
             </h1>
             <p className="mt-4 max-w-2xl text-base font-semibold leading-7 text-white/65 md:text-lg">
@@ -87,7 +124,7 @@ export default function BendraPaieskaPage() {
             <div className="mt-3 grid gap-2 text-sm font-semibold text-white/60">
               <div>✅ mažiau vaikščiojimo per skirtingus puslapius</div>
               <div>✅ patogu lyginti kainas</div>
-              <div>✅ šalia visada lieka Autoloke skelbimų įkėlimas</div>
+              <div>✅ viena vieta visiems portalams</div>
             </div>
           </div>
         </div>
@@ -97,7 +134,7 @@ export default function BendraPaieskaPage() {
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Pvz.: BMW E60, Audi A6, Passat, žibintas, ratlankiai"
+              placeholder="Pvz.: BMW E60, Audi A6, Passat"
               className="min-h-14 rounded-2xl border border-white/10 bg-white/[0.06] px-4 text-base font-bold text-white outline-none placeholder:text-white/35 focus:border-blue-400/60"
             />
             <button
@@ -109,7 +146,7 @@ export default function BendraPaieskaPage() {
             </button>
           </div>
 
-          <div className="mt-3 flex flex-wrap items-center gap-2">
+          <div className="mt-3 flex flex-wrap gap-2">
             {[
               ["transportas", "Transportas"],
               ["dalys", "Dalys"],
@@ -144,40 +181,27 @@ export default function BendraPaieskaPage() {
         </form>
       </section>
 
-      <section className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-white/10 bg-white/[0.03] p-4">
+      <section className="mt-6 flex flex-col gap-3 rounded-3xl border border-white/10 bg-white/[0.03] p-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="text-sm font-black text-white/80">
             {searched ? `${visibleItems.length} rezultatų` : "Įvesk paiešką ir spausk „Ieškoti visur“"}
           </div>
           <div className="mt-1 text-xs font-semibold text-white/45">
-            {searched && visibleItems.length ? `Šaltiniai: ${sourceCount}` : "Pvz.: BMW E60, Audi A6, ratlankiai, žibintas"}
+            {searched && visibleItems.length ? `Šaltiniai: ${sourceCount}` : "Pvz.: BMW E60, Audi A6"}
           </div>
         </div>
 
         <Link
           href="/ikelti"
-          className="rounded-2xl bg-blue-600 px-5 py-3 text-sm font-black text-white transition hover:bg-blue-500"
+          className="w-full rounded-2xl bg-blue-600 px-5 py-3 text-center text-sm font-black text-white transition hover:bg-blue-500 sm:w-auto"
         >
           + Įkelti skelbimą į Autoloke
         </Link>
       </section>
 
-      {error ? (
-        <div className="mt-5 rounded-2xl border border-red-400/25 bg-red-500/10 p-4 text-sm font-bold text-red-100">
-          {error}
-        </div>
-      ) : null}
-
       {loading ? (
         <div className="mt-5 rounded-3xl border border-white/10 bg-white/[0.03] p-8 text-center text-lg font-black text-white/70">
           Ieškoma per portalus...
-        </div>
-      ) : null}
-
-      {!loading && searched && !visibleItems.length && !error ? (
-        <div className="mt-5 rounded-3xl border border-white/10 bg-white/[0.03] p-8 text-center">
-          <div className="text-xl font-black text-white">Rezultatų nerasta</div>
-          <div className="mt-2 text-sm font-semibold text-white/55">Pabandyk trumpiau: pvz. „BMW E60“ vietoj ilgo teksto.</div>
         </div>
       ) : null}
 
