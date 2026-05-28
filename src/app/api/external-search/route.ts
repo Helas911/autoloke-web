@@ -13,6 +13,31 @@ export async function GET(request: NextRequest) {
     return NextResponse.json([]);
   }
 
+  const scraperUrl = process.env.SCRAPER_API_URL;
+
+  if (scraperUrl) {
+    try {
+      const scraperResponse = await fetch(`${scraperUrl}/search?q=${encodeURIComponent(q)}`, {
+        cache: "no-store",
+        headers: {
+          "User-Agent": "Mozilla/5.0",
+        },
+      });
+
+      if (scraperResponse.ok) {
+        const scraperItems = await scraperResponse.json();
+
+        return NextResponse.json(scraperItems, {
+          headers: {
+            "Cache-Control": "s-maxage=300, stale-while-revalidate=600",
+          },
+        });
+      }
+    } catch (e) {
+      console.error("SCRAPER API ERROR", e);
+    }
+  }
+
   const items = await searchExternalListings({
     query: q,
     brand,
