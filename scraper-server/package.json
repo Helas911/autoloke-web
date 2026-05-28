@@ -1,0 +1,17 @@
+{
+  "name": "autoloke-scraper-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "install-browsers": "playwright install --with-deps chromium"
+  },
+  "dependencies": {
+    "@playwright/test": "^1.56.1",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "playwright": "^1.56.1"
+  }
+}
