@@ -60,7 +60,10 @@ export async function uploadImage({
 }): Promise<string> {
   const image = await resizeImage(file);
   const r = ref(storage, path);
-  await uploadBytes(r, image, { contentType: image.type || "image/webp" });
+  await uploadBytes(r, image, {
+    contentType: image.type || "image/webp",
+    cacheControl: "public,max-age=31536000",
+  });
   return await getDownloadURL(r);
 }
 
