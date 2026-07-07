@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { db } from "@/lib/firebase";
 import { formatPrice } from "@/lib/format";
+import { isPublicPaidListing } from "@/lib/billing";
 import { getSiteCountry, normalizeItemCountry, type SiteCountry } from "@/lib/site";
 import { t } from "@/lib/i18n";
 
@@ -17,6 +18,9 @@ type Part = {
   price?: number;
   imageUrls?: string[];
   country?: string;
+  paymentStatus?: string;
+  status?: string;
+  activeUntil?: unknown;
 };
 
 export default function DalysPage() {
@@ -35,7 +39,7 @@ export default function DalysPage() {
 
   const filtered = useMemo(() => {
     const tText = qText.trim().toLowerCase();
-    const source = items.filter((p) => normalizeItemCountry(p.country) === siteCountry);
+    const source = items.filter((p) => normalizeItemCountry(p.country) === siteCountry && isPublicPaidListing(p));
     if (!tText) return source;
     return source.filter((p) => {
       const s = `${p.title ?? ""} ${p.brand ?? ""} ${p.model ?? ""} ${p.city ?? ""}`.toLowerCase();
@@ -49,7 +53,7 @@ export default function DalysPage() {
         <div>
           <h1 className="text-2xl font-black">{t(siteCountry, "parts")}</h1>
           <div className="mt-1 text-sm font-extrabold text-white/60">
-            {t(siteCountry, "firestoreAds")}: <b>parts</b>
+            Rodomi tik apmokėti aktyvūs skelbimai: <b>parts</b>
           </div>
         </div>
         <nav className="flex flex-wrap items-center gap-2">
