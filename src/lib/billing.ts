@@ -5,7 +5,7 @@ export const LISTING_ACTIVE_DAYS = 30;
 export const LISTING_DELETE_AFTER_DAYS = 31;
 export const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
-export type ListingPaymentStatus = "pending" | "paid" | "failed";
+export type ListingPaymentStatus = "pending" | "paid" | "failed" | "free";
 export type ListingStatus = "pending_payment" | "active" | "expired";
 
 type TimestampLike = {
@@ -33,6 +33,21 @@ export function createPendingListingPaymentFields(now = new Date()) {
   };
 }
 
+export function createFreeListingFields() {
+  return {
+    paymentStatus: "free" as ListingPaymentStatus,
+    status: "active" as ListingStatus,
+    listingPriceCents: 0,
+    listingPriceEur: 0,
+    currency: BILLING_CURRENCY,
+    activeDays: null,
+    deleteAfterDays: null,
+    activeUntil: null,
+    paidAt: null,
+    deleteAt: null,
+  };
+}
+
 export function listingDateFrom(value: unknown): Date | null {
   if (!value) return null;
   if (value instanceof Date) return value;
@@ -57,4 +72,13 @@ export function isPublicPaidListing(listing: unknown, now = new Date()) {
   const activeUntil = listingDateFrom(item.activeUntil);
   if (!activeUntil) return false;
   return activeUntil.getTime() > now.getTime();
+}
+
+export function isPublicFreeOrPaidListing(listing: unknown, now = new Date()) {
+  const item = listing as { paymentStatus?: string; status?: string; activeUntil?: unknown } | null;
+  if (!item) return false;
+  if (item.paymentStatus === "pending" || item.status === "pending_payment") return false;
+  if (item.paymentStatus === "paid") return isPublicPaidListing(item, now);
+  if (item.paymentStatus === "free") return item.status === "active";
+  return !item.status || item.status === "active";
 }
