@@ -27,6 +27,25 @@ input::placeholder, textarea::placeholder{
   color: rgba(255,255,255,0.45);
 }
 
+.input-pay{
+  width:100%;
+  border-radius:1rem;
+  border:1px solid rgba(255,255,255,0.12);
+  background:rgba(255,255,255,0.05);
+  padding:0.75rem 1rem;
+  font-size:0.875rem;
+  color:white;
+  outline:none;
+}
+
+.input-pay:focus{
+  border-color:rgba(255,255,255,0.24);
+}
+
+.input-pay:disabled{
+  opacity:0.45;
+}
+
 .priceLabel{
   background:#2563eb;
   color:#ffffff;
