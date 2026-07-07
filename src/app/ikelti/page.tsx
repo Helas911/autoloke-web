@@ -3,21 +3,23 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import type { CSSProperties } from "react";
-import { addDoc, collection, serverTimestamp, doc, updateDoc } from "firebase/firestore";
-import { GoogleMap, Marker, useLoadScript } from "@react-google-maps/api";
+import { addDoc, collection, doc, serverTimestamp, updateDoc } from "firebase/firestore";
 
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/useAuth";
 import { uploadImage } from "@/lib/upload";
 import { cls } from "@/lib/format";
+import { createPendingListingPaymentFields, LISTING_ACTIVE_DAYS, LISTING_PRICE_EUR } from "@/lib/billing";
+import { startListingPayment } from "@/lib/paymentClient";
 import { VEHICLE_CATEGORIES, VEHICLE_TYPES, type VehicleCategory } from "@/lib/categories";
-import { citySuggestions, getSiteCenter, getSiteCountry, getSiteCurrency, type SiteCountry } from "@/lib/site";
+import { citySuggestions, getSiteCountry, getSiteCurrency, type SiteCountry } from "@/lib/site";
 import { categoryLabelLocalized, canonicalDriveOptions, canonicalFuelOptions, canonicalGearboxOptions, labelDrive, labelFuel, labelGearbox, otherLabel, t } from "@/lib/i18n";
 import { brandsForCategory, modelsForBrand, type BrandCategory } from "@/lib/brands_models";
 
 type Mode = "transportas" | "dalys";
 
 const optStyle: CSSProperties = { background: "#0b0b10", color: "rgba(255,255,255,0.95)" };
+const OTHER = "__other__";
 
 function toBrandCategory(cat: VehicleCategory): BrandCategory {
   switch (cat) {
@@ -34,18 +36,12 @@ function toBrandCategory(cat: VehicleCategory): BrandCategory {
   }
 }
 
-const OTHER = "__other__";
-
 export default function IkeltiPage() {
   const { user, loading: authLoading } = useAuth();
-  const { isLoaded } = useLoadScript({
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
-  });
 
   const [mode, setMode] = useState<Mode>("transportas");
   const [siteCountry, setSiteCountry] = useState<SiteCountry>("LT");
 
-  // transport
   const [category, setCategory] = useState<VehicleCategory>("automobiliai");
   const [type, setType] = useState("");
   const [brand, setBrand] = useState("");
@@ -61,17 +57,12 @@ export default function IkeltiPage() {
   const [engineCapacity, setEngineCapacity] = useState("");
   const [powerKw, setPowerKw] = useState("");
 
-  // parts
   const [title, setTitle] = useState("");
-
-  // common
   const [city, setCity] = useState("");
   const [phone, setPhone] = useState("");
   const [description, setDescription] = useState("");
-
-  const [lat, setLat] = useState<string>("");
-  const [lng, setLng] = useState<string>("");
-  const [picked, setPicked] = useState<{ lat: number; lng: number } | null>(null);
+  const [lat, setLat] = useState("");
+  const [lng, setLng] = useState("");
 
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [files, setFiles] = useState<File[]>([]);
@@ -86,76 +77,59 @@ export default function IkeltiPage() {
   const brandCat = toBrandCategory(category);
   const brands = useMemo(() => brandsForCategory(brandCat), [brandCat]);
   const effectiveBrand = brand === OTHER ? brandOther : brand;
+  const effectiveModel = model === OTHER ? modelOther : model;
   const models = useMemo(() => modelsForBrand(brandCat, effectiveBrand), [brandCat, effectiveBrand]);
+  const cities = useMemo(() => citySuggestions(siteCountry), [siteCountry]);
   const otherText = useMemo(() => otherLabel(siteCountry), [siteCountry]);
+  const currency = getSiteCurrency(siteCountry);
 
   useEffect(() => {
-    if (model && models.length && !models.includes(model)) setModel("");
     if (brand !== OTHER) setBrandOther("");
     if (model !== OTHER) setModelOther("");
-  }, [brand]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const markerPos = useMemo(() => {
-    if (picked) return picked;
-    if (!lat.trim() || !lng.trim()) return null;
-    const la = Number(lat);
-    const ln = Number(lng);
-    if (!Number.isFinite(la) || !Number.isFinite(ln)) return null;
-    // apsauga nuo (0,0) kai laukai tušti ar neteisingi
-    if (Math.abs(la) < 0.000001 && Math.abs(ln) < 0.000001) return null;
-    return { lat: la, lng: ln };
-  }, [picked, lat, lng]);
-
-  const mapCenter = markerPos ?? getSiteCenter(siteCountry);
-  const cities = useMemo(() => citySuggestions(siteCountry), [siteCountry]);
-  const currency = getSiteCurrency(siteCountry);
+    if (model && model !== OTHER && models.length && !models.includes(model)) setModel("");
+  }, [brand, model, models]);
 
   const canSubmit = useMemo(() => {
     if (!city.trim()) return false;
     if (!price.trim()) return false;
     if (!lat.trim() || !lng.trim()) return false;
     if (files.length === 0) return false;
-
-    if (mode === "transportas") {
-      const fb = (brand === OTHER ? brandOther : brand).trim();
-      const fm = (model === OTHER ? modelOther : model).trim();
-      if (!fb && !fm) return false;
-      return true;
-    }
-    if (mode === "dalys") {
-      if (!title.trim() && !brand.trim() && !model.trim()) return false;
-      return true;
-    }
-    return false;
-  }, [mode, city, price, lat, lng, files.length, brand, model, title]);
+    if (mode === "transportas") return !!(effectiveBrand.trim() || effectiveModel.trim());
+    return !!(title.trim() || effectiveBrand.trim() || effectiveModel.trim());
+  }, [city, price, lat, lng, files.length, mode, effectiveBrand, effectiveModel, title]);
 
   function fillMyLocation() {
     setErr(null);
     if (!navigator.geolocation) {
-      setErr(siteCountry === "DK" ? "Browseren understøtter ikke geolokation." : "Naršyklė nepalaiko geolokacijos.");
+      setErr("Naršyklė nepalaiko vietos nustatymo.");
       return;
     }
+
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const la = Number(pos.coords.latitude);
-        const ln = Number(pos.coords.longitude);
-        setLat(la.toFixed(6));
-        setLng(ln.toFixed(6));
-        setPicked({ lat: la, lng: ln });
+        setLat(pos.coords.latitude.toFixed(6));
+        setLng(pos.coords.longitude.toFixed(6));
       },
-      () => setErr(siteCountry === "DK" ? "Kunne ikke hente placering. Tjek lokationstilladelser." : "Nepavyko gauti vietos. Patikrink Location leidimus."),
+      () => setErr("Nepavyko gauti vietos. Patikrink Location leidimus."),
       { enableHighAccuracy: true, timeout: 8000 }
     );
   }
 
-  useEffect(() => {
-    if (!lat.trim() || !lng.trim()) return;
-    const la = Number(lat);
-    const ln = Number(lng);
-    if (!Number.isFinite(la) || !Number.isFinite(ln)) return;
-    if (Math.abs(la) < 0.000001 && Math.abs(ln) < 0.000001) return;
-    setPicked({ lat: la, lng: ln });
-  }, [lat, lng]);
+  async function uploadPhotos(folder: "ads" | "parts", id: string) {
+    const imageUrls: string[] = [];
+    const imagePaths: string[] = [];
+
+    for (const f of files) {
+      const safeName = (f.name || "foto.jpg").replace(/[^a-zA-Z0-9._-]/g, "_");
+      const random = typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : String(Date.now());
+      const path = `${folder}/${user!.uid}/${id}/${random}-${safeName}`;
+      const url = await uploadImage({ path, file: f });
+      imageUrls.push(url);
+      imagePaths.push(path);
+    }
+
+    return { imageUrls, imagePaths };
+  }
 
   async function submit() {
     if (!canSubmit || busy) return;
@@ -164,6 +138,8 @@ export default function IkeltiPage() {
     setOkMsg(null);
 
     try {
+      if (!user) throw new Error("Prisijunk, kad galėtum įkelti skelbimą.");
+
       const p = Number(price);
       const y = year.trim() ? Number(year) : undefined;
       const mi = mileage.trim() ? Number(mileage) : undefined;
@@ -172,20 +148,18 @@ export default function IkeltiPage() {
       const la = Number(lat);
       const ln = Number(lng);
 
-      if (!Number.isFinite(p)) throw new Error(siteCountry === "DK" ? "Prisen skal være et tal." : "Kaina turi būti skaičius.");
+      if (!Number.isFinite(p)) throw new Error("Kaina turi būti skaičius.");
       if (!Number.isFinite(la) || !Number.isFinite(ln)) throw new Error("Koordinatės turi būti skaičiai.");
-      if (year.trim() && !Number.isFinite(y)) throw new Error(siteCountry === "DK" ? "År skal være et tal." : "Metai turi būti skaičius.");
-      if (mileage.trim() && !Number.isFinite(mi)) throw new Error(siteCountry === "DK" ? "Kilometer skal være et tal." : "Rida turi būti skaičius.");
-      if (engineCapacity.trim() && !Number.isFinite(ec)) throw new Error(siteCountry === "DK" ? "Motorvolumen skal være et tal." : "Variklio tūris turi būti skaičius.");
-      if (powerKw.trim() && !Number.isFinite(pk)) throw new Error(siteCountry === "DK" ? "Effekt skal være et tal." : "Galia turi būti skaičius.");
+      if (year.trim() && !Number.isFinite(y)) throw new Error("Metai turi būti skaičius.");
+      if (mileage.trim() && !Number.isFinite(mi)) throw new Error("Rida turi būti skaičius.");
+      if (engineCapacity.trim() && !Number.isFinite(ec)) throw new Error("Variklio tūris turi būti skaičius.");
+      if (powerKw.trim() && !Number.isFinite(pk)) throw new Error("Galia turi būti skaičius.");
 
-      const finalBrand = (brand === OTHER ? brandOther : brand).trim() || undefined;
-      const finalModel = (model === OTHER ? modelOther : model).trim() || undefined;
-
-      if (!user) throw new Error(siteCountry === "DK" ? "Log ind for at oprette en annonce." : "Prisijunk, kad galėtum įkelti skelbimą.");
+      const finalBrand = effectiveBrand.trim() || undefined;
+      const finalModel = effectiveModel.trim() || undefined;
+      const paymentFields = createPendingListingPaymentFields();
 
       if (mode === "transportas") {
-        // 1) sukuriam dokumentą (be nuotraukų), kad turėtume id
         const docRef = await addDoc(collection(db, "ads"), {
           category,
           type: type.trim() || undefined,
@@ -210,23 +184,13 @@ export default function IkeltiPage() {
           ownerEmail: user.email ?? undefined,
           country: siteCountry,
           createdAt: serverTimestamp(),
+          ...paymentFields,
         });
 
-        // 2) įkeliam nuotraukas į storage: ads/<uid>/<docId>/...
-        const imageUrls: string[] = [];
-        const imagePaths: string[] = [];
-        for (const f of files) {
-          const safeName = (f.name || "foto.jpg").replace(/[^a-zA-Z0-9._-]/g, "_");
-          const path = `ads/${user.uid}/${docRef.id}/${crypto.randomUUID?.() ?? Date.now()}-${safeName}`;
-          const url = await uploadImage({ path, file: f });
-          imageUrls.push(url);
-          imagePaths.push(path);
-        }
-
-        // 3) atnaujinam dokumentą su nuotraukom
-        await updateDoc(doc(db, "ads", docRef.id), { imageUrls, imagePaths });
-
-        setOkMsg(t(siteCountry, "adUploaded"));
+        const photos = await uploadPhotos("ads", docRef.id);
+        await updateDoc(doc(db, "ads", docRef.id), photos);
+        setOkMsg("Skelbimas paruoštas. Nukreipiama į apmokėjimą...");
+        await startListingPayment({ collectionName: "ads", listingId: docRef.id });
       } else {
         const docRef = await addDoc(collection(db, "parts"), {
           title: title.trim() || undefined,
@@ -244,26 +208,14 @@ export default function IkeltiPage() {
           ownerEmail: user.email ?? undefined,
           country: siteCountry,
           createdAt: serverTimestamp(),
+          ...paymentFields,
         });
 
-        const imageUrls: string[] = [];
-        const imagePaths: string[] = [];
-        for (const f of files) {
-          const safeName = (f.name || "foto.jpg").replace(/[^a-zA-Z0-9._-]/g, "_");
-          const path = `parts/${user.uid}/${docRef.id}/${crypto.randomUUID?.() ?? Date.now()}-${safeName}`;
-          const url = await uploadImage({ path, file: f });
-          imageUrls.push(url);
-          imagePaths.push(path);
-        }
-
-        await updateDoc(doc(db, "parts", docRef.id), { imageUrls, imagePaths });
-
-        setOkMsg(t(siteCountry, "partsUploaded"));
+        const photos = await uploadPhotos("parts", docRef.id);
+        await updateDoc(doc(db, "parts", docRef.id), photos);
+        setOkMsg("Skelbimas paruoštas. Nukreipiama į apmokėjimą...");
+        await startListingPayment({ collectionName: "parts", listingId: docRef.id });
       }
-
-      // reset minimal
-      setFiles([]);
-      if (fileRef.current) fileRef.current.value = "";
     } catch (e: any) {
       setErr(e?.message || "Klaida įkeliant.");
     } finally {
@@ -271,9 +223,7 @@ export default function IkeltiPage() {
     }
   }
 
-  if (authLoading) {
-    return <main className="p-6 text-white">Kraunama...</main>;
-  }
+  if (authLoading) return <main className="p-6 text-white">Kraunama...</main>;
 
   if (!user) {
     return (
@@ -290,387 +240,189 @@ export default function IkeltiPage() {
   }
 
   return (
-    <>
-      
-      <main className="mx-auto w-full max-w-6xl px-4 pb-24 pt-6">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+    <main className="mx-auto w-full max-w-6xl px-4 pb-24 pt-6 text-white">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <div>
           <h1 className="text-lg font-black">{t(siteCountry, "uploadListing")}</h1>
+          <p className="mt-1 text-sm font-semibold text-white/60">
+            Vienas skelbimas kainuoja {LISTING_PRICE_EUR} € ir galioja {LISTING_ACTIVE_DAYS} dienų. Nepratęsus, 31-ą dieną jis ištrinamas automatiškai.
+          </p>
+        </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setMode("transportas")}
-              className={cls(
-                "rounded-full border px-4 py-2 text-sm font-extrabold",
-                mode === "transportas" ? "border-white/25 bg-white/12" : "border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
-              )}
-            >
-              {t(siteCountry, "transport")}
-            </button>
-            <button
-              onClick={() => setMode("dalys")}
-              className={cls(
-                "rounded-full border px-4 py-2 text-sm font-extrabold",
-                mode === "dalys" ? "border-white/25 bg-white/12" : "border-white/10 bg-white/5 text-white/80 hover:bg-white/10"
-              )}
-            >
-              {t(siteCountry, "parts")}
-            </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setMode("transportas")}
+            className={cls("rounded-full border px-4 py-2 text-sm font-extrabold", mode === "transportas" ? "border-white/25 bg-white/12" : "border-white/10 bg-white/5 text-white/80 hover:bg-white/10")}
+          >
+            {t(siteCountry, "transport")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("dalys")}
+            className={cls("rounded-full border px-4 py-2 text-sm font-extrabold", mode === "dalys" ? "border-white/25 bg-white/12" : "border-white/10 bg-white/5 text-white/80 hover:bg-white/10")}
+          >
+            {t(siteCountry, "parts")}
+          </button>
+        </div>
+      </div>
+
+      <section className="grid gap-4 md:grid-cols-[1fr_380px]">
+        <div className="rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
+          {mode === "transportas" ? (
+            <div className="grid gap-3">
+              <div className="grid gap-2 sm:grid-cols-2">
+                <select value={category} onChange={(e) => { setCategory(e.target.value as VehicleCategory); setType(""); }} className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none">
+                  {VEHICLE_CATEGORIES.map((c) => <option key={c.id} value={c.id} style={optStyle}>{categoryLabelLocalized(c.id, siteCountry)}</option>)}
+                </select>
+                <select value={type} onChange={(e) => setType(e.target.value)} className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none">
+                  <option value="" style={optStyle}>{t(siteCountry, "vehicleTypePick")}</option>
+                  {VEHICLE_TYPES[category].map((item) => <option key={item} value={item} style={optStyle}>{item}</option>)}
+                </select>
+              </div>
+
+              <BrandModelFields
+                brands={brands}
+                models={models}
+                brand={brand}
+                model={model}
+                brandOther={brandOther}
+                modelOther={modelOther}
+                otherText={otherText}
+                siteCountry={siteCountry}
+                setBrand={setBrand}
+                setModel={setModel}
+                setBrandOther={setBrandOther}
+                setModelOther={setModelOther}
+              />
+
+              <div className="grid gap-2 sm:grid-cols-2">
+                <input value={price} onChange={(e) => setPrice(e.target.value)} placeholder={`Kaina (${currency})`} inputMode="numeric" className="input-pay" />
+                <input value={year} onChange={(e) => setYear(e.target.value)} placeholder={t(siteCountry, "year")} inputMode="numeric" className="input-pay" />
+                <input value={mileage} onChange={(e) => setMileage(e.target.value)} placeholder={t(siteCountry, "mileage")} inputMode="numeric" className="input-pay" />
+                <select value={gearbox} onChange={(e) => setGearbox(e.target.value)} className="input-pay">
+                  <option value="" style={optStyle}>{t(siteCountry, "gearboxPick")}</option>
+                  {canonicalGearboxOptions.map((g) => <option key={g} value={g} style={optStyle}>{labelGearbox(g, siteCountry)}</option>)}
+                </select>
+                <input value={engineCapacity} onChange={(e) => setEngineCapacity(e.target.value)} placeholder={t(siteCountry, "engineCapacity")} inputMode="decimal" className="input-pay" />
+                <input value={powerKw} onChange={(e) => setPowerKw(e.target.value)} placeholder={t(siteCountry, "powerKw")} inputMode="numeric" className="input-pay" />
+                <select value={fuel} onChange={(e) => setFuel(e.target.value)} className="input-pay">
+                  <option value="" style={optStyle}>{t(siteCountry, "fuelPick")}</option>
+                  {canonicalFuelOptions.map((f) => <option key={f} value={f} style={optStyle}>{labelFuel(f, siteCountry)}</option>)}
+                </select>
+                <select value={drive} onChange={(e) => setDrive(e.target.value)} className="input-pay">
+                  <option value="" style={optStyle}>{t(siteCountry, "drivePick")}</option>
+                  {canonicalDriveOptions.map((d) => <option key={d} value={d} style={optStyle}>{labelDrive(d, siteCountry)}</option>)}
+                </select>
+              </div>
+            </div>
+          ) : (
+            <div className="grid gap-3">
+              <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t(siteCountry, "titleParts")} className="input-pay" />
+              <BrandModelFields
+                brands={brands}
+                models={models}
+                brand={brand}
+                model={model}
+                brandOther={brandOther}
+                modelOther={modelOther}
+                otherText={otherText}
+                siteCountry={siteCountry}
+                setBrand={setBrand}
+                setModel={setModel}
+                setBrandOther={setBrandOther}
+                setModelOther={setModelOther}
+              />
+              <input value={price} onChange={(e) => setPrice(e.target.value)} placeholder={`Kaina (${currency})`} inputMode="numeric" className="input-pay" />
+            </div>
+          )}
+
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            <input value={city} onChange={(e) => setCity(e.target.value)} placeholder={t(siteCountry, "city")} list="city-suggestions" className="input-pay" />
+            <datalist id="city-suggestions">{cities.map((c) => <option key={c} value={c} />)}</datalist>
+            <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder={t(siteCountry, "phone")} className="input-pay" />
+          </div>
+
+          <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t(siteCountry, "description")} rows={4} className="mt-2 input-pay" />
+
+          <div className="mt-4 rounded-2xl border border-white/10 bg-black/25 p-3">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <div className="text-sm font-black">Vieta</div>
+              <button type="button" onClick={fillMyLocation} className="rounded-full border border-white/12 bg-white/5 px-3 py-1 text-xs font-extrabold text-white/85 hover:bg-white/10">
+                📍 Paimti mano vietą
+              </button>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <input value={lat} onChange={(e) => setLat(e.target.value)} placeholder="Latitude" inputMode="decimal" className="input-pay" />
+              <input value={lng} onChange={(e) => setLng(e.target.value)} placeholder="Longitude" inputMode="decimal" className="input-pay" />
+            </div>
           </div>
         </div>
 
-        <section className="grid gap-4 md:grid-cols-[1fr_380px]">
-          <div className="rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
-            {mode === "transportas" ? (
-              <div className="grid gap-3">
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <select
-                    value={category}
-                    onChange={(e) => {
-                      setCategory(e.target.value as VehicleCategory);
-                      setType("");
-                    }}
-                    className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none"
-                  >
-                    {VEHICLE_CATEGORIES.map((c) => (
-                      <option key={c.id} value={c.id} style={optStyle}>{categoryLabelLocalized(c.id, siteCountry)}</option>
-                    ))}
-                  </select>
-
-                  <select
-                    value={type}
-                    onChange={(e) => setType(e.target.value)}
-                    className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none"
-                  >
-                    <option value="" style={optStyle}>{t(siteCountry, "vehicleTypePick")}</option>
-                    {VEHICLE_TYPES[category].map((t) => (
-                      <option key={t} value={t} style={optStyle}>{t}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <select
-                    value={brand}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      setBrand(v);
-                      setModel("");
-                    }}
-                    className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none"
-                  >
-                    <option value="" style={{ ...optStyle }}>{t(siteCountry, "brand")}</option>
-                    {brands.map((b) => (
-                      <option key={b} value={b} style={{ ...optStyle }}>{b}</option>
-                    ))}
-                    <option value={OTHER} style={{ ...optStyle }}>{otherText}</option>
-                  </select>
-
-                  {brand === OTHER ? (
-                    <input
-                      value={brandOther}
-                      onChange={(e) => setBrandOther(e.target.value)}
-                      placeholder={t(siteCountry, "enterBrand")}
-                      className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
-                    />
-                  ) : null}
-
-                  <select
-                    value={model}
-                    onChange={(e) => setModel(e.target.value)}
-                    disabled={!effectiveBrand}
-                    className={cls(
-                      "w-full rounded-2xl border px-4 py-3 text-sm outline-none",
-                      effectiveBrand ? "border-white/12 bg-white/5 text-white" : "border-white/10 bg-white/3 text-white/40"
-                    )}
-                  >
-                    <option value="" style={{ ...optStyle }}>{effectiveBrand ? (siteCountry === "DK" ? "Model" : "Modelis") : t(siteCountry, "modelFirstBrand")}</option>
-                    {models.map((m) => (
-                      <option key={m} value={m} style={{ ...optStyle }}>{m}</option>
-                    ))}
-                    {effectiveBrand ? <option value={OTHER} style={{ ...optStyle }}>{otherText}</option> : null}
-                  </select>
-
-                  {model === OTHER ? (
-                    <input
-                      value={modelOther}
-                      onChange={(e) => setModelOther(e.target.value)}
-                      placeholder={t(siteCountry, "enterModel")}
-                      className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
-                    />
-                  ) : null}
-                </div>
-
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <input
-                    value={price}
-                    onChange={(e) => setPrice(e.target.value)}
-                    placeholder={`${siteCountry === "DK" ? "Pris" : "Kaina"} (${currency})`}
-                    inputMode="numeric"
-                    className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
-                  />
-                  <input
-                    value={year}
-                    onChange={(e) => setYear(e.target.value)}
-                    placeholder={t(siteCountry, "year")}
-                    inputMode="numeric"
-                    className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
-                  />
-                </div>
-
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <input
-                    value={mileage}
-                    onChange={(e) => setMileage(e.target.value)}
-                    placeholder={t(siteCountry, "mileage")}
-                    inputMode="numeric"
-                    className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
-                  />
-                  <select
-                    value={gearbox}
-                    onChange={(e) => setGearbox(e.target.value)}
-                    className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none"
-                  >
-                    <option value="" style={optStyle}>{t(siteCountry, "gearboxPick")}</option>
-                    {canonicalGearboxOptions.map((g) => (
-                      <option key={g} value={g} style={optStyle}>{labelGearbox(g, siteCountry)}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <input
-                    value={engineCapacity}
-                    onChange={(e) => setEngineCapacity(e.target.value)}
-                    placeholder={t(siteCountry, "engineCapacity")}
-                    inputMode="decimal"
-                    className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
-                  />
-                  <input
-                    value={powerKw}
-                    onChange={(e) => setPowerKw(e.target.value)}
-                    placeholder={t(siteCountry, "powerKw")}
-                    inputMode="numeric"
-                    className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
-                  />
-                </div>
-
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <select
-                    value={fuel}
-                    onChange={(e) => setFuel(e.target.value)}
-                    className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none"
-                  >
-                    <option value="" style={optStyle}>{t(siteCountry, "fuelPick")}</option>
-                    {canonicalFuelOptions.map((f) => (
-                      <option key={f} value={f} style={optStyle}>{labelFuel(f, siteCountry)}</option>
-                    ))}
-                  </select>
-
-                  <select
-                    value={drive}
-                    onChange={(e) => setDrive(e.target.value)}
-                    className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none"
-                  >
-                    <option value="" style={optStyle}>{t(siteCountry, "drivePick")}</option>
-                    {canonicalDriveOptions.map((d) => (
-                      <option key={d} value={d} style={optStyle}>{labelDrive(d, siteCountry)}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            ) : (
-              <div className="grid gap-2">
-                <input
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder={t(siteCountry, "titleParts")}
-                  className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
-                />
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <select
-                    value={brand}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      setBrand(v);
-                    }}
-                    className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none"
-                  >
-                    <option value="" style={{ ...optStyle }}>{siteCountry === "DK" ? "Mærke (valgfrit)" : "Markė (nebūtina)"}</option>
-                    {brands.map((b) => (
-                      <option key={b} value={b} style={{ ...optStyle }}>{b}</option>
-                    ))}
-                    <option value={OTHER} style={{ ...optStyle }}>{otherText}</option>
-                  </select>
-
-                  {brand === OTHER ? (
-                    <input
-                      value={brandOther}
-                      onChange={(e) => setBrandOther(e.target.value)}
-                      placeholder={siteCountry === "DK" ? "Skriv mærke (valgfrit)" : "Įrašyk markę (nebūtina)"}
-                      className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
-                    />
-                  ) : null}
-
-                  <input
-                    value={model === OTHER ? modelOther : model}
-                    onChange={(e) => setModel(e.target.value)}
-                    placeholder={siteCountry === "DK" ? "Model (valgfrit)" : "Modelis (nebūtina)"}
-                    className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
-                  />
-                </div>
-                <input
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
-                  placeholder={`${siteCountry === "DK" ? "Pris" : "Kaina"} (${currency})`}
-                  inputMode="numeric"
-                  className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
-                />
-              </div>
-            )}
-
-            <div className="mt-4 grid gap-2 sm:grid-cols-2">
-              <input
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-                placeholder={t(siteCountry, "city")}
-                list="city-suggestions"
-                className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
-              />
-              <input
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder={t(siteCountry, "phone")}
-                className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
-              />
+        <div className="rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
+          <div className="mb-2 flex items-center justify-between">
+            <div>
+              <div className="text-sm font-black">{t(siteCountry, "uploadPhotos")}</div>
+              <div className="text-xs text-white/60">Reikia bent vienos nuotraukos</div>
             </div>
-
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder={t(siteCountry, "description")}
-              rows={4}
-              className="mt-2 w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/45"
-            />
-
-            <div className="mt-4 rounded-2xl border border-white/10 bg-black/25 p-3">
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <div className="text-sm font-black">{t(siteCountry, "locationOnMap")}</div>
-                <button
-                  onClick={fillMyLocation}
-                  className="rounded-full border border-white/12 bg-white/5 px-3 py-1 text-xs font-extrabold text-white/85 hover:bg-white/10"
-                >
-                  📍 Paimti mano vietą
-                </button>
-              </div>
-
-              <div className="mt-3 overflow-hidden rounded-2xl border border-white/10 bg-white/5">
-                <div className="h-[260px]">
-                  {isLoaded ? (
-                    <GoogleMap
-                      zoom={markerPos ? 13 : 7}
-                      center={mapCenter}
-                      key={`${siteCountry}-${markerPos?.lat ?? "x"}-${markerPos?.lng ?? "y"}`}
-                      mapContainerStyle={{ width: "100%", height: "100%" }}
-                      options={{
-                        disableDefaultUI: true,
-                        clickableIcons: false,
-                        gestureHandling: "greedy",
-                        fullscreenControl: false,
-                        mapTypeControl: false,
-                        streetViewControl: false,
-                      }}
-                      onClick={(e) => {
-                        const la = e.latLng?.lat();
-                        const ln = e.latLng?.lng();
-                        if (typeof la === "number" && typeof ln === "number") {
-                          setLat(la.toFixed(6));
-                          setLng(ln.toFixed(6));
-                          setPicked({ lat: la, lng: ln });
-                        }
-                      }}
-                    >
-                      {markerPos ? <Marker position={markerPos} /> : null}
-                    </GoogleMap>
-                  ) : (
-                    <div className="grid h-full place-items-center text-sm text-white/70">{t(siteCountry, "mapLoading")}</div>
-                  )}
-                </div>
-              </div>
-
-              <div className="mt-2 text-xs text-white/55">
-                Paspausk ant žemėlapio, kad pažymėtum vietą (markerį galima perkelti paspaudžiant kitur).
-              </div>
-            </div>
+            <button type="button" onClick={() => fileRef.current?.click()} className="rounded-full bg-white px-4 py-2 text-sm font-black text-black hover:bg-white/90">➕ Pasirinkti</button>
+            <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => setFiles(Array.from(e.target.files || []))} />
           </div>
 
-          {/* right side: photos + submit */}
-          <div className="rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
-            <div className="mb-2 flex items-center justify-between">
-              <div>
-                <div className="text-sm font-black">{t(siteCountry, "uploadPhotos")}</div>
-                <div className="text-xs text-white/60">{t(siteCountry, "needOnePhoto")}</div>
-              </div>
-              <button
-                onClick={() => fileRef.current?.click()}
-                className="rounded-full bg-white px-4 py-2 text-sm font-black text-black hover:bg-white/90"
-              >
-                ➕ Pasirinkti
-              </button>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                multiple
-                className="hidden"
-                onChange={(e) => {
-                  const list = Array.from(e.target.files || []);
-                  setFiles(list);
-                }}
-              />
-            </div>
-
-            <div className="grid grid-cols-3 gap-2">
-              {files.map((f, idx) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  key={idx}
-                  alt=""
-                  src={URL.createObjectURL(f)}
-                  className="h-24 w-full rounded-xl object-cover"
-                />
-              ))}
-            </div>
-
-            <div className="mt-4 grid gap-2">
-              <button
-                onClick={submit}
-                disabled={!canSubmit || busy}
-                className={cls(
-                  "w-full rounded-2xl px-4 py-3 text-sm font-black",
-                  canSubmit && !busy ? "bg-white text-black hover:bg-white/90" : "bg-white/20 text-white/50"
-                )}
-              >
-                {busy ? t(siteCountry, "uploading") : t(siteCountry, "upload")}
-              </button>
-
-              <button
-                onClick={() => {
-                  setFiles([]);
-                  if (fileRef.current) fileRef.current.value = "";
-                }}
-                className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm font-extrabold text-white/85 hover:bg-white/10"
-              >
-                Išvalyti foto
-              </button>
-
-              {err ? <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-100">{err}</div> : null}
-              {okMsg ? <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/10 p-3 text-sm text-emerald-100">{okMsg}</div> : null}
-            </div>
+          <div className="grid grid-cols-3 gap-2">
+            {files.map((f, idx) => <img key={idx} alt="" src={URL.createObjectURL(f)} className="h-24 w-full rounded-xl object-cover" />)}
           </div>
-        </section>
-      </main>
 
-      
-    </>
+          <div className="mt-4 rounded-2xl border border-yellow-400/25 bg-yellow-500/10 p-3 text-sm font-semibold text-yellow-50">
+            Paspaudus mygtuką skelbimas bus sukurtas kaip neaktyvus. Po apmokėjimo jis taps aktyvus 30 dienų.
+          </div>
+
+          <div className="mt-4 grid gap-2">
+            <button type="button" onClick={submit} disabled={!canSubmit || busy} className={cls("w-full rounded-2xl px-4 py-3 text-sm font-black", canSubmit && !busy ? "bg-white text-black hover:bg-white/90" : "bg-white/20 text-white/50")}>
+              {busy ? "Keliama..." : `Apmokėti ${LISTING_PRICE_EUR} € ir įkelti`}
+            </button>
+            <button type="button" onClick={() => { setFiles([]); if (fileRef.current) fileRef.current.value = ""; }} className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm font-extrabold text-white/85 hover:bg-white/10">
+              Išvalyti foto
+            </button>
+            {err ? <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-100">{err}</div> : null}
+            {okMsg ? <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/10 p-3 text-sm text-emerald-100">{okMsg}</div> : null}
+          </div>
+        </div>
+      </section>
+    </main>
+  );
+}
+
+function BrandModelFields(props: {
+  brands: string[];
+  models: string[];
+  brand: string;
+  model: string;
+  brandOther: string;
+  modelOther: string;
+  otherText: string;
+  siteCountry: SiteCountry;
+  setBrand: (value: string) => void;
+  setModel: (value: string) => void;
+  setBrandOther: (value: string) => void;
+  setModelOther: (value: string) => void;
+}) {
+  const effectiveBrand = props.brand === OTHER ? props.brandOther : props.brand;
+
+  return (
+    <div className="grid gap-2 sm:grid-cols-2">
+      <select value={props.brand} onChange={(e) => { props.setBrand(e.target.value); props.setModel(""); }} className="input-pay">
+        <option value="" style={optStyle}>{t(props.siteCountry, "brand")}</option>
+        {props.brands.map((b) => <option key={b} value={b} style={optStyle}>{b}</option>)}
+        <option value={OTHER} style={optStyle}>{props.otherText}</option>
+      </select>
+      {props.brand === OTHER ? <input value={props.brandOther} onChange={(e) => props.setBrandOther(e.target.value)} placeholder={t(props.siteCountry, "enterBrand")} className="input-pay" /> : null}
+      <select value={props.model} onChange={(e) => props.setModel(e.target.value)} disabled={!effectiveBrand} className="input-pay disabled:opacity-45">
+        <option value="" style={optStyle}>{effectiveBrand ? "Modelis" : t(props.siteCountry, "modelFirstBrand")}</option>
+        {props.models.map((m) => <option key={m} value={m} style={optStyle}>{m}</option>)}
+        {effectiveBrand ? <option value={OTHER} style={optStyle}>{props.otherText}</option> : null}
+      </select>
+      {props.model === OTHER ? <input value={props.modelOther} onChange={(e) => props.setModelOther(e.target.value)} placeholder={t(props.siteCountry, "enterModel")} className="input-pay" /> : null}
+    </div>
   );
 }
