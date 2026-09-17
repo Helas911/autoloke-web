@@ -9,7 +9,7 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/useAuth";
 import { uploadImage } from "@/lib/upload";
 import { cls } from "@/lib/format";
-import { createPendingListingPaymentFields, LISTING_ACTIVE_DAYS, LISTING_PRICE_EUR } from "@/lib/billing";
+import { createFreeListingFields, createPendingListingPaymentFields, LISTING_ACTIVE_DAYS, LISTING_PRICE_EUR } from "@/lib/billing";
 import { startListingPayment } from "@/lib/paymentClient";
 import { VEHICLE_CATEGORIES, VEHICLE_TYPES, type VehicleCategory } from "@/lib/categories";
 import { citySuggestions, getSiteCountry, getSiteCurrency, type SiteCountry } from "@/lib/site";
@@ -157,9 +157,8 @@ export default function IkeltiPage() {
 
       const finalBrand = effectiveBrand.trim() || undefined;
       const finalModel = effectiveModel.trim() || undefined;
-      const paymentFields = createPendingListingPaymentFields();
-
       if (mode === "transportas") {
+        const paymentFields = createPendingListingPaymentFields();
         const docRef = await addDoc(collection(db, "ads"), {
           category,
           type: type.trim() || undefined,
@@ -192,6 +191,7 @@ export default function IkeltiPage() {
         setOkMsg("Skelbimas paruoštas. Nukreipiama į apmokėjimą...");
         await startListingPayment({ collectionName: "ads", listingId: docRef.id });
       } else {
+        const freeListingFields = createFreeListingFields();
         const docRef = await addDoc(collection(db, "parts"), {
           title: title.trim() || undefined,
           brand: finalBrand,
@@ -208,13 +208,14 @@ export default function IkeltiPage() {
           ownerEmail: user.email ?? undefined,
           country: siteCountry,
           createdAt: serverTimestamp(),
-          ...paymentFields,
+          ...freeListingFields,
         });
 
         const photos = await uploadPhotos("parts", docRef.id);
         await updateDoc(doc(db, "parts", docRef.id), photos);
-        setOkMsg("Skelbimas paruoštas. Nukreipiama į apmokėjimą...");
-        await startListingPayment({ collectionName: "parts", listingId: docRef.id });
+        setOkMsg("Detalių skelbimas įkeltas nemokamai ir jau yra aktyvus.");
+        setFiles([]);
+        if (fileRef.current) fileRef.current.value = "";
       }
     } catch (e: any) {
       setErr(e?.message || "Klaida įkeliant.");
@@ -245,7 +246,9 @@ export default function IkeltiPage() {
         <div>
           <h1 className="text-lg font-black">{t(siteCountry, "uploadListing")}</h1>
           <p className="mt-1 text-sm font-semibold text-white/60">
-            Vienas skelbimas kainuoja {LISTING_PRICE_EUR} € ir galioja {LISTING_ACTIVE_DAYS} dienų. Nepratęsus, 31-ą dieną jis ištrinamas automatiškai.
+            {mode === "transportas"
+              ? `Transporto skelbimas kainuoja ${LISTING_PRICE_EUR} € ir galioja ${LISTING_ACTIVE_DAYS} dienų. Nepratęsus, 31-ą dieną jis ištrinamas automatiškai.`
+              : "Detalių skelbimai yra nemokami, aktyvuojami iškart ir automatiškai ištrinami 31-ą dieną."}
           </p>
         </div>
 
@@ -374,12 +377,14 @@ export default function IkeltiPage() {
           </div>
 
           <div className="mt-4 rounded-2xl border border-yellow-400/25 bg-yellow-500/10 p-3 text-sm font-semibold text-yellow-50">
-            Paspaudus mygtuką skelbimas bus sukurtas kaip neaktyvus. Po apmokėjimo jis taps aktyvus 30 dienų.
+            {mode === "transportas"
+              ? "Skelbimas taps aktyvus po 1 € apmokėjimo ir bus rodomas 30 dienų."
+              : "Detalių skelbimas bus įkeltas nemokamai, taps aktyvus iškart ir bus ištrintas 31-ą dieną."}
           </div>
 
           <div className="mt-4 grid gap-2">
             <button type="button" onClick={submit} disabled={!canSubmit || busy} className={cls("w-full rounded-2xl px-4 py-3 text-sm font-black", canSubmit && !busy ? "bg-white text-black hover:bg-white/90" : "bg-white/20 text-white/50")}>
-              {busy ? "Keliama..." : `Apmokėti ${LISTING_PRICE_EUR} € ir įkelti`}
+              {busy ? "Keliama..." : mode === "transportas" ? `Apmokėti ${LISTING_PRICE_EUR} € ir įkelti` : "Įkelti nemokamai"}
             </button>
             <button type="button" onClick={() => { setFiles([]); if (fileRef.current) fileRef.current.value = ""; }} className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm font-extrabold text-white/85 hover:bg-white/10">
               Išvalyti foto

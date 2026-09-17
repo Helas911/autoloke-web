@@ -6,6 +6,8 @@ import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { uploadImage } from "@/lib/upload";
 import { useAuth } from "@/lib/useAuth";
+import { createPendingListingPaymentFields } from "@/lib/billing";
+import { startListingPayment } from "@/lib/paymentClient";
 
 const BRANDS = [
   "Audi",
@@ -179,7 +181,6 @@ export default function QuickUploadPage({ initialLocale = "lt" as Locale }) {
         title: brand ? `${brand} ${locale === "dk" ? "til salg" : "parduodamas"}` : t.defaultTitle,
         description: description.trim() || t.defaultDescription,
         price: numericPrice,
-        currency: t.currency,
         country: t.country,
         locale,
         city: city.trim() || t.defaultCity,
@@ -189,17 +190,12 @@ export default function QuickUploadPage({ initialLocale = "lt" as Locale }) {
         ownerEmail: user.email || "",
         source: "quick_upload",
         sourceLabel: t.sourceLabel,
-        status: "active",
+        ...createPendingListingPaymentFields(),
         createdAt: serverTimestamp(),
       });
 
       setDoneId(docRef.id);
-      setBrand("");
-      setCity("");
-      setPrice("");
-      setPhone("");
-      setPhotos([]);
-      setDescription("");
+      await startListingPayment({ collectionName: "ads", listingId: docRef.id });
     } catch (err: any) {
       setError(err?.message || t.unknownError);
     } finally {

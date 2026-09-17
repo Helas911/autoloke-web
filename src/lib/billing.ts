@@ -33,7 +33,7 @@ export function createPendingListingPaymentFields(now = new Date()) {
   };
 }
 
-export function createFreeListingFields() {
+export function createFreeListingFields(now = new Date()) {
   return {
     paymentStatus: "free" as ListingPaymentStatus,
     status: "active" as ListingStatus,
@@ -41,10 +41,10 @@ export function createFreeListingFields() {
     listingPriceEur: 0,
     currency: BILLING_CURRENCY,
     activeDays: null,
-    deleteAfterDays: null,
+    deleteAfterDays: LISTING_DELETE_AFTER_DAYS,
     activeUntil: null,
     paidAt: null,
-    deleteAt: null,
+    deleteAt: addDays(now, LISTING_DELETE_AFTER_DAYS),
   };
 }
 

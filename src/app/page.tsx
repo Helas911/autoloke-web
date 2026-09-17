@@ -13,6 +13,7 @@ import { db } from "@/lib/firebase";
 import LocalListingRow from "@/components/LocalListingRow";
 import { cls } from "@/lib/format";
 import { bubbleIcon } from "@/lib/mapMarkers";
+import { isPublicFreeOrPaidListing, isPublicPaidListing } from "@/lib/billing";
 import { citySuggestions, getSiteCenter, getSiteCountry, normalizeItemCountry, priceShort, type SiteCountry } from "@/lib/site";
 import { categoryLabelLocalized, canonicalDriveOptions, canonicalFuelOptions, canonicalGearboxOptions, labelDrive, labelFuel, labelGearbox, otherLabel, t } from "@/lib/i18n";
 import { VEHICLE_CATEGORIES, VEHICLE_TYPES, type VehicleCategory } from "@/lib/categories";
@@ -37,6 +38,9 @@ type Item = {
   gearbox?: string;
   country?: string;
   createdAt?: any;
+  paymentStatus?: string;
+  status?: string;
+  activeUntil?: unknown;
 };
 
 type Tab = "transportas" | "dalys";
@@ -207,6 +211,8 @@ export default function Home() {
     const g = gearbox.trim().toLowerCase();
 
     return items.filter((it) => {
+      if (tab === "transportas" && !isPublicPaidListing(it)) return false;
+      if (tab === "dalys" && !isPublicFreeOrPaidListing(it)) return false;
       if (normalizeItemCountry(it.country) !== siteCountry) return false;
       if (tab === "transportas") {
         if (cat && it.category && it.category !== cat) return false;

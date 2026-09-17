@@ -4,7 +4,7 @@ import { getFirestoreDocument, patchFirestoreDocument, type FirestoreCollectionN
 
 export const runtime = "nodejs";
 
-const ALLOWED_COLLECTIONS = new Set<FirestoreCollectionName>(["ads", "parts", "partRequests"]);
+const ALLOWED_COLLECTIONS = new Set<FirestoreCollectionName>(["ads"]);
 
 function isAllowedCollection(value: unknown): value is FirestoreCollectionName {
   return typeof value === "string" && ALLOWED_COLLECTIONS.has(value as FirestoreCollectionName);

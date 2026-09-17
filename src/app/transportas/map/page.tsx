@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
 import { cls, formatPrice } from "@/lib/format";
 import { bubbleIcon } from "@/lib/mapMarkers";
+import { isPublicPaidListing } from "@/lib/billing";
 import { brandsForCategory, modelsForBrand, type BrandCategory } from "@/lib/brands_models";
 import { getSiteCenter, getSiteCountry, normalizeItemCountry, priceShort, type SiteCountry } from "@/lib/site";
 import { categoryLabelLocalized, canonicalDriveOptions, canonicalFuelOptions, canonicalGearboxOptions, labelDrive, labelFuel, labelGearbox, t } from "@/lib/i18n";
@@ -25,6 +26,9 @@ type Ad = {
   category?: string; // automobiliai / motociklai / sunkvezimiai / vandens / zu_technika
   type?: string;
   country?: string;
+  paymentStatus?: string;
+  status?: string;
+  activeUntil?: unknown;
 };
 
 const CAT_OPTIONS: Array<{ id: BrandCategory; label: string }> = [
@@ -92,6 +96,7 @@ export default function TransportMapPage() {
     const yMax = yearTo.trim() ? Number(yearTo) : null;
 
     return items.filter((a) => {
+      if (!isPublicPaidListing(a)) return false;
       if (normalizeItemCountry(a.country) !== siteCountry) return false;
       // category filter (only if ad has category)
       if (a.category && a.category !== cat) return false;

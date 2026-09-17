@@ -5,7 +5,7 @@ import { patchFirestoreDocument, type FirestoreCollectionName } from "@/lib/fire
 
 export const runtime = "nodejs";
 
-const ALLOWED_COLLECTIONS = new Set<FirestoreCollectionName>(["ads", "parts", "partRequests"]);
+const ALLOWED_COLLECTIONS = new Set<FirestoreCollectionName>(["ads"]);
 
 type StripeEvent = {
   type?: string;

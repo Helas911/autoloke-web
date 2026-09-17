@@ -8,7 +8,7 @@ import {
 
 export const runtime = "nodejs";
 
-const COLLECTIONS: FirestoreCollectionName[] = ["ads", "parts", "partRequests"];
+const COLLECTIONS: FirestoreCollectionName[] = ["ads", "parts"];
 
 function isAuthorized(req: NextRequest) {
   const secret = process.env.CRON_SECRET;

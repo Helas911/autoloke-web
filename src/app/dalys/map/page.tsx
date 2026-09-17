@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
 import { cls, formatPrice } from "@/lib/format";
 import { bubbleIcon } from "@/lib/mapMarkers";
+import { isPublicFreeOrPaidListing } from "@/lib/billing";
 import { getSiteCenter, getSiteCountry, normalizeItemCountry, priceShort, type SiteCountry } from "@/lib/site";
 import { categoryLabelLocalized, canonicalDriveOptions, canonicalFuelOptions, canonicalGearboxOptions, labelDrive, labelFuel, labelGearbox, t } from "@/lib/i18n";
 
@@ -22,6 +23,9 @@ type Part = {
   city?: string;
   imageUrls?: string[];
   country?: string;
+  paymentStatus?: string;
+  status?: string;
+  activeUntil?: unknown;
 };
 
 export default function PartsMapPage() {
@@ -63,6 +67,7 @@ export default function PartsMapPage() {
     const pMax = priceTo.trim() ? Number(priceTo) : null;
 
     return items.filter((a) => {
+      if (!isPublicFreeOrPaidListing(a)) return false;
       if (normalizeItemCountry(a.country) !== siteCountry) return false;
       if (t) {
         const s = `${a.title ?? ""} ${a.brand ?? ""} ${a.model ?? ""} ${a.city ?? ""}`.toLowerCase();

@@ -4,7 +4,7 @@ import { getFirestoreDocument, patchFirestoreDocument, type FirestoreCollectionN
 
 export const runtime = "nodejs";
 
-const ALLOWED_COLLECTIONS = new Set<FirestoreCollectionName>(["ads", "parts", "partRequests"]);
+const ALLOWED_COLLECTIONS = new Set<FirestoreCollectionName>(["ads"]);
 
 function getOrigin(req: NextRequest) {
   return process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || req.headers.get("origin") || new URL(req.url).origin;

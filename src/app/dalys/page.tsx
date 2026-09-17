@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { db } from "@/lib/firebase";
 import { formatPrice } from "@/lib/format";
-import { isPublicPaidListing } from "@/lib/billing";
+import { isPublicFreeOrPaidListing } from "@/lib/billing";
 import { getSiteCountry, normalizeItemCountry, type SiteCountry } from "@/lib/site";
 import { t } from "@/lib/i18n";
 
@@ -39,7 +39,7 @@ export default function DalysPage() {
 
   const filtered = useMemo(() => {
     const tText = qText.trim().toLowerCase();
-    const source = items.filter((p) => normalizeItemCountry(p.country) === siteCountry && isPublicPaidListing(p));
+    const source = items.filter((p) => normalizeItemCountry(p.country) === siteCountry && isPublicFreeOrPaidListing(p));
     if (!tText) return source;
     return source.filter((p) => {
       const s = `${p.title ?? ""} ${p.brand ?? ""} ${p.model ?? ""} ${p.city ?? ""}`.toLowerCase();
@@ -53,7 +53,7 @@ export default function DalysPage() {
         <div>
           <h1 className="text-2xl font-black">{t(siteCountry, "parts")}</h1>
           <div className="mt-1 text-sm font-extrabold text-white/60">
-            Rodomi tik apmokėti aktyvūs skelbimai: <b>parts</b>
+            Detalių skelbimai nemokami ir ištrinami 31-ą dieną: <b>parts</b>
           </div>
         </div>
         <nav className="flex flex-wrap items-center gap-2">

@@ -8,6 +8,7 @@ import { useEffect, useMemo, useState } from "react";
 import LocalListingRow from "@/components/LocalListingRow";
 import { formatPrice } from "@/lib/format";
 import { db } from "@/lib/firebase";
+import { isPublicFreeOrPaidListing, isPublicPaidListing } from "@/lib/billing";
 import { getSiteCountry, normalizeItemCountry, type SiteCountry } from "@/lib/site";
 import { getSellerCity, getSellerId, getSellerName, getSellerPhone, isSameSeller } from "@/lib/sellers";
 
@@ -25,6 +26,9 @@ type Item = {
   sellerCity?: string;
   ownerUid?: string;
   country?: string;
+  paymentStatus?: string;
+  status?: string;
+  activeUntil?: unknown;
 };
 
 export default function SellerPage() {
@@ -57,11 +61,13 @@ export default function SellerPage() {
   const allItems = useMemo(() => {
     const transport = ads
       .filter((x) => normalizeItemCountry(x.country) === siteCountry)
+      .filter((x) => isPublicPaidListing(x))
       .filter((x) => isSameSeller(x, sellerId))
       .map((x) => ({ ...x, href: `/transportas/${x.id}`, badge: "Transportas" }));
 
     const partItems = parts
       .filter((x) => normalizeItemCountry(x.country) === siteCountry)
+      .filter((x) => isPublicFreeOrPaidListing(x))
       .filter((x) => isSameSeller(x, sellerId))
       .map((x) => ({ ...x, href: `/dalys/${x.id}`, badge: "Dalys" }));
 

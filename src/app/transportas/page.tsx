@@ -8,6 +8,7 @@ import LocalListingRow from "@/components/LocalListingRow";
 import type { ExternalListing } from "@/lib/externalAggregator";
 import { db } from "@/lib/firebase";
 import { formatPrice } from "@/lib/format";
+import { isPublicPaidListing } from "@/lib/billing";
 import { getSiteCountry, normalizeItemCountry, type SiteCountry } from "@/lib/site";
 import { canonicalDriveOptions, canonicalFuelOptions, canonicalGearboxOptions, labelDrive, labelFuel, labelGearbox, t } from "@/lib/i18n";
 
@@ -28,6 +29,9 @@ type Ad = {
   category?: string;
   type?: string;
   country?: string;
+  paymentStatus?: string;
+  status?: string;
+  activeUntil?: unknown;
 };
 
 export default function TransportasPage() {
@@ -103,6 +107,7 @@ export default function TransportasPage() {
     const pwMax = Number(powerTo || 99999999) || 99999999;
 
     return items.filter((a) => {
+      if (!isPublicPaidListing(a)) return false;
       if (normalizeItemCountry(a.country) !== siteCountry) return false;
       const s = `${a.title ?? ""} ${a.brand ?? ""} ${a.model ?? ""} ${a.city ?? ""} ${a.category ?? ""} ${a.type ?? ""}`.toLowerCase();
       if (q && !s.includes(q)) return false;
