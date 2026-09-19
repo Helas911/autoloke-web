@@ -36,8 +36,8 @@ function parseListingPath(pathname: string) {
   };
 }
 
-function listingTitle(item: Item) {
-  return item.title || [item.brand, item.model].filter(Boolean).join(" ") || "Skelbimas";
+function listingTitle(item: Item, country: SiteCountry) {
+  return item.title || [item.brand, item.model].filter(Boolean).join(" ") || (country === "DK" ? "Annonce" : "Skelbimas");
 }
 
 export function SellerFloatingPanel() {
@@ -97,14 +97,14 @@ export function SellerFloatingPanel() {
     .filter((x) => normalizeItemCountry(x.country) === siteCountry)
     .filter((x) => isSameSeller(x, sellerId))
     .slice(0, 2)
-    .map((x) => ({ ...x, href: `/transportas/${x.id}`, badge: "Transportas" }));
+    .map((x) => ({ ...x, href: `/transportas/${x.id}`, badge: siteCountry === "DK" ? "Køretøj" : "Transportas" }));
 
   const otherParts = parts
     .filter((x) => x.id !== current.id)
     .filter((x) => normalizeItemCountry(x.country) === siteCountry)
     .filter((x) => isSameSeller(x, sellerId))
     .slice(0, 2)
-    .map((x) => ({ ...x, href: `/dalys/${x.id}`, badge: "Dalys" }));
+    .map((x) => ({ ...x, href: `/dalys/${x.id}`, badge: siteCountry === "DK" ? "Reservedele" : "Dalys" }));
 
   const otherItems = [...otherAds, ...otherParts].slice(0, 3);
 
@@ -113,25 +113,25 @@ export function SellerFloatingPanel() {
       <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className="text-xs font-extrabold uppercase tracking-wide text-white/50">Pardavėjas</div>
+            <div className="text-xs font-extrabold uppercase tracking-wide text-white/50">{siteCountry === "DK" ? "Sælger" : "Pardavėjas"}</div>
             <Link href={`/pardavejai/${sellerId}`} className="mt-1 block truncate text-2xl font-black text-white hover:underline">
               {sellerName}
             </Link>
             <div className="mt-1 text-sm font-semibold text-white/55">
-              {[sellerCity, sellerPhone].filter(Boolean).join(" • ") || "Visi šio pardavėjo skelbimai"}
+              {[sellerCity, sellerPhone].filter(Boolean).join(" • ") || (siteCountry === "DK" ? "Alle annoncer fra denne sælger" : "Visi šio pardavėjo skelbimai")}
             </div>
           </div>
           <Link
             href={`/pardavejai/${sellerId}`}
             className="shrink-0 rounded-full bg-white px-5 py-3 text-sm font-black text-black hover:bg-white/90"
           >
-            Visi
+            {siteCountry === "DK" ? "Alle" : "Visi"}
           </Link>
         </div>
 
         {otherItems.length ? (
           <div className="mt-4 border-t border-white/10 pt-4">
-            <div className="mb-3 text-sm font-extrabold text-white/55">Kiti šio pardavėjo skelbimai</div>
+            <div className="mb-3 text-sm font-extrabold text-white/55">{siteCountry === "DK" ? "Andre annoncer fra denne sælger" : "Kiti šio pardavėjo skelbimai"}</div>
             <div className="grid gap-2 md:grid-cols-3">
               {otherItems.map((item) => (
                 <Link
@@ -143,7 +143,7 @@ export function SellerFloatingPanel() {
                     {item.imageUrls?.[0] ? <img src={item.imageUrls[0]} alt="" className="h-full w-full object-cover" /> : null}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-black text-white">{listingTitle(item)}</div>
+                    <div className="truncate text-sm font-black text-white">{listingTitle(item, siteCountry)}</div>
                     <div className="truncate text-xs font-bold text-white/45">{item.badge}</div>
                   </div>
                 </Link>

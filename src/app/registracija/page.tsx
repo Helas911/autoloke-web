@@ -53,7 +53,7 @@ export default function RegistracijaPage() {
             onChange={(e) => setEmail(e.target.value)}
             type="email"
             className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none"
-            placeholder="pvz. vardas@gmail.com"
+            placeholder={country === "DK" ? "fx navn@gmail.com" : "pvz. vardas@gmail.com"}
           />
         </Field>
 
@@ -78,7 +78,7 @@ export default function RegistracijaPage() {
           {busy ? t(country, "joining") : t(country, "registerGoogle")}
         </button>
 
-        <div className="text-center text-xs font-extrabold text-white/40">arba</div>
+        <div className="text-center text-xs font-extrabold text-white/40">{country === "DK" ? "eller" : "arba"}</div>
 
         <button disabled={busy} className="w-full rounded-2xl bg-white px-4 py-3 text-sm font-extrabold text-black hover:bg-white/90 disabled:opacity-60">
           {busy ? t(country, "creating") : t(country, "createAccount")}

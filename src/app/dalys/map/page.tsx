@@ -237,7 +237,7 @@ export default function PartsMapPage() {
               }}
               className="flex-1 rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-sm font-extrabold text-white/85 hover:bg-white/[0.08]"
             >
-              Išvalyti
+              {siteCountry === "DK" ? "Ryd" : "Išvalyti"}
             </button>
           </div>
 
@@ -251,13 +251,13 @@ export default function PartsMapPage() {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={a.imageUrls?.[0] || "/favicon.ico"} alt="" loading="lazy" decoding="async" className="h-10 w-14 rounded-xl object-cover" />
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-black">{a.title ?? "Detalė"}</div>
+                  <div className="truncate text-sm font-black">{a.title ?? (siteCountry === "DK" ? "Reservedel" : "Detalė")}</div>
                   <div className="truncate text-xs font-semibold text-white/55">{[a.city, a.brand, a.model].filter(Boolean).join(" • ")}</div>
                 </div>
                 <div className="text-sm font-black">{typeof a.price === "number" ? formatPrice(a.price, siteCountry) : "—"}</div>
               </button>
             ))}
-            {filtered.length === 0 ? <div className="p-4 text-sm font-semibold text-white/60">Nieko nerasta.</div> : null}
+            {filtered.length === 0 ? <div className="p-4 text-sm font-semibold text-white/60">{siteCountry === "DK" ? "Ingen resultater." : "Nieko nerasta."}</div> : null}
           </div>
         </aside>
       </div>

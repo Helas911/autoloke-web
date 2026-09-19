@@ -13,7 +13,7 @@ import { createFreeListingFields, createPendingListingPaymentFields, LISTING_ACT
 import { startListingPayment } from "@/lib/paymentClient";
 import { VEHICLE_CATEGORIES, VEHICLE_TYPES, type VehicleCategory } from "@/lib/categories";
 import { citySuggestions, getSiteCountry, getSiteCurrency, type SiteCountry } from "@/lib/site";
-import { categoryLabelLocalized, canonicalDriveOptions, canonicalFuelOptions, canonicalGearboxOptions, labelDrive, labelFuel, labelGearbox, otherLabel, t } from "@/lib/i18n";
+import { categoryLabelLocalized, canonicalDriveOptions, canonicalFuelOptions, canonicalGearboxOptions, labelDrive, labelFuel, labelGearbox, otherLabel, t, vehicleTypeLocalized } from "@/lib/i18n";
 import { brandsForCategory, modelsForBrand, type BrandCategory } from "@/lib/brands_models";
 
 type Mode = "transportas" | "dalys";
@@ -82,6 +82,7 @@ export default function IkeltiPage() {
   const cities = useMemo(() => citySuggestions(siteCountry), [siteCountry]);
   const otherText = useMemo(() => otherLabel(siteCountry), [siteCountry]);
   const currency = getSiteCurrency(siteCountry);
+  const isDk = siteCountry === "DK";
 
   useEffect(() => {
     if (brand !== OTHER) setBrandOther("");
@@ -101,7 +102,7 @@ export default function IkeltiPage() {
   function fillMyLocation() {
     setErr(null);
     if (!navigator.geolocation) {
-      setErr("Naršyklė nepalaiko vietos nustatymo.");
+      setErr(isDk ? "Din browser understøtter ikke placering." : "Naršyklė nepalaiko vietos nustatymo.");
       return;
     }
 
@@ -110,7 +111,7 @@ export default function IkeltiPage() {
         setLat(pos.coords.latitude.toFixed(6));
         setLng(pos.coords.longitude.toFixed(6));
       },
-      () => setErr("Nepavyko gauti vietos. Patikrink Location leidimus."),
+      () => setErr(isDk ? "Placeringen kunne ikke hentes. Kontrollér placeringstilladelserne." : "Nepavyko gauti vietos. Patikrink Location leidimus."),
       { enableHighAccuracy: true, timeout: 8000 }
     );
   }
@@ -138,7 +139,7 @@ export default function IkeltiPage() {
     setOkMsg(null);
 
     try {
-      if (!user) throw new Error("Prisijunk, kad galėtum įkelti skelbimą.");
+      if (!user) throw new Error(isDk ? "Log ind for at oprette en annonce." : "Prisijunk, kad galėtum įkelti skelbimą.");
 
       const p = Number(price);
       const y = year.trim() ? Number(year) : undefined;
@@ -148,12 +149,12 @@ export default function IkeltiPage() {
       const la = Number(lat);
       const ln = Number(lng);
 
-      if (!Number.isFinite(p)) throw new Error("Kaina turi būti skaičius.");
-      if (!Number.isFinite(la) || !Number.isFinite(ln)) throw new Error("Koordinatės turi būti skaičiai.");
-      if (year.trim() && !Number.isFinite(y)) throw new Error("Metai turi būti skaičius.");
-      if (mileage.trim() && !Number.isFinite(mi)) throw new Error("Rida turi būti skaičius.");
-      if (engineCapacity.trim() && !Number.isFinite(ec)) throw new Error("Variklio tūris turi būti skaičius.");
-      if (powerKw.trim() && !Number.isFinite(pk)) throw new Error("Galia turi būti skaičius.");
+      if (!Number.isFinite(p)) throw new Error(isDk ? "Prisen skal være et tal." : "Kaina turi būti skaičius.");
+      if (!Number.isFinite(la) || !Number.isFinite(ln)) throw new Error(isDk ? "Koordinaterne skal være tal." : "Koordinatės turi būti skaičiai.");
+      if (year.trim() && !Number.isFinite(y)) throw new Error(isDk ? "Året skal være et tal." : "Metai turi būti skaičius.");
+      if (mileage.trim() && !Number.isFinite(mi)) throw new Error(isDk ? "Kilometertallet skal være et tal." : "Rida turi būti skaičius.");
+      if (engineCapacity.trim() && !Number.isFinite(ec)) throw new Error(isDk ? "Motorvolumen skal være et tal." : "Variklio tūris turi būti skaičius.");
+      if (powerKw.trim() && !Number.isFinite(pk)) throw new Error(isDk ? "Effekten skal være et tal." : "Galia turi būti skaičius.");
 
       const finalBrand = effectiveBrand.trim() || undefined;
       const finalModel = effectiveModel.trim() || undefined;
@@ -188,7 +189,7 @@ export default function IkeltiPage() {
 
         const photos = await uploadPhotos("ads", docRef.id);
         await updateDoc(doc(db, "ads", docRef.id), photos);
-        setOkMsg("Skelbimas paruoštas. Nukreipiama į apmokėjimą...");
+        setOkMsg(isDk ? "Annoncen er klar. Du viderestilles til betaling..." : "Skelbimas paruoštas. Nukreipiama į apmokėjimą...");
         await startListingPayment({ collectionName: "ads", listingId: docRef.id });
       } else {
         const freeListingFields = createFreeListingFields();
@@ -213,27 +214,27 @@ export default function IkeltiPage() {
 
         const photos = await uploadPhotos("parts", docRef.id);
         await updateDoc(doc(db, "parts", docRef.id), photos);
-        setOkMsg("Detalių skelbimas įkeltas nemokamai ir jau yra aktyvus.");
+        setOkMsg(isDk ? "Reservedelsannoncen er oprettet gratis og er nu aktiv." : "Detalių skelbimas įkeltas nemokamai ir jau yra aktyvus.");
         setFiles([]);
         if (fileRef.current) fileRef.current.value = "";
       }
     } catch (e: any) {
-      setErr(e?.message || "Klaida įkeliant.");
+      setErr(e?.message || (isDk ? "Annoncen kunne ikke oprettes." : "Klaida įkeliant."));
     } finally {
       setBusy(false);
     }
   }
 
-  if (authLoading) return <main className="p-6 text-white">Kraunama...</main>;
+  if (authLoading) return <main className="p-6 text-white">{isDk ? "Indlæser..." : "Kraunama..."}</main>;
 
   if (!user) {
     return (
       <main className="mx-auto max-w-lg px-4 py-10 text-white">
         <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
-          <h1 className="text-2xl font-black">Pirmiausia prisijunk</h1>
-          <p className="mt-2 text-sm text-white/65">Tada skelbimas bus priskirtas tavo paskyrai ir galėsi jį redaguoti arba ištrinti.</p>
+          <h1 className="text-2xl font-black">{isDk ? "Log ind først" : "Pirmiausia prisijunk"}</h1>
+          <p className="mt-2 text-sm text-white/65">{isDk ? "Så knyttes annoncen til din konto, og du kan senere redigere eller slette den." : "Tada skelbimas bus priskirtas tavo paskyrai ir galėsi jį redaguoti arba ištrinti."}</p>
           <Link href="/prisijungti?next=/ikelti" className="mt-5 block rounded-2xl bg-white px-5 py-3 text-center font-black text-black">
-            Prisijungti ir tęsti
+            {isDk ? "Log ind og fortsæt" : "Prisijungti ir tęsti"}
           </Link>
         </div>
       </main>
@@ -247,8 +248,8 @@ export default function IkeltiPage() {
           <h1 className="text-lg font-black">{t(siteCountry, "uploadListing")}</h1>
           <p className="mt-1 text-sm font-semibold text-white/60">
             {mode === "transportas"
-              ? `Transporto skelbimas kainuoja ${LISTING_PRICE_EUR} € ir galioja ${LISTING_ACTIVE_DAYS} dienų. Nepratęsus, 31-ą dieną jis ištrinamas automatiškai.`
-              : "Detalių skelbimai yra nemokami, aktyvuojami iškart ir automatiškai ištrinami 31-ą dieną."}
+              ? (isDk ? `En køretøjsannonce koster ${LISTING_PRICE_EUR} € og er aktiv i ${LISTING_ACTIVE_DAYS} dage. Den slettes automatisk på dag 31, hvis den ikke fornyes.` : `Transporto skelbimas kainuoja ${LISTING_PRICE_EUR} € ir galioja ${LISTING_ACTIVE_DAYS} dienų. Nepratęsus, 31-ą dieną jis ištrinamas automatiškai.`)
+              : (isDk ? "Reservedelsannoncer er gratis, aktiveres med det samme og slettes automatisk på dag 31." : "Detalių skelbimai yra nemokami, aktyvuojami iškart ir automatiškai ištrinami 31-ą dieną.")}
           </p>
         </div>
 
@@ -280,7 +281,7 @@ export default function IkeltiPage() {
                 </select>
                 <select value={type} onChange={(e) => setType(e.target.value)} className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm text-white outline-none">
                   <option value="" style={optStyle}>{t(siteCountry, "vehicleTypePick")}</option>
-                  {VEHICLE_TYPES[category].map((item) => <option key={item} value={item} style={optStyle}>{item}</option>)}
+                  {VEHICLE_TYPES[category].map((item) => <option key={item} value={item} style={optStyle}>{vehicleTypeLocalized(item, siteCountry)}</option>)}
                 </select>
               </div>
 
@@ -300,7 +301,7 @@ export default function IkeltiPage() {
               />
 
               <div className="grid gap-2 sm:grid-cols-2">
-                <input value={price} onChange={(e) => setPrice(e.target.value)} placeholder={`Kaina (${currency})`} inputMode="numeric" className="input-pay" />
+                <input value={price} onChange={(e) => setPrice(e.target.value)} placeholder={`${isDk ? "Pris" : "Kaina"} (${currency})`} inputMode="numeric" className="input-pay" />
                 <input value={year} onChange={(e) => setYear(e.target.value)} placeholder={t(siteCountry, "year")} inputMode="numeric" className="input-pay" />
                 <input value={mileage} onChange={(e) => setMileage(e.target.value)} placeholder={t(siteCountry, "mileage")} inputMode="numeric" className="input-pay" />
                 <select value={gearbox} onChange={(e) => setGearbox(e.target.value)} className="input-pay">
@@ -336,7 +337,7 @@ export default function IkeltiPage() {
                 setBrandOther={setBrandOther}
                 setModelOther={setModelOther}
               />
-              <input value={price} onChange={(e) => setPrice(e.target.value)} placeholder={`Kaina (${currency})`} inputMode="numeric" className="input-pay" />
+              <input value={price} onChange={(e) => setPrice(e.target.value)} placeholder={`${isDk ? "Pris" : "Kaina"} (${currency})`} inputMode="numeric" className="input-pay" />
             </div>
           )}
 
@@ -350,9 +351,9 @@ export default function IkeltiPage() {
 
           <div className="mt-4 rounded-2xl border border-white/10 bg-black/25 p-3">
             <div className="mb-2 flex items-center justify-between gap-2">
-              <div className="text-sm font-black">Vieta</div>
+              <div className="text-sm font-black">{isDk ? "Placering" : "Vieta"}</div>
               <button type="button" onClick={fillMyLocation} className="rounded-full border border-white/12 bg-white/5 px-3 py-1 text-xs font-extrabold text-white/85 hover:bg-white/10">
-                📍 Paimti mano vietą
+                📍 {isDk ? "Brug min placering" : "Paimti mano vietą"}
               </button>
             </div>
             <div className="grid gap-2 sm:grid-cols-2">
@@ -366,9 +367,9 @@ export default function IkeltiPage() {
           <div className="mb-2 flex items-center justify-between">
             <div>
               <div className="text-sm font-black">{t(siteCountry, "uploadPhotos")}</div>
-              <div className="text-xs text-white/60">Reikia bent vienos nuotraukos</div>
+              <div className="text-xs text-white/60">{isDk ? "Mindst ét billede kræves" : "Reikia bent vienos nuotraukos"}</div>
             </div>
-            <button type="button" onClick={() => fileRef.current?.click()} className="rounded-full bg-white px-4 py-2 text-sm font-black text-black hover:bg-white/90">➕ Pasirinkti</button>
+            <button type="button" onClick={() => fileRef.current?.click()} className="rounded-full bg-white px-4 py-2 text-sm font-black text-black hover:bg-white/90">➕ {isDk ? "Vælg" : "Pasirinkti"}</button>
             <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => setFiles(Array.from(e.target.files || []))} />
           </div>
 
@@ -378,16 +379,16 @@ export default function IkeltiPage() {
 
           <div className="mt-4 rounded-2xl border border-yellow-400/25 bg-yellow-500/10 p-3 text-sm font-semibold text-yellow-50">
             {mode === "transportas"
-              ? "Skelbimas taps aktyvus po 1 € apmokėjimo ir bus rodomas 30 dienų."
-              : "Detalių skelbimas bus įkeltas nemokamai, taps aktyvus iškart ir bus ištrintas 31-ą dieną."}
+              ? (isDk ? "Annoncen bliver aktiv efter betaling af 1 € og vises i 30 dage." : "Skelbimas taps aktyvus po 1 € apmokėjimo ir bus rodomas 30 dienų.")
+              : (isDk ? "Reservedelsannoncen oprettes gratis, bliver aktiv med det samme og slettes på dag 31." : "Detalių skelbimas bus įkeltas nemokamai, taps aktyvus iškart ir bus ištrintas 31-ą dieną.")}
           </div>
 
           <div className="mt-4 grid gap-2">
             <button type="button" onClick={submit} disabled={!canSubmit || busy} className={cls("w-full rounded-2xl px-4 py-3 text-sm font-black", canSubmit && !busy ? "bg-white text-black hover:bg-white/90" : "bg-white/20 text-white/50")}>
-              {busy ? "Keliama..." : mode === "transportas" ? `Apmokėti ${LISTING_PRICE_EUR} € ir įkelti` : "Įkelti nemokamai"}
+              {busy ? (isDk ? "Opretter..." : "Keliama...") : mode === "transportas" ? (isDk ? `Betal ${LISTING_PRICE_EUR} € og opret` : `Apmokėti ${LISTING_PRICE_EUR} € ir įkelti`) : (isDk ? "Opret gratis" : "Įkelti nemokamai")}
             </button>
             <button type="button" onClick={() => { setFiles([]); if (fileRef.current) fileRef.current.value = ""; }} className="w-full rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-sm font-extrabold text-white/85 hover:bg-white/10">
-              Išvalyti foto
+              {isDk ? "Fjern billeder" : "Išvalyti foto"}
             </button>
             {err ? <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-100">{err}</div> : null}
             {okMsg ? <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/10 p-3 text-sm text-emerald-100">{okMsg}</div> : null}
@@ -423,7 +424,7 @@ function BrandModelFields(props: {
       </select>
       {props.brand === OTHER ? <input value={props.brandOther} onChange={(e) => props.setBrandOther(e.target.value)} placeholder={t(props.siteCountry, "enterBrand")} className="input-pay" /> : null}
       <select value={props.model} onChange={(e) => props.setModel(e.target.value)} disabled={!effectiveBrand} className="input-pay disabled:opacity-45">
-        <option value="" style={optStyle}>{effectiveBrand ? "Modelis" : t(props.siteCountry, "modelFirstBrand")}</option>
+        <option value="" style={optStyle}>{effectiveBrand ? (props.siteCountry === "DK" ? "Model" : "Modelis") : t(props.siteCountry, "modelFirstBrand")}</option>
         {props.models.map((m) => <option key={m} value={m} style={optStyle}>{m}</option>)}
         {effectiveBrand ? <option value={OTHER} style={optStyle}>{props.otherText}</option> : null}
       </select>

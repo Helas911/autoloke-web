@@ -2,6 +2,8 @@
 
 import { VEHICLE_CATEGORIES, type VehicleCategory } from "@/lib/categories";
 import { cls } from "@/lib/format";
+import { getSiteCountry } from "@/lib/site";
+import { categoryLabelLocalized } from "@/lib/i18n";
 
 export function CategoryTabs({
   value,
@@ -10,6 +12,7 @@ export function CategoryTabs({
   value: VehicleCategory;
   onChange: (v: VehicleCategory) => void;
 }) {
+  const country = getSiteCountry();
   return (
     <div className="no-scrollbar flex gap-2 overflow-x-auto pb-1">
       {VEHICLE_CATEGORIES.map((c) => {
@@ -26,7 +29,7 @@ export function CategoryTabs({
             )}
           >
             <span className="text-base">{c.icon}</span>
-            <span>{c.label}</span>
+            <span>{categoryLabelLocalized(c.id, country)}</span>
           </button>
         );
       })}

@@ -63,26 +63,26 @@ export default function SellerPage() {
       .filter((x) => normalizeItemCountry(x.country) === siteCountry)
       .filter((x) => isPublicPaidListing(x))
       .filter((x) => isSameSeller(x, sellerId))
-      .map((x) => ({ ...x, href: `/transportas/${x.id}`, badge: "Transportas" }));
+      .map((x) => ({ ...x, href: `/transportas/${x.id}`, badge: siteCountry === "DK" ? "Køretøj" : "Transportas" }));
 
     const partItems = parts
       .filter((x) => normalizeItemCountry(x.country) === siteCountry)
       .filter((x) => isPublicFreeOrPaidListing(x))
       .filter((x) => isSameSeller(x, sellerId))
-      .map((x) => ({ ...x, href: `/dalys/${x.id}`, badge: "Dalys" }));
+      .map((x) => ({ ...x, href: `/dalys/${x.id}`, badge: siteCountry === "DK" ? "Reservedele" : "Dalys" }));
 
     return [...transport, ...partItems];
   }, [ads, parts, sellerId, siteCountry]);
 
   const seller = allItems[0];
-  const sellerName = seller ? getSellerName(seller) : "Pardavėjas";
+  const sellerName = seller ? getSellerName(seller) : (siteCountry === "DK" ? "Sælger" : "Pardavėjas");
   const sellerCity = seller ? getSellerCity(seller) : "";
   const sellerPhone = seller ? getSellerPhone(seller) : "";
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-6">
       <Link href="/" className="text-sm font-extrabold text-white/80 hover:text-white">
-        ← Atgal
+        ← {siteCountry === "DK" ? "Tilbage" : "Atgal"}
       </Link>
 
       <div className="mt-4 rounded-3xl border border-white/10 bg-white/[0.03] p-6">
@@ -95,7 +95,7 @@ export default function SellerPage() {
               📞 <a href={`tel:${sellerPhone}`} className="font-bold text-white">{sellerPhone}</a>
             </div>
           ) : null}
-          <div>📢 Skelbimų kiekis: {allItems.length}</div>
+          <div>📢 {siteCountry === "DK" ? "Antal annoncer" : "Skelbimų kiekis"}: {allItems.length}</div>
         </div>
       </div>
 
@@ -104,7 +104,7 @@ export default function SellerPage() {
           <LocalListingRow
             key={`${item.badge}-${item.id}`}
             href={item.href}
-            title={item.title || [item.brand, item.model].filter(Boolean).join(" ") || "Skelbimas"}
+            title={item.title || [item.brand, item.model].filter(Boolean).join(" ") || (siteCountry === "DK" ? "Annonce" : "Skelbimas")}
             subtitle={item.city}
             price={typeof item.price === "number" ? item.price : null}
             img={item.imageUrls?.[0] || null}
@@ -115,7 +115,7 @@ export default function SellerPage() {
 
         {allItems.length === 0 ? (
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 text-white/70">
-            Šis pardavėjas kol kas neturi aktyvių skelbimų.
+            {siteCountry === "DK" ? "Denne sælger har endnu ingen aktive annoncer." : "Šis pardavėjas kol kas neturi aktyvių skelbimų."}
           </div>
         ) : null}
       </section>

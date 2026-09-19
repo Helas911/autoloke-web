@@ -258,7 +258,7 @@ export default function TransportMapPage() {
             >
               {CAT_OPTIONS.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.label}
+                  {categoryLabelLocalized(c.id, siteCountry)}
                 </option>
               ))}
             </select>
@@ -266,7 +266,7 @@ export default function TransportMapPage() {
             <input
               value={qText}
               onChange={(e) => setQText(e.target.value)}
-              placeholder="Paieška (Audi A6, Vilnius...)"
+              placeholder={siteCountry === "DK" ? "Søgning (Audi A6, København...)" : "Paieška (Audi A6, Vilnius...)"}
               className="rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-sm font-extrabold text-white/90 outline-none placeholder:text-white/40"
             />
 
@@ -275,7 +275,7 @@ export default function TransportMapPage() {
               onChange={(e) => setBrand(e.target.value)}
               className="rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-sm font-extrabold outline-none"
             >
-              <option value="">Markė (visos)</option>
+              <option value="">{t(siteCountry, "brandAll")}</option>
               {brands.map((b) => (
                 <option key={b} value={b}>
                   {b}
@@ -292,7 +292,7 @@ export default function TransportMapPage() {
                 !brand && "opacity-60"
               )}
             >
-              <option value="">{brand ? "Modelis (visi)" : "Modelis (pirma markė)"}</option>
+              <option value="">{brand ? t(siteCountry, "modelAll") : t(siteCountry, "modelFirstBrand")}</option>
               {models.map((m) => (
                 <option key={m} value={m}>
                   {m}
@@ -302,8 +302,8 @@ export default function TransportMapPage() {
 
             <input value={priceFrom} onChange={(e) => setPriceFrom(e.target.value)} inputMode="numeric" className="rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-sm font-extrabold outline-none placeholder:text-white/40" placeholder={t(siteCountry, "priceFrom")} />
             <input value={priceTo} onChange={(e) => setPriceTo(e.target.value)} inputMode="numeric" className="rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-sm font-extrabold outline-none placeholder:text-white/40" placeholder={t(siteCountry, "priceTo")} />
-            <input value={yearFrom} onChange={(e) => setYearFrom(e.target.value)} inputMode="numeric" className="rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-sm font-extrabold outline-none placeholder:text-white/40" placeholder="Metai nuo" />
-            <input value={yearTo} onChange={(e) => setYearTo(e.target.value)} inputMode="numeric" className="rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-sm font-extrabold outline-none placeholder:text-white/40" placeholder="Metai iki" />
+            <input value={yearFrom} onChange={(e) => setYearFrom(e.target.value)} inputMode="numeric" className="rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-sm font-extrabold outline-none placeholder:text-white/40" placeholder={t(siteCountry, "yearFrom")} />
+            <input value={yearTo} onChange={(e) => setYearTo(e.target.value)} inputMode="numeric" className="rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-sm font-extrabold outline-none placeholder:text-white/40" placeholder={t(siteCountry, "yearTo")} />
             <input value={city} onChange={(e) => setCity(e.target.value)} className="col-span-2 rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-sm font-extrabold outline-none placeholder:text-white/40" placeholder={t(siteCountry, "city")} />
           </div>
 
@@ -322,7 +322,7 @@ export default function TransportMapPage() {
               }}
               className="flex-1 rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-sm font-extrabold text-white/85 hover:bg-white/[0.08]"
             >
-              Išvalyti
+              {t(siteCountry, "clear")}
             </button>
           </div>
 
@@ -336,14 +336,14 @@ export default function TransportMapPage() {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={a.imageUrls?.[0] || "/favicon.ico"} alt="" loading="lazy" decoding="async" className="h-10 w-14 rounded-xl object-cover" />
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-black">{`${a.brand ?? ""} ${a.model ?? ""}`.trim() || "Skelbimas"}</div>
+                  <div className="truncate text-sm font-black">{`${a.brand ?? ""} ${a.model ?? ""}`.trim() || (siteCountry === "DK" ? "Annonce" : "Skelbimas")}</div>
                   <div className="truncate text-xs font-semibold text-white/55">{[a.city, a.year].filter(Boolean).join(" • ")}</div>
                 </div>
                 <div className="text-sm font-black">{typeof a.price === "number" ? formatPrice(a.price, siteCountry) : "—"}</div>
               </button>
             ))}
             {filtered.length === 0 ? (
-              <div className="p-4 text-sm font-semibold text-white/60">Nieko nerasta.</div>
+              <div className="p-4 text-sm font-semibold text-white/60">{siteCountry === "DK" ? "Ingen resultater." : "Nieko nerasta."}</div>
             ) : null}
           </div>
         </aside>

@@ -17,6 +17,7 @@ export type UnifiedSearchItem = {
 };
 
 export function UnifiedSearchCard({ item }: { item: UnifiedSearchItem }) {
+  const isDk = item.country === "DK";
   const content = (
     <div className={cls(
       "group overflow-hidden rounded-3xl border shadow-sm transition hover:-translate-y-0.5",
@@ -29,7 +30,7 @@ export function UnifiedSearchCard({ item }: { item: UnifiedSearchItem }) {
           <img src={item.img} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover transition group-hover:scale-[1.02]" />
         ) : (
           <div className="grid h-full w-full place-items-center px-4 text-center text-xs font-extrabold text-white/40">
-            {item.external ? "Atidaryti originalų skelbimą" : "Nuotraukos nėra"}
+            {item.external ? (isDk ? "Åbn den originale annonce" : "Atidaryti originalų skelbimą") : (isDk ? "Intet billede" : "Nuotraukos nėra")}
           </div>
         )}
         <div className={cls(
@@ -47,12 +48,12 @@ export function UnifiedSearchCard({ item }: { item: UnifiedSearchItem }) {
 
       <div className="p-4">
         <div className="line-clamp-2 min-h-[2.7rem] text-sm font-black text-white">{item.title}</div>
-        <div className="mt-1 line-clamp-1 text-xs font-extrabold text-white/55">{item.subtitle || (item.external ? "Išorinis skelbimas" : "Autoloke")}</div>
+        <div className="mt-1 line-clamp-1 text-xs font-extrabold text-white/55">{item.subtitle || (item.external ? (isDk ? "Ekstern annonce" : "Išorinis skelbimas") : "Autoloke")}</div>
         <div className="mt-3 flex items-center justify-between gap-3">
           <div className={cls("text-base font-black", item.external ? "text-orange-200" : "text-white")}>
-            {item.priceText || (typeof item.price === "number" ? formatPrice(item.price, item.country) : "Žiūrėti skelbimą")}
+            {item.priceText || (typeof item.price === "number" ? formatPrice(item.price, item.country) : (isDk ? "Se annonce" : "Žiūrėti skelbimą"))}
           </div>
-          <div className="text-[11px] font-extrabold text-white/45">{item.external ? "Naujas langas ↗" : "Autoloke"}</div>
+          <div className="text-[11px] font-extrabold text-white/45">{item.external ? (isDk ? "Nyt vindue ↗" : "Naujas langas ↗") : "Autoloke"}</div>
         </div>
       </div>
     </div>

@@ -15,7 +15,7 @@ import { cls } from "@/lib/format";
 import { bubbleIcon } from "@/lib/mapMarkers";
 import { isPublicFreeOrPaidListing, isPublicPaidListing } from "@/lib/billing";
 import { citySuggestions, getSiteCenter, getSiteCountry, normalizeItemCountry, priceShort, type SiteCountry } from "@/lib/site";
-import { categoryLabelLocalized, canonicalDriveOptions, canonicalFuelOptions, canonicalGearboxOptions, labelDrive, labelFuel, labelGearbox, otherLabel, t } from "@/lib/i18n";
+import { categoryLabelLocalized, canonicalDriveOptions, canonicalFuelOptions, canonicalGearboxOptions, labelDrive, labelFuel, labelGearbox, otherLabel, t, vehicleTypeLocalized } from "@/lib/i18n";
 import { VEHICLE_CATEGORIES, VEHICLE_TYPES, type VehicleCategory } from "@/lib/categories";
 import { brandsForCategory, modelsForBrand, type BrandCategory } from "@/lib/brands_models";
 
@@ -64,14 +64,20 @@ function toBrandCategory(cat: VehicleCategory): BrandCategory {
 
 const OTHER = "__other__";
 
-function buildTitle(i: Item, tab: Tab) {
-  if (tab === "dalys") return i.title?.trim() || "Dalys";
+function buildTitle(i: Item, tab: Tab, country: SiteCountry) {
+  if (tab === "dalys") return i.title?.trim() || (country === "DK" ? "Reservedele" : "Dalys");
   const t = [i.brand, i.model].filter(Boolean).join(" ");
-  return t || "Transportas";
+  return t || (country === "DK" ? "Køretøj" : "Transportas");
 }
 
-function buildSubtitle(i: Item) {
-  const bits = [i.city, typeof i.year === "number" ? String(i.year) : undefined, i.type].filter(Boolean);
+function buildSubtitle(i: Item, country: SiteCountry) {
+  const bits = [
+    i.city,
+    typeof i.year === "number" ? String(i.year) : undefined,
+    i.type ? vehicleTypeLocalized(i.type, country) : undefined,
+    i.fuel ? labelFuel(i.fuel, country) : undefined,
+    i.gearbox ? labelGearbox(i.gearbox, country) : undefined,
+  ].filter(Boolean);
   return bits.join(" • ");
 }
 
@@ -465,7 +471,7 @@ export default function Home() {
                 >
                   <option value="" style={optStyle}>{t(siteCountry, "typeAll")}</option>
                   {VEHICLE_TYPES[cat].map((t) => (
-                    <option key={t} value={t} style={optStyle}>{t}</option>
+                    <option key={t} value={t} style={optStyle}>{vehicleTypeLocalized(t, siteCountry)}</option>
                   ))}
                 </select>
               ) : null}
@@ -683,8 +689,8 @@ export default function Home() {
               <LocalListingRow
                 key={i.id}
                 href={tab === "transportas" ? `/transportas/${i.id}` : `/dalys/${i.id}`}
-                title={buildTitle(i, tab)}
-                subtitle={buildSubtitle(i)}
+                title={buildTitle(i, tab, siteCountry)}
+                subtitle={buildSubtitle(i, siteCountry)}
                 price={typeof i.price === "number" ? i.price : null}
                 img={i.imageUrls?.[0] || null}
                 badge={tab === "transportas" ? (i.category ? categoryLabelLocalized(String(i.category), siteCountry) : t(siteCountry, "transport")) : t(siteCountry, "parts")}
@@ -705,10 +711,10 @@ export default function Home() {
           <section className="mt-8">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
-                <h2 className="text-lg font-black text-white">Iš kitų portalų</h2>
+                <h2 className="text-lg font-black text-white">{siteCountry === "DK" ? "Fra andre portaler" : "Iš kitų portalų"}</h2>
                 <div className="text-xs font-extrabold text-white/55">Autoplius, Autogidas, Autobilis, Autosel, Autobonus</div>
               </div>
-              {externalLoading ? <div className="text-xs font-extrabold text-orange-200">Ieškoma…</div> : null}
+              {externalLoading ? <div className="text-xs font-extrabold text-orange-200">{siteCountry === "DK" ? "Søger…" : "Ieškoma…"}</div> : null}
             </div>
 
             {externalItems.length ? (
@@ -719,7 +725,7 @@ export default function Home() {
               </div>
             ) : !externalLoading ? (
               <div className="rounded-3xl border border-white/10 bg-white/[0.03] px-4 py-5 text-sm font-extrabold text-white/60">
-                Išorinių rezultatų nerasta pagal dabartinę užklausą.
+                {siteCountry === "DK" ? "Der blev ikke fundet eksterne resultater for den aktuelle søgning." : "Išorinių rezultatų nerasta pagal dabartinę užklausą."}
               </div>
             ) : null}
           </section>

@@ -200,17 +200,23 @@ const categoryLabels = {
     automobiliai: "Auto",
     automobiliuNuoma: "Automobilių nuoma",
     motociklai: "Motociklai",
+    dviraciai: "Dviračiai",
     sunkvezimiai: "Sunkvežimiai",
     vandensTransportas: "Vandens",
+    vandens: "Vandens",
     zemesUkioTechnika: "Ž.Ū. technika",
+    zu_technika: "Ž.Ū. technika",
   },
   DK: {
     automobiliai: "Biler",
     automobiliuNuoma: "Biludlejning",
     motociklai: "Motorcykler",
+    dviraciai: "Cykler",
     sunkvezimiai: "Lastbiler",
     vandensTransportas: "Vand",
+    vandens: "Vandfartøjer",
     zemesUkioTechnika: "Landbrug",
+    zu_technika: "Landbrugsmaskiner",
   },
 } as const;
 
@@ -251,6 +257,59 @@ export function labelDrive(value: string, country: SiteCountry) {
 }
 export function labelGearbox(value: string, country: SiteCountry) {
   return gearboxLabels[value]?.[country] || value;
+}
+
+const vehicleTypeDk: Record<string, string> = {
+  "Sedanas": "Sedan",
+  "Universalas": "Stationcar",
+  "Hečbekas": "Hatchback",
+  "Visureigis": "SUV",
+  "Kupė": "Coupé",
+  "Kabrioletas": "Cabriolet",
+  "Vienatūris": "MPV",
+  "Komercinis": "Erhvervskøretøj",
+  "Lengvieji automobiliai": "Personbiler",
+  "Visureigiai": "SUV'er",
+  "Mikroautobusai": "Minibusser",
+  "Komerciniai automobiliai": "Erhvervsbiler",
+  "Prabangūs automobiliai": "Luksusbiler",
+  "Automobiliai su vairuotoju": "Biler med chauffør",
+  "Ilgalaikė nuoma": "Langtidsleje",
+  "Trumpalaikė nuoma": "Korttidsleje",
+  "Keturračiai": "ATV'er",
+  "Krosiniai": "Crossmotorcykler",
+  "Kelioniniai": "Touringmotorcykler",
+  "Sportiniai": "Sportsmotorcykler",
+  "Čioperiai": "Choppere",
+  "Motoroleriai": "Scootere",
+  "Dviračiai": "Cykler",
+  "Elektriniai dviračiai": "Elcykler",
+  "Kalnų dviračiai": "Mountainbikes",
+  "Miesto dviračiai": "Bycykler",
+  "Plento dviračiai": "Racercykler",
+  "Paspirtukai": "Løbehjul",
+  "Elektriniai paspirtukai": "El-løbehjul",
+  "Dalys": "Reservedele",
+  "Vilkikai": "Lastbilstrækkere",
+  "Sunkvežimiai": "Lastbiler",
+  "Autobusai": "Busser",
+  "Priekabos": "Trailere",
+  "Speciali technika": "Specialkøretøjer",
+  "Valtys": "Både",
+  "Kateriai": "Motorbåde",
+  "Jachtos": "Yachter",
+  "Vandens motociklai": "Jetski",
+  "Varikliai": "Motorer",
+  "Traktoriai": "Traktorer",
+  "Kombainai": "Mejetærskere",
+  "Padargai": "Redskaber",
+  "Krautuvai": "Læssemaskiner",
+  "Miškininkystės": "Skovbrugsmaskiner",
+  "Kita": "Andet",
+};
+
+export function vehicleTypeLocalized(value: string, country: SiteCountry) {
+  return country === "DK" ? vehicleTypeDk[value] || value : value;
 }
 
 export const canonicalFuelOptions = Object.keys(fuelLabels);

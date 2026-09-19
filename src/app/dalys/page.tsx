@@ -53,7 +53,7 @@ export default function DalysPage() {
         <div>
           <h1 className="text-2xl font-black">{t(siteCountry, "parts")}</h1>
           <div className="mt-1 text-sm font-extrabold text-white/60">
-            Detalių skelbimai nemokami ir ištrinami 31-ą dieną: <b>parts</b>
+            {siteCountry === "DK" ? "Reservedelsannoncer er gratis og slettes på dag 31." : "Detalių skelbimai nemokami ir ištrinami 31-ą dieną."}
           </div>
         </div>
         <nav className="flex flex-wrap items-center gap-2">

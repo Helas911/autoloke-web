@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { getSiteCountry } from '@/lib/site';
 
 type MoveDir = -1 | 1;
 
@@ -19,6 +20,7 @@ export default function PhotoGallery({
   onMove?: (index: number, dir: MoveDir) => void | Promise<void>;
   onReplace?: (index: number, file: File) => void | Promise<void>;
 }) {
+  const isDk = getSiteCountry() === 'DK';
   const list = useMemo(() => (Array.isArray(images) ? images.filter(Boolean) : []), [images]);
   const [open, setOpen] = useState(false);
   const [idx, setIdx] = useState(0);
@@ -32,7 +34,7 @@ export default function PhotoGallery({
   if (!list.length) {
     return (
       <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 text-white/70">
-        Nuotraukų nėra.
+        {isDk ? 'Ingen billeder.' : 'Nuotraukų nėra.'}
       </div>
     );
   }
@@ -90,10 +92,10 @@ export default function PhotoGallery({
       <button
         className="relative block w-full overflow-hidden rounded-2xl border border-white/10 bg-black/40"
         onClick={() => setOpen(true)}
-        title="Atidaryti"
+        title={isDk ? 'Åbn' : 'Atidaryti'}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={current} alt="Nuotrauka" loading="eager" decoding="async" className="aspect-[16/9] w-full object-cover" />
+        <img src={current} alt={isDk ? 'Billede' : 'Nuotrauka'} loading="eager" decoding="async" className="aspect-[16/9] w-full object-cover" />
         <div className="absolute left-3 top-3 rounded-full bg-black/60 px-3 py-1 text-xs font-extrabold text-white/90">
           {idx + 1}/{list.length}
         </div>
@@ -109,10 +111,10 @@ export default function PhotoGallery({
               'relative h-16 w-24 flex-none overflow-hidden rounded-xl border ' +
               (i === idx ? 'border-white/50' : 'border-white/10 hover:border-white/30')
             }
-            title={i === 0 ? 'Pagrindinė' : 'Pasirinkti'}
+            title={i === 0 ? (isDk ? 'Primært billede' : 'Pagrindinė') : (isDk ? 'Vælg' : 'Pasirinkti')}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={u} alt={'Nuotrauka ' + (i + 1)} loading="lazy" decoding="async" className="h-full w-full object-cover" />
+            <img src={u} alt={(isDk ? 'Billede ' : 'Nuotrauka ') + (i + 1)} loading="lazy" decoding="async" className="h-full w-full object-cover" />
             {i === 0 && (
               <div className="absolute left-1 top-1 rounded-md bg-black/70 px-1.5 py-0.5 text-[10px] font-extrabold text-white">
                 ★
@@ -129,9 +131,9 @@ export default function PhotoGallery({
             onClick={doPrimary}
             disabled={!onSetPrimary || idx === 0}
             className="rounded-full border border-white/12 bg-white/[0.04] px-4 py-2 text-xs font-extrabold text-white/85 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-40"
-            title="Padaryti pagrindine"
+            title={isDk ? 'Gør til primært billede' : 'Padaryti pagrindine'}
           >
-            ★ Pagrindinė
+            ★ {isDk ? 'Primært billede' : 'Pagrindinė'}
           </button>
 
           <button
@@ -139,7 +141,7 @@ export default function PhotoGallery({
             disabled={!onReplace}
             className="rounded-full border border-white/12 bg-white/[0.04] px-4 py-2 text-xs font-extrabold text-white/85 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Keisti
+            {isDk ? 'Udskift' : 'Keisti'}
           </button>
 
           <button
@@ -147,7 +149,7 @@ export default function PhotoGallery({
             disabled={!onDelete}
             className="rounded-full border border-red-500/30 bg-red-500/10 px-4 py-2 text-xs font-extrabold text-red-100 hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Ištrinti
+            {isDk ? 'Slet' : 'Ištrinti'}
           </button>
 
           <div className="flex-1" />
@@ -156,7 +158,7 @@ export default function PhotoGallery({
             onClick={() => doMove(-1)}
             disabled={!canMoveLeft}
             className="rounded-full border border-white/12 bg-white/[0.04] px-3 py-2 text-xs font-extrabold text-white/85 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-40"
-            title="Perkelti kairėn"
+            title={isDk ? 'Flyt til venstre' : 'Perkelti kairėn'}
           >
             ←
           </button>
@@ -164,7 +166,7 @@ export default function PhotoGallery({
             onClick={() => doMove(1)}
             disabled={!canMoveRight}
             className="rounded-full border border-white/12 bg-white/[0.04] px-3 py-2 text-xs font-extrabold text-white/85 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-40"
-            title="Perkelti dešinėn"
+            title={isDk ? 'Flyt til højre' : 'Perkelti dešinėn'}
           >
             →
           </button>
@@ -193,7 +195,7 @@ export default function PhotoGallery({
               className="absolute right-3 top-3 rounded-full bg-black/60 px-3 py-2 text-xs font-extrabold text-white/90 hover:bg-black/75"
               onClick={() => setOpen(false)}
             >
-              Uždaryti
+              {isDk ? 'Luk' : 'Uždaryti'}
             </button>
 
             <div className="absolute left-3 top-3 rounded-full bg-black/60 px-3 py-2 text-xs font-extrabold text-white/90">
@@ -216,7 +218,7 @@ export default function PhotoGallery({
             </button>
 
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={current} alt="Nuotrauka" loading="eager" decoding="async" className="max-h-[80vh] w-full object-contain" />
+            <img src={current} alt={isDk ? 'Billede' : 'Nuotrauka'} loading="eager" decoding="async" className="max-h-[80vh] w-full object-contain" />
 
             {editable && (
               <div className="border-t border-white/10 bg-black/70 p-3">
@@ -226,21 +228,21 @@ export default function PhotoGallery({
                     disabled={!onSetPrimary || idx === 0}
                     className="rounded-full border border-white/12 bg-white/[0.04] px-4 py-2 text-xs font-extrabold text-white/85 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    ★ Pagrindinė
+                    ★ {isDk ? 'Primært billede' : 'Pagrindinė'}
                   </button>
                   <button
                     onClick={pickReplace}
                     disabled={!onReplace}
                     className="rounded-full border border-white/12 bg-white/[0.04] px-4 py-2 text-xs font-extrabold text-white/85 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    Keisti
+                    {isDk ? 'Udskift' : 'Keisti'}
                   </button>
                   <button
                     onClick={doDelete}
                     disabled={!onDelete}
                     className="rounded-full border border-red-500/30 bg-red-500/10 px-4 py-2 text-xs font-extrabold text-red-100 hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    Ištrinti
+                    {isDk ? 'Slet' : 'Ištrinti'}
                   </button>
                   <div className="flex-1" />
                   <button

@@ -11,6 +11,7 @@ import { deleteFile, deleteFolder, uploadImage } from "@/lib/upload";
 import PhotoGallery from "@/components/gallery/PhotoGallery";
 import { formatPrice } from "@/lib/format";
 import { getSiteCountry, normalizeItemCountry, type SiteCountry } from "@/lib/site";
+import { categoryLabelLocalized, labelDrive, labelFuel, labelGearbox, vehicleTypeLocalized } from "@/lib/i18n";
 
 type Ad = {
   id: string;
@@ -54,6 +55,7 @@ export default function TransportDetailPage() {
   const id = params?.id;
 
   const [siteCountry, setSiteCountry] = useState<SiteCountry>("LT");
+  const tx = (da: string, lt: string) => siteCountry === "DK" ? da : lt;
   const [data, setData] = useState<Ad | null>(null);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -134,9 +136,9 @@ export default function TransportDetailPage() {
       next.engineCapacity = eEngineCapacity.trim() ? Number(eEngineCapacity.replace(",", ".")) : undefined;
       next.powerKw = ePowerKw.trim() ? Number(ePowerKw) : undefined;
       await updateDoc(doc(db, "ads", id), next);
-      setMsg("Išsaugota ✅");
+      setMsg(tx("Gemt ✅", "Išsaugota ✅"));
     } catch (e: any) {
-      setErr(e?.message || "Klaida saugant.");
+      setErr(e?.message || tx("Kunne ikke gemme.", "Klaida saugant."));
     } finally {
       setSaving(false);
     }
@@ -162,9 +164,9 @@ export default function TransportDetailPage() {
       }
       await updateDoc(doc(db, "ads", id), { imageUrls, imagePaths });
       setNewFiles([]);
-      setMsg("Nuotraukos atnaujintos ✅");
+      setMsg(tx("Billederne er opdateret ✅", "Nuotraukos atnaujintos ✅"));
     } catch (e: any) {
-      setErr(e?.message || "Klaida atnaujinant nuotraukas.");
+      setErr(e?.message || tx("Billederne kunne ikke opdateres.", "Klaida atnaujinant nuotraukas."));
     } finally {
       setSaving(false);
     }
@@ -196,9 +198,9 @@ export default function TransportDetailPage() {
     } else {
       await updateDoc(doc(db, "ads", id), { imageUrls: urls });
     }
-    setMsg("Pagrindinė nuotrauka pakeista ✅");
+    setMsg(tx("Det primære billede er ændret ✅", "Pagrindinė nuotrauka pakeista ✅"));
   } catch (e: any) {
-    setErr(e?.message || "Klaida keičiant pagrindinę nuotrauką.");
+    setErr(e?.message || tx("Det primære billede kunne ikke ændres.", "Klaida keičiant pagrindinę nuotrauką."));
   } finally {
     setSaving(false);
   }
@@ -206,7 +208,7 @@ export default function TransportDetailPage() {
 
 async function deleteOnePhoto(index: number) {
   if (!id || !isOwner || !data?.imageUrls?.length) return;
-  if (!confirm("Ištrinti šią nuotrauką?")) return;
+  if (!confirm(tx("Vil du slette dette billede?", "Ištrinti šią nuotrauką?"))) return;
 
   const urls = [...(data.imageUrls || [])];
   const url = urls[index];
@@ -236,9 +238,9 @@ async function deleteOnePhoto(index: number) {
       await updateDoc(doc(db, "ads", id), { imageUrls: urls });
     }
 
-    setMsg("Nuotrauka ištrinta ✅");
+    setMsg(tx("Billedet er slettet ✅", "Nuotrauka ištrinta ✅"));
   } catch (e: any) {
-    setErr(e?.message || "Klaida trinant nuotrauką.");
+    setErr(e?.message || tx("Billedet kunne ikke slettes.", "Klaida trinant nuotrauką."));
   } finally {
     setSaving(false);
   }
@@ -322,7 +324,7 @@ async function deleteOnePhoto(index: number) {
     if (!p) return;
     try {
       await navigator.clipboard.writeText(p);
-      setMsg("Telefono numeris nukopijuotas ✅");
+      setMsg(tx("Telefonnummeret er kopieret ✅", "Telefono numeris nukopijuotas ✅"));
     } catch {
       // ignore
     }
@@ -330,7 +332,7 @@ async function deleteOnePhoto(index: number) {
 
   async function deleteListing() {
     if (!id || !isOwner) return;
-    if (!confirm("Tikrai ištrinti skelbimą?")) return;
+    if (!confirm(tx("Vil du virkelig slette annoncen?", "Tikrai ištrinti skelbimą?"))) return;
     setSaving(true);
     setErr(null);
     try {
@@ -338,7 +340,7 @@ async function deleteOnePhoto(index: number) {
       await deleteDoc(doc(db, "ads", id));
       window.location.href = "/mano";
     } catch (e: any) {
-      setErr(e?.message || "Klaida trinant.");
+      setErr(e?.message || tx("Annoncen kunne ikke slettes.", "Klaida trinant."));
     } finally {
       setSaving(false);
     }
@@ -347,7 +349,7 @@ async function deleteOnePhoto(index: number) {
   if (!id) {
     return (
       <main className="mx-auto max-w-6xl px-4 py-6">
-        <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-8 text-white/70">Kraunasi…</div>
+        <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-8 text-white/70">{tx("Indlæser…", "Kraunasi…")}</div>
       </main>
     );
   }
@@ -356,10 +358,10 @@ async function deleteOnePhoto(index: number) {
     return (
       <main className="mx-auto max-w-6xl px-4 py-6">
         <Link href="/transportas" className="text-sm font-extrabold text-white/80 hover:text-white">
-          ← Atgal
+          ← {tx("Tilbage", "Atgal")}
         </Link>
         <div className="mt-4 rounded-3xl border border-white/10 bg-white/[0.03] p-8 text-white/70">
-          Skelbimas nerastas arba kraunasi…
+          {tx("Annoncen blev ikke fundet eller indlæses stadig…", "Skelbimas nerastas arba kraunasi…")}
         </div>
       </main>
     );
@@ -369,10 +371,10 @@ async function deleteOnePhoto(index: number) {
     return (
       <main className="mx-auto max-w-6xl px-4 py-6">
         <Link href="/transportas" className="text-sm font-extrabold text-white/80 hover:text-white">
-          ← Atgal
+          ← {tx("Tilbage", "Atgal")}
         </Link>
         <div className="mt-4 rounded-3xl border border-white/10 bg-white/[0.03] p-8 text-white/70">
-          Skelbimas šiame domene nerodomas.
+          {tx("Annoncen vises ikke på dette domæne.", "Skelbimas šiame domene nerodomas.")}
         </div>
       </main>
     );
@@ -382,20 +384,20 @@ async function deleteOnePhoto(index: number) {
     <main className="mx-auto max-w-6xl px-4 py-6">
       <div className="flex items-center justify-between gap-3">
         <Link href="/transportas" className="text-sm font-extrabold text-white/80 hover:text-white">
-          ← Atgal
+          ← {tx("Tilbage", "Atgal")}
         </Link>
         <div className="flex items-center gap-2">
           <Link
             href="/transportas/map"
             className="rounded-full border border-white/12 bg-white/[0.04] px-4 py-2 text-sm font-extrabold text-white/85 hover:bg-white/[0.08]"
           >
-            Žemėlapis
+            {tx("Kort", "Žemėlapis")}
           </Link>
           <Link
             href="/ikelti"
             className="rounded-full bg-white px-4 py-2 text-sm font-extrabold text-black hover:bg-white/90"
           >
-            ➕ Įkelti
+            ➕ {tx("Opret annonce", "Įkelti")}
           </Link>
         </div>
       </div>
@@ -407,16 +409,16 @@ async function deleteOnePhoto(index: number) {
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <div className="text-sm font-extrabold text-white/60">🚗 Transportas</div>
+                <div className="text-sm font-extrabold text-white/60">🚗 {tx("Køretøj", "Transportas")}</div>
                 <h1 className="mt-1 text-2xl font-black">
                   {(data.brand ?? "").toString()} {(data.model ?? "").toString()}
                 </h1>
                 <div className="mt-2 text-sm text-white/65">
-                  {[data.city, [data.category, data.type].filter(Boolean).join(" • ")].filter(Boolean).join(" • ")}
+                  {[data.city, [categoryLabelLocalized(data.category, siteCountry), data.type ? vehicleTypeLocalized(data.type, siteCountry) : undefined].filter(Boolean).join(" • ")].filter(Boolean).join(" • ")}
                 </div>
               </div>
               <div className="text-right">
-                <div className="text-xs font-extrabold text-white/60">Kaina</div>
+                <div className="text-xs font-extrabold text-white/60">{tx("Pris", "Kaina")}</div>
                 <div className="text-2xl font-black">
                   {typeof data.price === "number" ? formatPrice(data.price, siteCountry) : "—"}
                 </div>
@@ -424,17 +426,17 @@ async function deleteOnePhoto(index: number) {
             </div>
 
             <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              <Spec label="Metai" value={data.year} />
-              <Spec label="Rida" value={typeof data.mileage === "number" ? `${data.mileage} km` : undefined} />
-              <Spec label="Kuro tipas" value={data.fuel} />
-              <Spec label="Pavarų dėžė" value={data.gearbox} />
-              <Spec label="Varomieji ratai" value={data.drive} />
-              <Spec label="Variklio tūris" value={typeof data.engineCapacity === "number" ? `${data.engineCapacity} l` : undefined} />
-              <Spec label="Galia" value={typeof data.powerKw === "number" ? `${data.powerKw} kW` : undefined} />
+              <Spec label={tx("År", "Metai")} value={data.year} />
+              <Spec label={tx("Kilometer", "Rida")} value={typeof data.mileage === "number" ? `${data.mileage} km` : undefined} />
+              <Spec label={tx("Brændstof", "Kuro tipas")} value={data.fuel ? labelFuel(data.fuel, siteCountry) : undefined} />
+              <Spec label={tx("Gearkasse", "Pavarų dėžė")} value={data.gearbox ? labelGearbox(data.gearbox, siteCountry) : undefined} />
+              <Spec label={tx("Træk", "Varomieji ratai")} value={data.drive ? labelDrive(data.drive, siteCountry) : undefined} />
+              <Spec label={tx("Motorvolumen", "Variklio tūris")} value={typeof data.engineCapacity === "number" ? `${data.engineCapacity} l` : undefined} />
+              <Spec label={tx("Effekt", "Galia")} value={typeof data.powerKw === "number" ? `${data.powerKw} kW` : undefined} />
             </div>
 
             <div className="mt-5">
-              <div className="text-sm font-extrabold uppercase tracking-wide text-white/55">Aprašymas</div>
+              <div className="text-sm font-extrabold uppercase tracking-wide text-white/55">{tx("Beskrivelse", "Aprašymas")}</div>
               <div className="mt-2 whitespace-pre-wrap text-sm text-white/80">
                 {(data.description ?? data.desc ?? "").toString() || "—"}
               </div>
@@ -444,10 +446,10 @@ async function deleteOnePhoto(index: number) {
 
         <aside className="min-w-0 space-y-4 2xl:sticky 2xl:top-4 self-start">
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
-            <div className="text-xs font-extrabold text-white/60">Kontaktai</div>
+            <div className="text-xs font-extrabold text-white/60">{tx("Kontakt", "Kontaktai")}</div>
                         {typeof data.lat === "number" && typeof data.lng === "number" ? (
               <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.02] p-3">
-                <div className="text-xs font-extrabold text-white/60">Vieta</div>
+                <div className="text-xs font-extrabold text-white/60">{tx("Placering", "Vieta")}</div>
                 <div className="mt-2 overflow-hidden rounded-xl border border-white/10">
                   <iframe
                     title="map"
@@ -463,7 +465,7 @@ async function deleteOnePhoto(index: number) {
                   target="_blank"
                   rel="noreferrer"
                 >
-                  🧭 Naviguoti
+                  🧭 {tx("Rutevejledning", "Naviguoti")}
                 </a>
               </div>
             ) : null}
@@ -477,7 +479,7 @@ async function deleteOnePhoto(index: number) {
                     onClick={copyPhone}
                     className="rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2 text-xs font-extrabold text-white/90 hover:bg-white/[0.08]"
                   >
-                    Kopijuoti
+                    {tx("Kopiér", "Kopijuoti")}
                   </button>
                 </div>
 
@@ -485,12 +487,12 @@ async function deleteOnePhoto(index: number) {
                   href={`tel:${data.phone}`}
                   className="inline-flex w-full items-center justify-center rounded-2xl bg-white px-4 py-3 text-sm font-extrabold text-black hover:bg-white/90"
                 >
-                  📞 Skambinti
+                  📞 {tx("Ring", "Skambinti")}
                 </a>
               </div>
             ) : (
               <div className="mt-3 rounded-2xl border border-white/12 bg-white/5 px-4 py-3 text-center text-sm text-white/55">
-                Telefono nėra
+                {tx("Intet telefonnummer", "Telefono nėra")}
               </div>
             )}
           </div>
@@ -498,31 +500,31 @@ async function deleteOnePhoto(index: number) {
 
           {isOwner ? (
             <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
-              <div className="text-sm font-black">Valdymas</div>
+              <div className="text-sm font-black">{tx("Administrer annonce", "Valdymas")}</div>
               {err ? <div className="mt-2 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">{err}</div> : null}
               {msg ? <div className="mt-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">{msg}</div> : null}
 
               <div className="mt-3 grid grid-cols-1 gap-2">
-                <input value={eBrand} onChange={(e) => setEBrand(e.target.value)} placeholder="Markė" className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/20" />
-                <input value={eModel} onChange={(e) => setEModel(e.target.value)} placeholder="Modelis" className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/20" />
-                <input value={eType} onChange={(e) => setEType(e.target.value)} placeholder="Tipas" className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/20" />
-                <input value={eCity} onChange={(e) => setECity(e.target.value)} placeholder="Miestas" className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/20" />
-                <input value={ePrice} onChange={(e) => setEPrice(e.target.value)} placeholder="Kaina" inputMode="numeric" className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/20" />
-                <input value={eMileage} onChange={(e) => setEMileage(e.target.value)} placeholder="Rida (km)" inputMode="numeric" className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/20" />
-                <input value={eEngineCapacity} onChange={(e) => setEEngineCapacity(e.target.value)} placeholder="Variklio tūris (l)" inputMode="decimal" className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/20" />
-                <input value={ePowerKw} onChange={(e) => setEPowerKw(e.target.value)} placeholder="Galia (kW)" inputMode="numeric" className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/20" />
-                <input value={eFuel} onChange={(e) => setEFuel(e.target.value)} placeholder="Kuro tipas" className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/20" />
-                <input value={eGearbox} onChange={(e) => setEGearbox(e.target.value)} placeholder="Pavarų dėžė" className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/20" />
-                <input value={eDrive} onChange={(e) => setEDrive(e.target.value)} placeholder="Varomieji ratai" className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/20" />
-                <input value={ePhone} onChange={(e) => setEPhone(e.target.value)} placeholder="Telefonas" className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/20" />
-                <textarea value={eDesc} onChange={(e) => setEDesc(e.target.value)} placeholder="Aprašymas" rows={4} className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/20" />
+                <input value={eBrand} onChange={(e) => setEBrand(e.target.value)} placeholder={tx("Mærke", "Markė")} className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/20" />
+                <input value={eModel} onChange={(e) => setEModel(e.target.value)} placeholder={tx("Model", "Modelis")} className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/20" />
+                <input value={eType} onChange={(e) => setEType(e.target.value)} placeholder={tx("Type", "Tipas")} className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/20" />
+                <input value={eCity} onChange={(e) => setECity(e.target.value)} placeholder={tx("By", "Miestas")} className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/20" />
+                <input value={ePrice} onChange={(e) => setEPrice(e.target.value)} placeholder={tx("Pris", "Kaina")} inputMode="numeric" className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/20" />
+                <input value={eMileage} onChange={(e) => setEMileage(e.target.value)} placeholder={tx("Kilometer (km)", "Rida (km)")} inputMode="numeric" className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/20" />
+                <input value={eEngineCapacity} onChange={(e) => setEEngineCapacity(e.target.value)} placeholder={tx("Motorvolumen (l)", "Variklio tūris (l)")} inputMode="decimal" className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/20" />
+                <input value={ePowerKw} onChange={(e) => setEPowerKw(e.target.value)} placeholder={tx("Effekt (kW)", "Galia (kW)")} inputMode="numeric" className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/20" />
+                <input value={eFuel} onChange={(e) => setEFuel(e.target.value)} placeholder={tx("Brændstof", "Kuro tipas")} className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/20" />
+                <input value={eGearbox} onChange={(e) => setEGearbox(e.target.value)} placeholder={tx("Gearkasse", "Pavarų dėžė")} className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/20" />
+                <input value={eDrive} onChange={(e) => setEDrive(e.target.value)} placeholder={tx("Træk", "Varomieji ratai")} className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/20" />
+                <input value={ePhone} onChange={(e) => setEPhone(e.target.value)} placeholder={tx("Telefon", "Telefonas")} className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/20" />
+                <textarea value={eDesc} onChange={(e) => setEDesc(e.target.value)} placeholder={tx("Beskrivelse", "Aprašymas")} rows={4} className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/20" />
               </div>
 
               <button onClick={saveEdits} disabled={saving} className="mt-3 w-full rounded-2xl bg-white px-4 py-3 text-sm font-extrabold text-black hover:bg-white/90 disabled:opacity-60">
-                💾 Išsaugoti
+                💾 {tx("Gem", "Išsaugoti")}
               </button>
 
-              <div className="mt-4 text-xs font-extrabold text-white/60">Nuotraukos</div>
+              <div className="mt-4 text-xs font-extrabold text-white/60">{tx("Billeder", "Nuotraukos")}</div>
               <input
                 type="file"
                 multiple
@@ -531,11 +533,11 @@ async function deleteOnePhoto(index: number) {
                 className="mt-2 w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white/80"
               />
               <button onClick={replacePhotos} disabled={saving || !newFiles.length} className="mt-2 w-full rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm font-extrabold text-white/90 hover:bg-white/[0.08] disabled:opacity-60">
-                🔁 Atnaujinti nuotraukas
+                🔁 {tx("Opdater billeder", "Atnaujinti nuotraukas")}
               </button>
 
               <button onClick={deleteListing} disabled={saving} className="mt-4 w-full rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm font-extrabold text-red-200 hover:bg-red-500/15 disabled:opacity-60">
-                🗑️ Ištrinti skelbimą
+                🗑️ {tx("Slet annonce", "Ištrinti skelbimą")}
               </button>
             </div>
           ) : null}

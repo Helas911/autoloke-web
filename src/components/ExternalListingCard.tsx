@@ -2,22 +2,23 @@
 
 import { useMemo, useState } from "react";
 import type { ExternalListing } from "@/lib/externalAggregator";
+import { getSiteCountry } from "@/lib/site";
 
 function safeText(v?: string) {
   return (v || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 }
 
-function sourceLabel(source?: string) {
+function sourceLabel(source: string | undefined, isDk: boolean) {
   const s = (source || "").toLowerCase();
   if (s.includes("autoplius")) return "autoplius.lt";
   if (s.includes("autogidas")) return "autogidas.lt";
   if (s.includes("autobilis")) return "autobilis.lt";
   if (s.includes("autosel")) return "autosel.lt";
   if (s.includes("autobonus")) return "autobonus.lt";
-  return safeText(source) || "išorinis šaltinis";
+  return safeText(source) || (isDk ? "ekstern kilde" : "išorinis šaltinis");
 }
 
-function placeholderDataUrl(source: string) {
+function placeholderDataUrl(source: string, isDk: boolean) {
   const safeSource = source.replace(/[<&>"]/g, "");
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" width="640" height="420" viewBox="0 0 640 420">
@@ -30,19 +31,20 @@ function placeholderDataUrl(source: string) {
       <rect width="640" height="420" rx="26" fill="url(#g)"/>
       <rect x="36" y="32" width="172" height="48" rx="24" fill="#000000aa"/>
       <text x="122" y="62" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#ffffff">${safeSource}</text>
-      <text x="320" y="210" text-anchor="middle" font-family="Arial, sans-serif" font-size="34" font-weight="700" fill="#ffffff">Skelbimas</text>
-      <text x="320" y="248" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" fill="#c9c9d2">Nuotrauka nepasiekiama</text>
+      <text x="320" y="210" text-anchor="middle" font-family="Arial, sans-serif" font-size="34" font-weight="700" fill="#ffffff">${isDk ? "Annonce" : "Skelbimas"}</text>
+      <text x="320" y="248" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" fill="#c9c9d2">${isDk ? "Billedet er ikke tilgængeligt" : "Nuotrauka nepasiekiama"}</text>
     </svg>
   `;
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
 export function ExternalListingCard({ item }: { item: ExternalListing }) {
-  const title = safeText(item.title) || "Skelbimas";
-  const details = safeText(item.city) || "Atidaryti originalų skelbimą";
-  const price = safeText(item.priceText) || "Žiūrėti";
-  const source = sourceLabel(item.source);
-  const placeholder = useMemo(() => placeholderDataUrl(source), [source]);
+  const isDk = getSiteCountry() === "DK";
+  const title = safeText(item.title) || (isDk ? "Annonce" : "Skelbimas");
+  const details = safeText(item.city) || (isDk ? "Åbn den originale annonce" : "Atidaryti originalų skelbimą");
+  const price = safeText(item.priceText) || (isDk ? "Se annonce" : "Žiūrėti");
+  const source = sourceLabel(item.source, isDk);
+  const placeholder = useMemo(() => placeholderDataUrl(source, isDk), [source, isDk]);
   const proxied = item.imageUrl ? `/api/image-proxy?url=${encodeURIComponent(item.imageUrl)}` : placeholder;
   const [imgSrc, setImgSrc] = useState(proxied);
 
@@ -79,7 +81,7 @@ export function ExternalListingCard({ item }: { item: ExternalListing }) {
 
           <div className="mt-3 flex items-end justify-between gap-3">
             <div className="rounded-xl bg-white px-4 py-2 text-lg font-black text-black">{price}</div>
-            <div className="text-xs font-extrabold text-white/45">Originalas ↗</div>
+            <div className="text-xs font-extrabold text-white/45">{isDk ? "Original ↗" : "Originalas ↗"}</div>
           </div>
         </div>
       </div>

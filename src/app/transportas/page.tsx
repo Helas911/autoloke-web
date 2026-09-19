@@ -10,7 +10,7 @@ import { db } from "@/lib/firebase";
 import { formatPrice } from "@/lib/format";
 import { isPublicPaidListing } from "@/lib/billing";
 import { getSiteCountry, normalizeItemCountry, type SiteCountry } from "@/lib/site";
-import { canonicalDriveOptions, canonicalFuelOptions, canonicalGearboxOptions, labelDrive, labelFuel, labelGearbox, t } from "@/lib/i18n";
+import { categoryLabelLocalized, canonicalDriveOptions, canonicalFuelOptions, canonicalGearboxOptions, labelDrive, labelFuel, labelGearbox, t, vehicleTypeLocalized } from "@/lib/i18n";
 
 type Ad = {
   id: string;
@@ -192,18 +192,18 @@ export default function TransportasPage() {
           <LocalListingRow
             key={a.id}
             href={`/transportas/${a.id}`}
-            title={`${(a.brand ?? "").toString()} ${(a.model ?? "").toString()}`.trim() || "Skelbimas"}
+            title={`${(a.brand ?? "").toString()} ${(a.model ?? "").toString()}`.trim() || (siteCountry === "DK" ? "Annonce" : "Skelbimas")}
             subtitle={[
               (a.city ?? "").toString() || "—",
               typeof a.mileage === "number" ? `${a.mileage} km` : "",
-              a.fuel ?? "",
-              a.gearbox ?? "",
+              a.fuel ? labelFuel(a.fuel, siteCountry) : "",
+              a.gearbox ? labelGearbox(a.gearbox, siteCountry) : "",
               typeof a.engineCapacity === "number" ? `${a.engineCapacity} l` : "",
               typeof a.powerKw === "number" ? `${a.powerKw} kW` : "",
             ].filter(Boolean).join(" • ")}
             price={typeof a.price === "number" ? a.price : null}
             img={a.imageUrls?.[0] || null}
-            badge={(a.category ?? a.type ?? "Auto").toString()}
+            badge={a.category ? categoryLabelLocalized(a.category, siteCountry) : a.type ? vehicleTypeLocalized(a.type, siteCountry) : "Auto"}
             country={siteCountry}
           />
         ))}
@@ -218,10 +218,10 @@ export default function TransportasPage() {
         <section className="mt-8">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-black text-white">Iš kitų portalų</h2>
+              <h2 className="text-lg font-black text-white">{siteCountry === "DK" ? "Fra andre portaler" : "Iš kitų portalų"}</h2>
               <div className="text-xs font-extrabold text-white/55">Autoplius, Autogidas, Autobilis, Autosel, Autobonus</div>
             </div>
-            {externalLoading ? <div className="text-xs font-extrabold text-orange-200">Ieškoma…</div> : null}
+            {externalLoading ? <div className="text-xs font-extrabold text-orange-200">{siteCountry === "DK" ? "Søger…" : "Ieškoma…"}</div> : null}
           </div>
 
           {externalItems.length ? (
@@ -232,7 +232,7 @@ export default function TransportasPage() {
             </div>
           ) : !externalLoading ? (
             <div className="rounded-3xl border border-white/10 bg-white/[0.03] px-4 py-5 text-sm font-extrabold text-white/60">
-              Išorinių rezultatų nerasta pagal dabartinę užklausą.
+              {siteCountry === "DK" ? "Der blev ikke fundet eksterne resultater for den aktuelle søgning." : "Išorinių rezultatų nerasta pagal dabartinę užklausą."}
             </div>
           ) : null}
         </section>
