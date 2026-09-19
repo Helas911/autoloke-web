@@ -6,7 +6,7 @@ import { addDoc, collection, onSnapshot, orderBy, query, serverTimestamp } from 
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/useAuth";
 import { brandsForCategory, modelsForBrand, type BrandCategory } from "@/lib/brands_models";
-import { citySuggestions, getSiteCountry } from "@/lib/site";
+import { citySuggestions, getSiteCountry, normalizeItemCountry } from "@/lib/site";
 
 const inputClass = "w-full rounded-2xl border border-white/12 bg-white/[0.06] px-4 py-3 text-sm text-white outline-none placeholder:text-white/40 disabled:opacity-45";
 const OTHER = "__other__";
@@ -43,6 +43,7 @@ type Item = {
   phone?: string;
   description?: string;
   imageUrl?: string;
+  country?: string;
 };
 
 function brandCategoryForRequest(category: string): BrandCategory {
@@ -125,12 +126,13 @@ export default function Page() {
   const filtered = useMemo(() => {
     const s = search.toLowerCase().trim();
     return items.filter((i) => {
+      if (normalizeItemCountry(i.country) !== siteCountry) return false;
       const hay = `${i.category || ""} ${i.brand || ""} ${i.model || ""} ${i.title || ""} ${i.city || ""} ${i.description || ""}`.toLowerCase();
       if (filter && i.category !== filter) return false;
       if (s && !hay.includes(s)) return false;
       return true;
     });
-  }, [items, filter, search]);
+  }, [items, filter, search, siteCountry]);
 
   function choose(c: string) {
     setCategory(c);
@@ -158,6 +160,7 @@ export default function Page() {
         imageUrl: imageUrl.trim(),
         description: description.trim(),
         ownerUid: user.uid,
+        country: siteCountry,
         createdAt: serverTimestamp(),
       });
       setBrand(""); setBrandOther(""); setModel(""); setModelOther(""); setAdTitle(""); setCity(""); setPhone(""); setImageUrl(""); setDescription("");
