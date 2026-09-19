@@ -11,7 +11,10 @@ export function SiteHeader() {
   const { user, loading } = useAuth();
   const country = getSiteCountry();
   const boardLabel = country === "DK" ? "📌 Opslagstavle" : "📌 Skelbimų lenta";
-  const searchLabel = country === "DK" ? "🔎 Fælles søgning" : "🔎 Bendra paieška";
+  const tagline =
+    country === "DK"
+      ? "Køretøjer og reservedele på ét sted."
+      : "Transporto ir dalių skelbimai vienoje vietoje.";
 
   async function onLogout() {
     if (!auth) return;
@@ -34,20 +37,13 @@ export function SiteHeader() {
               </div>
 
               <div className="hidden text-[11px] font-semibold text-white/60 sm:block">
-                Viena paieška – visi portalai vienoje vietoje.
+                {tagline}
               </div>
             </div>
           </Link>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Link
-            href="/bendra-paieska"
-            className="rounded-full border border-blue-400/30 bg-blue-500/15 px-3 py-2 text-xs font-extrabold text-blue-100 hover:bg-blue-500/25 sm:text-sm"
-          >
-            {searchLabel}
-          </Link>
-
           <Link
             href="/skelbimu-lenta"
             className="rounded-full border border-yellow-400/30 bg-yellow-500/15 px-3 py-2 text-xs font-extrabold text-yellow-100 hover:bg-yellow-500/25 sm:text-sm"
