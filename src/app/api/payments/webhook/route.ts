@@ -1,97 +1,44 @@
-import { createHmac, timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { addDays, LISTING_ACTIVE_DAYS, LISTING_DELETE_AFTER_DAYS } from "@/lib/billing";
-import { patchFirestoreDocument, type FirestoreCollectionName } from "@/lib/firebaseAdminRest";
-
+import { adminDb } from "@/lib/firebaseAdmin";
+import { stripeClient } from "@/lib/stripeServer";
+import { validPaidSession } from "@/lib/paymentPolicy";
+import type Stripe from "stripe";
 export const runtime = "nodejs";
 
-const ALLOWED_COLLECTIONS = new Set<FirestoreCollectionName>(["ads"]);
-
-type StripeEvent = {
-  type?: string;
-  data?: {
-    object?: {
-      id?: string;
-      payment_status?: string;
-      payment_intent?: string | null;
-      metadata?: {
-        collectionName?: string;
-        listingId?: string;
-      };
-    };
-  };
-};
-
-function parseStripeSignature(header: string) {
-  const parts: Record<string, string[]> = {};
-  header.split(",").forEach((part) => {
-    const [key, value] = part.split("=");
-    if (!key || !value) return;
-    parts[key] = [...(parts[key] || []), value];
-  });
-  return parts;
-}
-
-function safeEqualHex(a: string, b: string) {
-  const left = Buffer.from(a, "hex");
-  const right = Buffer.from(b, "hex");
-  if (left.length !== right.length) return false;
-  return timingSafeEqual(left, right);
-}
-
-function verifyStripeWebhook(payload: string, signatureHeader: string | null, secret: string) {
-  if (!signatureHeader) return false;
-
-  const sig = parseStripeSignature(signatureHeader);
-  const timestamp = sig.t?.[0];
-  const signatures = sig.v1 || [];
-  if (!timestamp || signatures.length === 0) return false;
-
-  const ageSeconds = Math.abs(Math.floor(Date.now() / 1000) - Number(timestamp));
-  if (!Number.isFinite(ageSeconds) || ageSeconds > 300) return false;
-
-  const expected = createHmac("sha256", secret).update(`${timestamp}.${payload}`, "utf8").digest("hex");
-  return signatures.some((candidate) => safeEqualHex(candidate, expected));
-}
-
-function isAllowedCollection(value: unknown): value is FirestoreCollectionName {
-  return typeof value === "string" && ALLOWED_COLLECTIONS.has(value as FirestoreCollectionName);
-}
-
 export async function POST(req: NextRequest) {
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-  if (!webhookSecret) {
-    return NextResponse.json({ error: "Trūksta STRIPE_WEBHOOK_SECRET." }, { status: 500 });
-  }
-
-  const payload = await req.text();
-  const signature = req.headers.get("stripe-signature");
-
-  if (!verifyStripeWebhook(payload, signature, webhookSecret)) {
-    return NextResponse.json({ error: "Neteisingas Stripe parašas." }, { status: 400 });
-  }
-
-  const event = JSON.parse(payload) as StripeEvent;
-
-  if (event.type === "checkout.session.completed") {
-    const session = event.data?.object;
-    const collectionName = session?.metadata?.collectionName;
-    const listingId = session?.metadata?.listingId;
-
-    if (session?.payment_status === "paid" && isAllowedCollection(collectionName) && listingId) {
-      const now = new Date();
-      await patchFirestoreDocument(collectionName, listingId, {
-        paymentStatus: "paid",
-        status: "active",
-        paidAt: now,
-        activeUntil: addDays(now, LISTING_ACTIVE_DAYS),
-        deleteAt: addDays(now, LISTING_DELETE_AFTER_DAYS),
-        stripeSessionId: session.id || null,
-        stripePaymentIntentId: session.payment_intent || null,
-        updatedAt: now,
+  const secret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!secret || !process.env.STRIPE_SECRET_KEY) return NextResponse.json({ error: "Payment configuration missing" }, { status: 503 });
+  let event: Stripe.Event;
+  try {
+    event = stripeClient().webhooks.constructEvent(await req.text(), req.headers.get("stripe-signature") || "", secret);
+  } catch { return NextResponse.json({ error: "Invalid signature" }, { status: 400 }); }
+  if (event.type !== "checkout.session.completed" && event.type !== "checkout.session.async_payment_succeeded") return NextResponse.json({ received: true });
+  const session = event.data.object as Stripe.Checkout.Session;
+  if (!validPaidSession(session)) return NextResponse.json({ received: true });
+  const id = session.metadata!.listingId;
+  if (!/^[a-zA-Z0-9_-]{1,150}$/.test(id)) return NextResponse.json({ error: "Invalid listing" }, { status: 400 });
+  try {
+    const ref = adminDb().collection("ads").doc(id);
+    await adminDb().runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      // A delayed notification must not recreate a deleted listing or extend its life.
+      if (!snap.exists) return;
+      const listing = snap.data()!;
+      if (listing.ownerUid !== session.metadata!.ownerUid || listing.paymentStatus === "paid" || listing.status === "deleting") return;
+      const paidAt = new Date(event.created * 1000);
+      tx.update(ref, {
+        paymentStatus: "paid", status: "active", paidAt,
+        activeUntil: addDays(paidAt, LISTING_ACTIVE_DAYS),
+        deleteAt: addDays(paidAt, LISTING_DELETE_AFTER_DAYS),
+        stripeSessionId: session.id,
+        stripePaymentIntentId: typeof session.payment_intent === "string" ? session.payment_intent : null,
+        stripeEventId: event.id, updatedAt: new Date(),
       });
-    }
+    });
+    return NextResponse.json({ received: true });
+  } catch (error) {
+    console.error("payment activation failed", error instanceof Error ? error.message : "unknown");
+    return NextResponse.json({ error: "Activation failed; retry" }, { status: 500 });
   }
-
-  return NextResponse.json({ received: true });
 }

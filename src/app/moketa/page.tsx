@@ -1,27 +1,28 @@
 "use client";
-
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { doc, onSnapshot } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { useAuth } from "@/lib/useAuth";
+import { isPublicPaidListing } from "@/lib/billing";
 import { getSiteCountry } from "@/lib/site";
 
 export default function MoketaPage() {
   const isDk = getSiteCountry() === "DK";
-  return (
-    <main className="mx-auto max-w-xl px-4 py-12 text-white">
-      <div className="rounded-3xl border border-emerald-500/25 bg-emerald-500/10 p-6">
-        <div className="text-4xl">✅</div>
-        <h1 className="mt-4 text-2xl font-black">{isDk ? "Betaling modtaget" : "Apmokėjimas priimtas"}</h1>
-        <p className="mt-3 text-sm font-semibold leading-6 text-white/75">
-          {isDk ? "Annoncen aktiveres efter Stripes bekræftelse. Det sker normalt meget hurtigt. Annoncen er aktiv i 30 dage og slettes automatisk på dag 31, hvis den ikke fornyes." : "Skelbimas aktyvuosis po Stripe patvirtinimo. Įprastai tai įvyksta labai greitai. Skelbimas galios 30 dienų, o 31-ą dieną nepratęsus bus automatiškai ištrintas."}
-        </p>
-        <div className="mt-6 flex flex-wrap gap-2">
-          <Link href="/transportas" className="rounded-2xl bg-white px-4 py-3 text-sm font-black text-black hover:bg-white/90">
-            {isDk ? "Se køretøjer" : "Žiūrėti transportą"}
-          </Link>
-          <Link href="/dalys" className="rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm font-black text-white hover:bg-white/[0.08]">
-            {isDk ? "Se reservedele" : "Žiūrėti detales"}
-          </Link>
-        </div>
-      </div>
-    </main>
-  );
+  const { user } = useAuth();
+  const [paid, setPaid] = useState(false);
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("listingId");
+    if (!id || !user || !db) return;
+    return onSnapshot(doc(db, "ads", id), (snap) => {
+      setPaid(snap.exists() && snap.data().ownerUid === user.uid && isPublicPaidListing(snap.data()));
+    }, () => setPaid(false));
+  }, [user]);
+  return <main className="mx-auto max-w-xl px-4 py-12 text-white">
+    <div className="rounded-3xl border border-emerald-500/25 bg-emerald-500/10 p-6">
+      <h1 className="text-2xl font-black">{paid ? (isDk ? "Betaling bekræftet" : "Mokėjimas patvirtintas") : (isDk ? "Afventer betalingsbekræftelse" : "Laukiama mokėjimo patvirtinimo")}</h1>
+      <p className="mt-3 leading-6 text-white/75">{paid ? (isDk ? "Din annonce er aktiv i 30 dage fra betalingen." : "Jūsų skelbimas aktyvus 30 dienų nuo apmokėjimo.") : (isDk ? "Se betalingsstatus under Mine annoncer. Du behøver ikke betale igen, mens betalingen behandles." : "Būseną matysite skiltyje „Mano skelbimai“. Kol mokėjimas tikrinamas, pakartotinai mokėti nereikia.")}</p>
+      <Link href="/mano" className="mt-6 inline-block rounded-2xl bg-white px-4 py-3 font-black text-black">{isDk ? "Mine annoncer" : "Mano skelbimai"}</Link>
+    </div>
+  </main>;
 }

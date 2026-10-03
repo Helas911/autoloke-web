@@ -1,5 +1,7 @@
 "use client";
 
+import { startListingPayment } from "@/lib/paymentClient";
+import { isPublicPaidListing } from "@/lib/billing";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { collection, deleteDoc, doc, getDocs, query, where } from "firebase/firestore";
@@ -19,11 +21,15 @@ type Listing = {
   city?: string;
   imageUrls?: string[];
   ownerUid?: string;
+  paymentStatus?: string;
+  status?: string;
+  activeUntil?: unknown;
 };
 
 export default function ManoPage() {
   const isDk = getSiteCountry() === "DK";
   const { user, loading: authLoading } = useAuth();
+  const [payingId, setPayingId] = useState<string | null>(null);
   const [items, setItems] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
@@ -52,6 +58,15 @@ export default function ManoPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function pay(item: Listing) {
+    if (payingId) return;
+    setPayingId(item.id);
+    setErr(null);
+    try { await startListingPayment({ collectionName: "ads", listingId: item.id }); }
+    catch (error) { setErr(error instanceof Error ? error.message : "Apmokėti nepavyko."); }
+    finally { setPayingId(null); }
   }
 
   async function removeItem(item: Listing) {
@@ -120,6 +135,14 @@ export default function ManoPage() {
                 <div className="font-black">{name}</div>
                 <div className="mt-1 text-sm text-white/60">{item.city || (isDk ? "By ikke angivet" : "Miestas nenurodytas")}</div>
                 <div className="mt-1 text-sm font-bold">{item.price ? `${item.price} ${item.currency || (isDk ? "DKK" : "€")}` : (isDk ? "Pris ikke angivet" : "Kaina nenurodyta")}</div>
+                <div className="mt-2 text-sm text-white/70">
+                  {item.kind === "parts" ? (isDk ? "Gratis" : "Nemokamas") : isPublicPaidListing(item) ? (isDk ? "Aktiv · betalt" : "Aktyvus · apmokėtas") : item.paymentStatus === "paid" ? (isDk ? "Udløbet" : "Galiojimas baigėsi") : (isDk ? "Afventer betaling · ikke offentlig" : "Laukia apmokėjimo · viešai nerodomas")}
+                </div>
+                {item.kind === "ads" && item.paymentStatus !== "paid" && (
+                  <button disabled={!!payingId} onClick={() => pay(item)} className="mt-3 mr-2 rounded-xl bg-emerald-500 px-4 py-2 text-sm font-black text-black disabled:opacity-50">
+                    {payingId === item.id ? (isDk ? "Vent..." : "Palaukite...") : (isDk ? "Betal 1 € / 30 dage" : "Apmokėti 1 € / 30 dienų")}
+                  </button>
+                )}
                 <button
                   onClick={() => removeItem(item)}
                   className="mt-3 rounded-xl bg-red-600 px-4 py-2 text-sm font-black text-white hover:bg-red-500"

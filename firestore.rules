@@ -1,0 +1,42 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function owns(data) { return request.auth != null && data.ownerUid == request.auth.uid; }
+    function editableOnly() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        'brand', 'model', 'title', 'description', 'desc', 'category', 'type', 'year', 'price', 'currency',
+        'city', 'address', 'phone', 'lat', 'lng', 'mileage', 'fuel', 'drive', 'gearbox', 'engineCapacity', 'powerKw',
+        'imageUrls', 'imagePaths', 'updatedAt', 'sellerType', 'sellerId', 'sellerName', 'sellerWebsite',
+        'sellerWorkingHours', 'sellerLogoUrl', 'sellerCoverUrl'
+      ]);
+    }
+    match /ads/{id} {
+      allow read: if owns(resource.data) || (resource.data.paymentStatus == 'paid' && resource.data.status == 'active');
+      allow create: if owns(request.resource.data)
+        && request.resource.data.paymentStatus == 'pending'
+        && request.resource.data.status == 'pending_payment'
+        && request.resource.data.paidAt == null && request.resource.data.activeUntil == null
+        && !request.resource.data.keys().hasAny(['stripeSessionId', 'stripePaymentIntentId', 'stripeEventId', 'manualPaymentConfirmed'])
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.deleteAt > request.time
+        && request.resource.data.deleteAt <= request.time + duration.value(32, 'd');
+      allow update: if owns(resource.data) && resource.data.status != "deleting" && editableOnly();
+      allow delete: if owns(resource.data);
+    }
+    match /parts/{id} {
+      allow read: if true;
+      allow create: if owns(request.resource.data) && request.resource.data.paymentStatus == 'free'
+        && request.resource.data.status == 'active' && request.resource.data.createdAt == request.time
+        && request.resource.data.deleteAt > request.time
+        && request.resource.data.deleteAt <= request.time + duration.value(32, 'd');
+      allow update: if owns(resource.data) && resource.data.status != "deleting" && editableOnly();
+      allow delete: if owns(resource.data);
+    }
+    match /partRequests/{id} {
+      allow read: if true;
+      allow create: if owns(request.resource.data);
+      allow update: if owns(resource.data) && request.resource.data.ownerUid == resource.data.ownerUid;
+      allow delete: if owns(resource.data);
+    }
+  }
+}

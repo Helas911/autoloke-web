@@ -4,7 +4,7 @@
 
 import { initializeApp, getApp, getApps } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { initializeFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
@@ -31,7 +31,7 @@ function getFirebaseApp() {
 // On the server they resolve to null-ish values to avoid Vercel build/prerender crashes.
 export const app = getFirebaseApp();
 export const auth = canInit() ? getAuth(app) : (null as any);
-export const db = canInit() ? getFirestore(app) : (null as any);
+export const db = canInit() ? initializeFirestore(app, { ignoreUndefinedProperties: true }) : (null as any);
 export const storage = canInit() ? getStorage(app) : (null as any);
 
 // Google provider (Client Components only)

@@ -132,6 +132,8 @@ export default function IkeltiPage() {
     return { imageUrls, imagePaths };
   }
 
+  const [savedTransportId, setSavedTransportId] = useState<string | null>(null);
+
   async function submit() {
     if (!canSubmit || busy) return;
     setBusy(true);
@@ -140,6 +142,11 @@ export default function IkeltiPage() {
 
     try {
       if (!user) throw new Error(isDk ? "Log ind for at oprette en annonce." : "Prisijunk, kad galėtum įkelti skelbimą.");
+
+      if (mode === "transportas" && savedTransportId) {
+        await startListingPayment({ collectionName: "ads", listingId: savedTransportId });
+        return;
+      }
 
       const p = Number(price);
       const y = year.trim() ? Number(year) : undefined;
@@ -167,6 +174,7 @@ export default function IkeltiPage() {
           model: finalModel,
           year: y,
           price: p,
+          currency,
           mileage: mi,
           fuel: fuel.trim() || undefined,
           drive: drive.trim() || undefined,
@@ -189,6 +197,7 @@ export default function IkeltiPage() {
 
         const photos = await uploadPhotos("ads", docRef.id);
         await updateDoc(doc(db, "ads", docRef.id), photos);
+        setSavedTransportId(docRef.id);
         setOkMsg(isDk ? "Annoncen er klar. Du viderestilles til betaling..." : "Skelbimas paruoštas. Nukreipiama į apmokėjimą...");
         await startListingPayment({ collectionName: "ads", listingId: docRef.id });
       } else {
@@ -198,6 +207,7 @@ export default function IkeltiPage() {
           brand: finalBrand,
           model: finalModel,
           price: p,
+          currency,
           city: city.trim(),
           phone: phone.trim() || undefined,
           description: description.trim() || undefined,

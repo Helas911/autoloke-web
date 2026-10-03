@@ -1,6 +1,6 @@
 "use client";
 
-import { collection, doc, onSnapshot, orderBy, query, updateDoc } from "firebase/firestore";
+import { collection, doc, onSnapshot, orderBy, query, where, updateDoc } from "firebase/firestore";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
@@ -77,11 +77,11 @@ export function CompanySellerUploadPanel() {
       }
     }
 
-    const unsubAds = onSnapshot(query(collection(db, "ads"), orderBy("createdAt", "desc")), (snap) => {
+    const unsubAds = onSnapshot(query(collection(db, "ads"), where("ownerUid", "==", user.uid)), (snap) => {
       patchNewest("ads", snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }))).catch(() => {});
     });
 
-    const unsubParts = onSnapshot(query(collection(db, "parts"), orderBy("createdAt", "desc")), (snap) => {
+    const unsubParts = onSnapshot(query(collection(db, "parts"), where("ownerUid", "==", user.uid)), (snap) => {
       patchNewest("parts", snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }))).catch(() => {});
     });
 

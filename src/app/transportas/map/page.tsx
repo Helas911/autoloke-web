@@ -1,4 +1,5 @@
 "use client";
+import { publicAdsQuery } from "@/lib/publicAds";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { collection, onSnapshot } from "firebase/firestore";
@@ -66,7 +67,7 @@ export default function TransportMapPage() {
 
   useEffect(() => {
     setSiteCountry(getSiteCountry());
-    const unsub = onSnapshot(collection(db, "ads"), (snap) => {
+    const unsub = onSnapshot(publicAdsQuery(), (snap) => {
       setItems(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })));
     });
     return () => unsub();

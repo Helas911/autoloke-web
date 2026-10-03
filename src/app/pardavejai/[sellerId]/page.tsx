@@ -1,4 +1,5 @@
 "use client";
+import { publicAdsQuery } from "@/lib/publicAds";
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -43,7 +44,7 @@ export default function SellerPage() {
     setSiteCountry(getSiteCountry());
 
     const unsubAds = onSnapshot(
-      query(collection(db, "ads"), orderBy("createdAt", "desc")),
+      publicAdsQuery(),
       (snap) => setAds(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })))
     );
 

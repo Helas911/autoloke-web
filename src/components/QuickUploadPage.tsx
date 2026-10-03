@@ -161,9 +161,13 @@ export default function QuickUploadPage({ initialLocale = "lt" as Locale }) {
     try {
       setLoading(true);
       setError("");
-      setDoneId(null);
+      if (doneId) {
+        await startListingPayment({ collectionName: "ads", listingId: doneId });
+        return;
+      }
 
       const tempId = `${t.country.toLowerCase()}_quick_${Date.now()}`;
+      const imagePaths = photos.map((file, i) => `ads/${user.uid}/quick/${tempId}/${i}-${(file.name || "foto.jpg").replace(/[^a-zA-Z0-9._-]/g, "_")}`);
       const imageUrls = await Promise.all(
         photos.map((file, i) => {
           const safeName = (file.name || "foto.jpg").replace(/[^a-zA-Z0-9._-]/g, "_");
@@ -186,6 +190,8 @@ export default function QuickUploadPage({ initialLocale = "lt" as Locale }) {
         city: city.trim() || t.defaultCity,
         phone: normalizePhone(phone),
         imageUrls,
+        imagePaths,
+        currency: t.currency,
         ownerUid: user.uid,
         ownerEmail: user.email || "",
         source: "quick_upload",
