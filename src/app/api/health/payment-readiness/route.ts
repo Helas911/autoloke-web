@@ -191,6 +191,8 @@ export async function GET() {
       publicReadStatus: codes,
       checkoutEnabled: process.env.STRIPE_CHECKOUT_ENABLED === "true",
       stripeConfigured: !!process.env.STRIPE_SECRET_KEY && !!process.env.STRIPE_WEBHOOK_SECRET,
+      stripeServerKeyFormat: /^sk_live_|^rk_live_/.test(process.env.STRIPE_SECRET_KEY || "") ? "valid_server_key_prefix" : "not_server_key",
+      webhookSigningKeyFormat: (process.env.STRIPE_WEBHOOK_SECRET || "").startsWith("whsec_") ? "valid_webhook_prefix" : "not_webhook_key",
       note: "Read-only diagnostic. Payment processing remains disabled until all checks pass.",
     }, { headers: NO_CACHE });
   } catch {
