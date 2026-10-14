@@ -14,6 +14,17 @@ export function validPaidSession(session: {
     && session.amount_total === LISTING_PRICE_CENTS && session.currency === BILLING_CURRENCY
     && session.metadata?.collectionName === "ads" && !!session.metadata.listingId && !!session.metadata.ownerUid;
 }
+// Compatibility only for Checkout sessions created by the old production API.
+// The webhook additionally verifies that the paid session ID was already stored on the listing.
+export function validLegacyPaidSession(session: {
+  mode?: string | null; payment_status?: string; amount_total?: number | null;
+  currency?: string | null; metadata?: Record<string, string> | null;
+}) {
+  return session.mode === "payment" && session.payment_status === "paid"
+    && session.amount_total === LISTING_PRICE_CENTS && session.currency === BILLING_CURRENCY
+    && session.metadata?.collectionName === "ads" && !!session.metadata.listingId
+    && !session.metadata.ownerUid;
+}
 export function safePaymentOrigin(requestUrl: string) {
   // Never trust an Origin header for the payment return URL.
   const configured = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
