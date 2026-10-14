@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { payableListing, validPaidSession, safePaymentOrigin } from "../src/lib/paymentPolicy";
+import { payableListing, validPaidSession, validLegacyPaidSession, safePaymentOrigin } from "../src/lib/paymentPolicy";
 import { createPendingListingPaymentFields, isPublicPaidListing, addDays } from "../src/lib/billing";
 const now = new Date("2026-10-03T10:00:00Z");
 test("only the owner can pay and paid listings cannot be reset", () => {
@@ -24,4 +24,13 @@ test("fulfillment requires exact amount, currency, ownership metadata and paid s
 });
 test("return URL uses canonical origin", () => {
   assert.equal(safePaymentOrigin("https://autoloke.dk/api/payments/create-checkout"), "https://autoloke.dk");
+});
+
+test("legacy checkout accepts only an exact paid ad, and must be bound to stored Stripe session in webhook", () => {
+  const legacy = { mode: "payment", payment_status: "paid", amount_total: 100, currency: "eur", metadata: { collectionName: "ads", listingId: "old-ad" } };
+  assert.equal(validLegacyPaidSession(legacy), true);
+  assert.equal(validLegacyPaidSession({ ...legacy, amount_total: 2 }), false);
+  assert.equal(validLegacyPaidSession({ ...legacy, payment_status: "unpaid" }), false);
+  assert.equal(validLegacyPaidSession({ ...legacy, metadata: { collectionName: "parts", listingId: "old-ad" } }), false);
+  assert.equal(validLegacyPaidSession({ ...legacy, metadata: { ...legacy.metadata, ownerUid: "someone" } }), false);
 });
