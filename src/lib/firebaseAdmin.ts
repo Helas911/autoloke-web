@@ -1,5 +1,4 @@
 import { cert, getApps, initializeApp } from "firebase-admin/app";
-import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 
 export function adminApp() {
@@ -18,6 +17,8 @@ export async function authenticatedUid(request: Request) {
   const header = request.headers.get("authorization");
   if (!header?.startsWith("Bearer ")) return null;
   try {
+    // Keep Auth dependencies out of the Firestore-only module initialization path.
+    const { getAuth } = await import("firebase-admin/auth");
     return (await getAuth(adminApp()).verifyIdToken(header.slice(7), true)).uid;
   } catch { return null; }
 }
