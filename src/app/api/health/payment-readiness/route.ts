@@ -43,7 +43,13 @@ async function checkAdminFirestore(): Promise<{ initialized: boolean; readable: 
         } catch {
           return { initialized: true, readable: false, result: "read_failed" };
         }
-      })().catch(() => ({ initialized: false, readable: false, result: "configuration_or_import_error" })),
+      })().catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : "";
+        const result = error instanceof SyntaxError ? "invalid_configuration_json"
+          : message === "Firebase server configuration missing" ? "configuration_fields_missing"
+          : "firebase_initialization_failed";
+        return { initialized: false, readable: false, result };
+      }),
       new Promise<{ initialized: boolean; readable: boolean; result: string }>((resolve) => {
         timer = setTimeout(() => resolve({ initialized: false, readable: false, result: "timeout" }), 3500);
       }),
