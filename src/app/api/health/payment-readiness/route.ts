@@ -28,6 +28,17 @@ async function fetchStatus(url: string, body?: unknown): Promise<number | null> 
   }
 }
 
+function classifyAdminError(error: unknown, stage: "import" | "init"): string {
+  if (stage === "import") return "module_import_failed";
+  if (error instanceof SyntaxError) return "invalid_configuration_json";
+  const message = error instanceof Error ? error.message : "";
+  if (message === "Firebase server configuration missing") return "configuration_fields_missing";
+  if (/private.key|pem.formatt|certificate|invalid.credential/i.test(message)) return "invalid_private_key_or_certificate";
+  if (/project.id|project.mismatch/i.test(message)) return "project_configuration_error";
+  if (/already.exists|duplicate.app/i.test(message)) return "duplicate_app";
+  return "firebase_initialization_failed";
+}
+
 async function checkAdminFirestore(): Promise<{ initialized: boolean; readable: boolean; result: string }> {
   // A Firebase SDK read can hang when Google credentials or outbound gRPC are unavailable.
   // Enforce an independent limit rather than waiting for Vercel's function timeout.
@@ -35,21 +46,27 @@ async function checkAdminFirestore(): Promise<{ initialized: boolean; readable: 
   try {
     return await Promise.race([
       (async () => {
-        const { adminDb } = await import("@/lib/firebaseAdmin");
-        const db = adminDb();
+        let adminDb: typeof import("@/lib/firebaseAdmin")["adminDb"];
+        try {
+          ({ adminDb } = await import("@/lib/firebaseAdmin"));
+        } catch {
+          return { initialized: false, readable: false, result: "module_import_failed" };
+        }
+        let db: ReturnType<typeof adminDb>;
+        try {
+          db = adminDb();
+        } catch (error) {
+          return { initialized: false, readable: false, result: classifyAdminError(error, "init") };
+        }
         try {
           const snap = await db.collection("ads").limit(1).get();
           return { initialized: true, readable: typeof snap.empty === "boolean", result: "completed" };
         } catch {
           return { initialized: true, readable: false, result: "read_failed" };
         }
-      })().catch((error: unknown) => {
-        const message = error instanceof Error ? error.message : "";
-        const result = error instanceof SyntaxError ? "invalid_configuration_json"
-          : message === "Firebase server configuration missing" ? "configuration_fields_missing"
-          : "firebase_initialization_failed";
-        return { initialized: false, readable: false, result };
-      }),
+      })().catch((error: unknown) => ({
+        initialized: false, readable: false, result: classifyAdminError(error, "init"),
+      })),
       new Promise<{ initialized: boolean; readable: boolean; result: string }>((resolve) => {
         timer = setTimeout(() => resolve({ initialized: false, readable: false, result: "timeout" }), 3500);
       }),
