@@ -21,7 +21,12 @@ Pakartotinis jau apmokėto skelbimo mokėjimas / pratęsimas šioje versijoje ne
    Įjungti `checkout.session.completed` ir `checkout.session.async_payment_succeeded`.
    Naudoti šio endpoint parašo raktą kaip `STRIPE_WEBHOOK_SECRET`. Testinio ir tikro režimo raktai skiriasi.
    Webhook API versija: `2026-09-30.endive` (Stripe SDK 23).
-3. Firebase Console patikrinti esamas Firestore taisykles. Šis repozitorius iki šiol jų neturėjo.
+3. Firebase Console patikrinti esamas Firestore taisykles. Produkcijos taisyklės iš 2026-05-07 iki mokėjimų apsaugos:
+   `ads`, `parts`, `partRequests` savininkams leido keisti bet kuriuos laukus, taip pat mokėjimo būseną.
+   Saugesnė `firestore.rules` versija uždraudžia klientui keisti mokėjimą ir paslepia neapmokėtus `ads`.
+   **Išsaugota sena `users/{userId}` taisyklė** (tik profilio savininkas gali skaityti ir rašyti).
+   Naujos `firestore.rules` taisyklės NĖRA automatiškai paskelbiamos su Vercel; jas būtina atskirai paskelbti Firebase Console arba Firebase CLI.
+   **Prieš taisyklių keitimą peržiūrėti senus transporto skelbimus:** įrašai be `paymentStatus: paid` ir `status: active` tampa nematomi visiems, išskyrus jų savininkus. Norint juos išsaugoti viešai, reikia atskiro patikimo migravimo/administracinio sprendimo – negalima klientui leisti jų pačiam pažymėti apmokėtais.
    `firestore.rules` apima `ads`, `parts`, `partRequests`; kitos kolekcijos uždraustos.
    Jei ta pačia baze naudojasi kitos programos / kolekcijos, suderinti taisykles prieš diegiant.
 4. Įdiegti indeksus, palaukti kol jie bus paruošti; tuomet suderintai diegti puslapio kodą ir taisykles:
