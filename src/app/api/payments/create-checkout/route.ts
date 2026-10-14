@@ -6,6 +6,10 @@ import { payableListing, safePaymentOrigin } from "@/lib/paymentPolicy";
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
+  // Keep paid checkout closed until production Firestore rules are audited and deployed.
+  if (process.env.STRIPE_CHECKOUT_ENABLED !== "true") {
+    return NextResponse.json({ error: "Mokėjimai ruošiami. Kol kas skelbimą išsaugokite, apmokėti galėsite vėliau." }, { status: 503 });
+  }
   const uid = await authenticatedUid(req);
   if (!uid) return NextResponse.json({ error: "Prisijunkite iš naujo." }, { status: 401 });
   let body;
