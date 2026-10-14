@@ -54,6 +54,15 @@ test("signed Stripe notifications activate once; duplicates and deleted ads stay
     assert.equal(first.paymentStatus, "paid");
     await send({ ...event, id: "evt_duplicate", created: event.created + 20 });
     assert.equal((await ref.get()).data()!.activeUntil.toMillis(), first.activeUntil.toMillis());
+    // Existing production Checkout sessions were created without ownerUid metadata.
+    // Honor them only when the session ID matches the one persisted on the listing.
+    const legacyRef = getFirestore(app).doc("ads/legacy");
+    await legacyRef.set({ ownerUid: "owner", paymentStatus: "pending", status: "pending_payment", stripeSessionId: "cs_old" });
+    const legacyEvent = { ...event, id: "evt_legacy", data: { object: { ...event.data.object, id: "cs_old", metadata: { collectionName: "ads", listingId: "legacy" } } } };
+    await send({ ...legacyEvent, id: "evt_legacy_unmatched", data: { object: { ...legacyEvent.data.object, id: "cs_not_bound" } } });
+    assert.equal((await legacyRef.get()).data()?.paymentStatus, "pending");
+    await send(legacyEvent);
+    assert.equal((await legacyRef.get()).data()?.paymentStatus, "paid"); // legacy webhook session
     await ref.delete();
     await send(event);
     assert.equal((await ref.get()).exists, false);
