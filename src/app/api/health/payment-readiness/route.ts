@@ -40,34 +40,40 @@ function classifyAdminError(error: unknown, stage: "import" | "init"): string {
 }
 
 // Verify live server-to-Stripe access with a read-only API call: no payment is created.
-async function checkStripeCheckoutApi(): Promise<{ ready: boolean; result: string }> {
-  if (!process.env.STRIPE_SECRET_KEY) return { ready: false, result: "missing_api_key" };
+type StripeProbe = { ready: boolean; result: string; requiredPermission: string | null };
+// A listing-only call is not proof that creating Checkout sessions is authorized.
+// Return an allow-listed grant name from Stripe's 403 without showing any key.
+async function checkStripeCheckoutApi(): Promise<StripeProbe> {
+  const none = { ready: false, requiredPermission: null };
+  if (!process.env.STRIPE_SECRET_KEY) return { ...none, result: "missing_api_key" };
   try {
     const { stripeClient } = await import("@/lib/stripeServer");
     const stripe = stripeClient();
-    // Abort after a short interval without depending on payment creation or private test data.
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
-      return await Promise.race([
+      return await Promise.race<StripeProbe>([
         stripe.checkout.sessions.list({ limit: 1 }).then(
-          () => ({ ready: true, result: "connected" }),
+          () => ({ ready: true, result: "checkout_sessions_read_ok", requiredPermission: null }),
           (error: unknown) => {
             const code = error && typeof error === "object" && "statusCode" in error
               ? Number((error as { statusCode?: number }).statusCode) : 0;
-            if (code === 401) return { ready: false, result: "invalid_api_key" };
-            if (code === 403) return { ready: false, result: "insufficient_permissions" };
-            return { ready: false, result: "stripe_request_failed" };
+            // The error can contain a key identifier: DO NOT return full message.
+            const message = error instanceof Error ? error.message : "";
+            const required = message.match(/\brak_[a-z0-9_]+\b/i)?.[0] || null;
+            if (code === 401) return { ...none, result: "invalid_api_key" };
+            if (code === 403) return { ...none, result: "checkout_sessions_read_forbidden", requiredPermission: required };
+            return { ...none, result: "stripe_request_failed" };
           },
         ),
-        new Promise<{ ready: boolean; result: string }>((resolve) => {
-          timer = setTimeout(() => resolve({ ready: false, result: "timeout" }), 4000);
+        new Promise<StripeProbe>((resolve) => {
+          timer = setTimeout(() => resolve({ ...none, result: "timeout" }), 4000);
         }),
       ]);
     } finally {
       if (timer !== undefined) clearTimeout(timer);
     }
   } catch {
-    return { ready: false, result: "sdk_import_failed" };
+    return { ...none, result: "sdk_import_failed" };
   }
 }
 
@@ -180,6 +186,7 @@ export async function GET() {
       adminProbeResult: admin.result,
       stripeApiReady: stripeApi.ready,
       stripeApiProbeResult: stripeApi.result,
+      stripeRequiredPermission: stripeApi.requiredPermission,
       rulesValidated,
       publicReadStatus: codes,
       checkoutEnabled: process.env.STRIPE_CHECKOUT_ENABLED === "true",
