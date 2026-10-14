@@ -27,6 +27,36 @@ test("payment status cannot be forged, pending ads are private, owners can edit"
   await assertFails(getDocs(collection(guest, "ads")));
 });
 
+test("original users profiles remain private and editable only by their owner", async () => {
+  const owner = env.authenticatedContext("profile-owner").firestore();
+  const stranger = env.authenticatedContext("profile-stranger").firestore();
+  const guest = env.unauthenticatedContext().firestore();
+  const ownerProfile = doc(owner, "users", "profile-owner");
+  await assertSucceeds(setDoc(ownerProfile, { nickname: "Autoloke user" }));
+  await assertSucceeds(getDoc(ownerProfile));
+  await assertSucceeds(updateDoc(ownerProfile, { nickname: "Updated" }));
+  await assertFails(getDoc(doc(stranger, "users", "profile-owner")));
+  await assertFails(getDoc(doc(guest, "users", "profile-owner")));
+  await assertFails(updateDoc(doc(stranger, "users", "profile-owner"), { nickname: "Intrusion" }));
+  await assertFails(setDoc(doc(owner, "users", "someone-else"), { nickname: "Intrusion" }));
+});
+
+test("free parts and public board keep the original ownership rules", async () => {
+  const owner = env.authenticatedContext("parts-owner").firestore();
+  const other = env.authenticatedContext("other").firestore();
+  const guest = env.unauthenticatedContext().firestore();
+  const part = doc(owner, "parts", "free-part");
+  await assertSucceeds(setDoc(part, { ownerUid: "parts-owner", paymentStatus: "free", status: "active", createdAt: serverTimestamp(), deleteAt: Timestamp.fromMillis(Date.now() + 31 * 86400000) }));
+  await assertSucceeds(getDoc(doc(guest, "parts", "free-part")));
+  await assertFails(updateDoc(part, { paymentStatus: "paid" }));
+  await assertFails(updateDoc(doc(other, "parts", "free-part"), { title: "Fake owner" }));
+  await assertSucceeds(updateDoc(part, { title: "Original owner" }));
+  const board = doc(owner, "partRequests", "request");
+  await assertSucceeds(setDoc(board, { ownerUid: "parts-owner", title: "Seeking parts" }));
+  await assertSucceeds(getDoc(doc(guest, "partRequests", "request")));
+  await assertFails(updateDoc(doc(other, "partRequests", "request"), { title: "Intrusion" }));
+});
+
 test("signed Stripe notifications activate once; duplicates and deleted ads stay safe", async () => {
   const { initializeApp, deleteApp } = await import("firebase-admin/app");
   const { getFirestore } = await import("firebase-admin/firestore");
