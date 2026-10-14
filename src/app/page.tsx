@@ -1,4 +1,5 @@
 "use client";
+import { publicAdsQuery } from "@/lib/publicAds";
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -123,7 +124,7 @@ export default function Home() {
   useEffect(() => {
     setSiteCountry(getSiteCountry());
 
-    const qAds = query(collection(db, "ads"), orderBy("createdAt", "desc"));
+    const qAds = publicAdsQuery();
     const unsubAds = onSnapshot(qAds, (snap) => {
       setAds(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })));
     });

@@ -1,86 +1,57 @@
 import { NextRequest, NextResponse } from "next/server";
-import { BILLING_CURRENCY, LISTING_ACTIVE_DAYS, LISTING_DELETE_AFTER_DAYS, LISTING_PRICE_CENTS, LISTING_PRICE_EUR } from "@/lib/billing";
-import { getFirestoreDocument, patchFirestoreDocument, type FirestoreCollectionName } from "@/lib/firebaseAdminRest";
-
+import { BILLING_CURRENCY, LISTING_PRICE_CENTS } from "@/lib/billing";
+import { adminDb, authenticatedUid } from "@/lib/firebaseAdmin";
+import { stripeClient } from "@/lib/stripeServer";
+import { payableListing, safePaymentOrigin } from "@/lib/paymentPolicy";
 export const runtime = "nodejs";
 
-const ALLOWED_COLLECTIONS = new Set<FirestoreCollectionName>(["ads"]);
-
-function getOrigin(req: NextRequest) {
-  return process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || req.headers.get("origin") || new URL(req.url).origin;
-}
-
-function isAllowedCollection(value: unknown): value is FirestoreCollectionName {
-  return typeof value === "string" && ALLOWED_COLLECTIONS.has(value as FirestoreCollectionName);
-}
-
 export async function POST(req: NextRequest) {
+  // Keep paid checkout closed until production Firestore rules are audited and deployed.
+  if (process.env.STRIPE_CHECKOUT_ENABLED !== "true") {
+    return NextResponse.json({ error: "Mokėjimai ruošiami. Kol kas skelbimą išsaugokite, apmokėti galėsite vėliau." }, { status: 503 });
+  }
+  const uid = await authenticatedUid(req);
+  if (!uid) return NextResponse.json({ error: "Prisijunkite iš naujo." }, { status: 401 });
+  let body;
+  try { body = await req.json(); } catch { return NextResponse.json({ error: "Neteisingi duomenys." }, { status: 400 }); }
+  const { collectionName, listingId } = body || {};
+  if (collectionName !== "ads" || typeof listingId !== "string" || !/^[a-zA-Z0-9_-]{1,150}$/.test(listingId)) {
+    return NextResponse.json({ error: "Neteisingas skelbimas." }, { status: 400 });
+  }
   try {
-    const stripeSecret = process.env.STRIPE_SECRET_KEY;
-    if (!stripeSecret) {
-      return NextResponse.json({ error: "Trūksta STRIPE_SECRET_KEY Vercel aplinkoje." }, { status: 500 });
+    const ref = adminDb().collection("ads").doc(listingId);
+    const snap = await ref.get();
+    if (!snap.exists) return NextResponse.json({ error: "Skelbimas nerastas." }, { status: 404 });
+    const listing = snap.data()!;
+    const problem = payableListing(listing, uid);
+    if (problem) return NextResponse.json({ error: problem === "forbidden" ? "Tai ne jūsų skelbimas." : problem === "already_paid" ? "Skelbimas jau apmokėtas." : "Skelbimo galiojimas baigiasi. Sukurkite naują skelbimą." }, { status: problem === "forbidden" ? 403 : 409 });
+    const stripe = stripeClient();
+    const origin = safePaymentOrigin(req.url);
+    let generation = 0;
+    if (listing.stripeSessionId) {
+      const previous = await stripe.checkout.sessions.retrieve(listing.stripeSessionId);
+      if (previous.status === "open" && previous.url) return NextResponse.json({ url: previous.url });
+      if (previous.status === "complete") return NextResponse.json({ error: "Mokėjimas tikrinamas. Patikrinkite „Mano skelbimai“." }, { status: 409 });
+      generation = previous.created;
     }
-
-    const body = (await req.json()) as { collectionName?: unknown; listingId?: unknown };
-    const { collectionName, listingId } = body;
-
-    if (!isAllowedCollection(collectionName) || typeof listingId !== "string" || !listingId.trim()) {
-      return NextResponse.json({ error: "Neteisingas skelbimo ID." }, { status: 400 });
-    }
-
-    const listing = await getFirestoreDocument(collectionName, listingId);
-    if (!listing) {
-      return NextResponse.json({ error: "Skelbimas nerastas." }, { status: 404 });
-    }
-
-    await patchFirestoreDocument(collectionName, listingId, {
-      paymentStatus: "pending",
-      status: "pending_payment",
-      listingPriceCents: LISTING_PRICE_CENTS,
-      listingPriceEur: LISTING_PRICE_EUR,
-      currency: BILLING_CURRENCY,
-      activeDays: LISTING_ACTIVE_DAYS,
-      deleteAfterDays: LISTING_DELETE_AFTER_DAYS,
-      updatedAt: new Date(),
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      allowed_payment_method_types: ["card"],
+      success_url: `${origin}/moketa?listingId=${encodeURIComponent(listingId)}`,
+      cancel_url: `${origin}/mano?payment=cancelled`,
+      client_reference_id: listingId,
+      line_items: [{ price_data: { currency: BILLING_CURRENCY, unit_amount: LISTING_PRICE_CENTS,
+        product_data: { name: "Autoloke – 30 dienų / 30 dage" } }, quantity: 1 }],
+      metadata: { collectionName: "ads", listingId, ownerUid: uid },
+    }, { idempotencyKey: `listing:${listingId}:${generation}` });
+    // Never reset paid status: a webhook can arrive before this write completes.
+    await adminDb().runTransaction(async (tx) => {
+      const current = await tx.get(ref);
+      if (current.exists && current.data()?.paymentStatus !== "paid") tx.update(ref, { stripeSessionId: session.id });
     });
-
-    const origin = getOrigin(req);
-    const params = new URLSearchParams();
-    params.append("mode", "payment");
-    params.append("success_url", `${origin}/moketa`);
-    params.append("cancel_url", `${origin}/ikelti?payment=cancelled`);
-    params.append("line_items[0][price_data][currency]", BILLING_CURRENCY);
-    params.append("line_items[0][price_data][unit_amount]", String(LISTING_PRICE_CENTS));
-    params.append("line_items[0][price_data][product_data][name]", "Autoloke.lt skelbimas 30 dienų");
-    params.append("line_items[0][quantity]", "1");
-    params.append("metadata[collectionName]", collectionName);
-    params.append("metadata[listingId]", listingId);
-    params.append("payment_intent_data[metadata][collectionName]", collectionName);
-    params.append("payment_intent_data[metadata][listingId]", listingId);
-
-    const stripeRes = await fetch("https://api.stripe.com/v1/checkout/sessions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${stripeSecret}`,
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: params,
-    });
-
-    const session = (await stripeRes.json()) as { id?: string; url?: string; error?: { message?: string } };
-
-    if (!stripeRes.ok || !session.url || !session.id) {
-      return NextResponse.json({ error: session.error?.message || "Stripe mokėjimo sukurti nepavyko." }, { status: 500 });
-    }
-
-    await patchFirestoreDocument(collectionName, listingId, {
-      stripeSessionId: session.id,
-      updatedAt: new Date(),
-    });
-
     return NextResponse.json({ url: session.url });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Mokėjimo klaida.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("checkout failed", error instanceof Error ? error.message : "unknown");
+    return NextResponse.json({ error: "Apmokėjimas šiuo metu nepasiekiamas. Skelbimas išsaugotas skiltyje „Mano skelbimai“." }, { status: 503 });
   }
 }

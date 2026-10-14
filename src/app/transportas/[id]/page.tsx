@@ -1,5 +1,6 @@
 "use client";
 
+import { isPublicPaidListing } from "@/lib/billing";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { doc, onSnapshot, updateDoc, deleteDoc, serverTimestamp} from "firebase/firestore";
@@ -84,9 +85,9 @@ export default function TransportDetailPage() {
     const ref = doc(db, "ads", id);
     const unsub = onSnapshot(ref, (snap) => {
       setData(snap.exists() ? ({ id: snap.id, ...(snap.data() as any) } as Ad) : null);
-    });
+    }, () => setData(null));
     return () => unsub();
-  }, [id]);
+  }, [id, user?.uid]);
 
   useEffect(() => {
     if (!data) return;
@@ -367,7 +368,7 @@ async function deleteOnePhoto(index: number) {
     );
   }
 
-  if (wrongCountry) {
+  if (wrongCountry || (!isOwner && !isPublicPaidListing(data))) {
     return (
       <main className="mx-auto max-w-6xl px-4 py-6">
         <Link href="/transportas" className="text-sm font-extrabold text-white/80 hover:text-white">

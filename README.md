@@ -55,3 +55,7 @@ git push
 ```
 
 Vercel po `git push` paleis automatiškai.
+
+## Mokami skelbimai
+
+Diegimo ir patikrų instrukcija: [docs/PAYMENTS_SETUP.md](docs/PAYMENTS_SETUP.md).

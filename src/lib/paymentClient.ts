@@ -1,3 +1,5 @@
+import { auth } from "./firebase";
+
 export type PaymentCollectionName = "ads" | "parts" | "partRequests";
 
 export async function startListingPayment({
@@ -7,9 +9,12 @@ export async function startListingPayment({
   collectionName: PaymentCollectionName;
   listingId: string;
 }) {
+  const user = auth?.currentUser;
+  if (!user) throw new Error("Prisijunkite, kad galėtumėte apmokėti.");
+  const token = await user.getIdToken();
   const res = await fetch("/api/payments/create-checkout", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
     body: JSON.stringify({ collectionName, listingId }),
   });
 

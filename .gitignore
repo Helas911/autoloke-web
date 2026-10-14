@@ -43,3 +43,6 @@ next-env.d.ts
 .git.zip
 node_modules
 .next
+
+# Local emulator output
+*-debug.log

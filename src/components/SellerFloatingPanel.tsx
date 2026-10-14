@@ -1,4 +1,6 @@
 "use client";
+import { isPublicPaidListing } from "@/lib/billing";
+import { publicAdsQuery } from "@/lib/publicAds";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -61,7 +63,7 @@ export function SellerFloatingPanel() {
 
     const unsub = onSnapshot(doc(db, listingPath.collectionName, listingPath.id), (snap) => {
       setCurrent(snap.exists() ? ({ id: snap.id, ...(snap.data() as any) } as Item) : null);
-    });
+    }, () => setCurrent(null));
 
     return () => unsub();
   }, [listingPath?.collectionName, listingPath?.id]);
@@ -69,7 +71,7 @@ export function SellerFloatingPanel() {
   useEffect(() => {
     if (!current) return;
 
-    const unsubAds = onSnapshot(query(collection(db, "ads"), orderBy("createdAt", "desc")), (snap) => {
+    const unsubAds = onSnapshot(publicAdsQuery(), (snap) => {
       setAds(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })));
     });
 
@@ -93,6 +95,7 @@ export function SellerFloatingPanel() {
   const sellerPhone = getSellerPhone(current);
 
   const otherAds = ads
+    .filter((x) => isPublicPaidListing(x))
     .filter((x) => x.id !== current.id)
     .filter((x) => normalizeItemCountry(x.country) === siteCountry)
     .filter((x) => isSameSeller(x, sellerId))

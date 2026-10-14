@@ -1,62 +1,48 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  deleteFirestoreDocument,
-  deleteStorageObject,
-  queryExpiredFirestoreDocuments,
-  type FirestoreCollectionName,
-} from "@/lib/firebaseAdminRest";
-
+import { getStorage } from "firebase-admin/storage";
+import { adminApp, adminDb } from "@/lib/firebaseAdmin";
 export const runtime = "nodejs";
-
-const COLLECTIONS: FirestoreCollectionName[] = ["ads", "parts"];
-
-function isAuthorized(req: NextRequest) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return false;
-  const auth = req.headers.get("authorization");
-  const urlSecret = new URL(req.url).searchParams.get("secret");
-  return auth === `Bearer ${secret}` || urlSecret === secret;
-}
-
-function imagePathsFrom(doc: Record<string, unknown>) {
-  const paths = doc.imagePaths;
-  if (!Array.isArray(paths)) return [];
-  return paths.filter((path): path is string => typeof path === "string" && path.trim().length > 0);
-}
+export const maxDuration = 60;
 
 export async function GET(req: NextRequest) {
-  if (!isAuthorized(req)) {
-    return NextResponse.json({ error: "Nėra cron leidimo." }, { status: 401 });
+  if (!process.env.CRON_SECRET || req.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-
-  const now = new Date();
-  const result: Record<string, { documents: number; images: number; imageErrors: number }> = {};
-
-  for (const collectionName of COLLECTIONS) {
-    result[collectionName] = { documents: 0, images: 0, imageErrors: 0 };
-
-    for (let round = 0; round < 5; round += 1) {
-      const expired = await queryExpiredFirestoreDocuments(collectionName, now, 100);
-      if (expired.length === 0) break;
-
-      for (const doc of expired) {
-        const paths = imagePathsFrom(doc);
-        for (const path of paths) {
-          try {
-            await deleteStorageObject(path);
-            result[collectionName].images += 1;
-          } catch {
-            result[collectionName].imageErrors += 1;
+  // Destructive maintenance requires an explicit deployment setting after reviewing existing data.
+  if (process.env.LISTING_CLEANUP_ENABLED !== "true") return NextResponse.json({ skipped: true });
+  const bucketName = process.env.FIREBASE_STORAGE_BUCKET || process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
+  if (!bucketName) return NextResponse.json({ error: "Storage configuration missing" }, { status: 503 });
+  let deleted = 0;
+  let errors = 0;
+  for (const collection of ["ads", "parts"]) {
+    const expired = await adminDb().collection(collection).where("deleteAt", "<=", new Date()).limit(50).get();
+    for (const snapshot of expired.docs) {
+      try {
+        const listing = await adminDb().runTransaction(async (tx) => {
+          const fresh = await tx.get(snapshot.ref);
+          const data = fresh.data();
+          if (!data || !data.deleteAt?.toDate || data.deleteAt.toDate() > new Date()) return null;
+          tx.update(snapshot.ref, { status: "deleting" });
+          return data;
+        });
+        if (!listing) continue;
+        const bucket = getStorage(adminApp()).bucket(bucketName);
+        // Never trust arbitrary imagePaths with server deletion privileges.
+        const prefix = `${collection}/${listing.ownerUid}/${snapshot.id}/`;
+        await bucket.deleteFiles({ prefix });
+        const extraPaths = Array.isArray(listing.imagePaths) ? listing.imagePaths : [];
+        for (const path of extraPaths) {
+          if (typeof path === "string" && path.startsWith(`${collection}/${listing.ownerUid}/quick/`)) {
+            await bucket.file(path).delete({ ignoreNotFound: true });
           }
         }
-
-        if (typeof doc.id === "string" && doc.id) {
-          await deleteFirestoreDocument(collectionName, doc.id);
-          result[collectionName].documents += 1;
-        }
+        await snapshot.ref.delete();
+        deleted++;
+      } catch {
+        // Keep the document (and its photo paths) so tomorrow's run can retry.
+        errors++;
       }
     }
   }
-
-  return NextResponse.json({ ok: true, now: now.toISOString(), result });
+  return NextResponse.json({ deleted, errors }, { status: errors ? 500 : 200 });
 }

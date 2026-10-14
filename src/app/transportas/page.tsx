@@ -1,4 +1,5 @@
 "use client";
+import { publicAdsQuery } from "@/lib/publicAds";
 
 import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import Link from "next/link";
@@ -53,8 +54,7 @@ export default function TransportasPage() {
 
   useEffect(() => {
     setSiteCountry(getSiteCountry());
-    const col = collection(db, "ads");
-    const q = query(col, orderBy("createdAt", "desc"));
+    const q = publicAdsQuery();
     const unsub = onSnapshot(q, (snap) => {
       setItems(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })));
     });
