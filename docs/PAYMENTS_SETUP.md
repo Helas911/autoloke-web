@@ -7,6 +7,9 @@ Pakartotinis jau apmokėto skelbimo mokėjimas / pratęsimas šioje versijoje ne
 
 ## Prieš paleidimą
 
+**Saugus paleidimas:** `STRIPE_CHECKOUT_ENABLED` pagal nutylėjimą išjungtas. Kol nepatikrintos ir nesuderintos gyvos Firestore saugumo taisyklės, mokėjimo kūrimo API grąžins 503. Tik įdiegus taisykles ir patikrinus naujų skelbimų įkėlimą, nustatyti `STRIPE_CHECKOUT_ENABLED=true` Production aplinkoje ir atlikti naują Vercel diegimą. Nekelti į live kol nepatikrintas bent vienas testinio režimo mokėjimas.
+
+
 1. Vercel aplinkoje nustatyti serverio kintamuosius (jokių slaptų raktų GitHub ar pokalbyje):
    - `STRIPE_SECRET_KEY` (pirma testinis, vėliau tikras)
    - `STRIPE_WEBHOOK_SECRET`
