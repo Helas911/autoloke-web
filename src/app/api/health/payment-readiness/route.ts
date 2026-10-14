@@ -39,6 +39,38 @@ function classifyAdminError(error: unknown, stage: "import" | "init"): string {
   return "firebase_initialization_failed";
 }
 
+// Verify live server-to-Stripe access with a read-only API call: no payment is created.
+async function checkStripeCheckoutApi(): Promise<{ ready: boolean; result: string }> {
+  if (!process.env.STRIPE_SECRET_KEY) return { ready: false, result: "missing_api_key" };
+  try {
+    const { stripeClient } = await import("@/lib/stripeServer");
+    const stripe = stripeClient();
+    // Abort after a short interval without depending on payment creation or private test data.
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        stripe.checkout.sessions.list({ limit: 1 }).then(
+          () => ({ ready: true, result: "connected" }),
+          (error: unknown) => {
+            const code = error && typeof error === "object" && "statusCode" in error
+              ? Number((error as { statusCode?: number }).statusCode) : 0;
+            if (code === 401) return { ready: false, result: "invalid_api_key" };
+            if (code === 403) return { ready: false, result: "insufficient_permissions" };
+            return { ready: false, result: "stripe_request_failed" };
+          },
+        ),
+        new Promise<{ ready: boolean; result: string }>((resolve) => {
+          timer = setTimeout(() => resolve({ ready: false, result: "timeout" }), 4000);
+        }),
+      ]);
+    } finally {
+      if (timer !== undefined) clearTimeout(timer);
+    }
+  } catch {
+    return { ready: false, result: "sdk_import_failed" };
+  }
+}
+
 async function checkAdminFirestore(): Promise<{ initialized: boolean; readable: boolean; result: string }> {
   // A Firebase SDK read can hang when Google credentials or outbound gRPC are unavailable.
   // Enforce an independent limit rather than waiting for Vercel's function timeout.
@@ -136,7 +168,7 @@ export async function GET() {
       [codes.publicPartsList, codes.unrestrictedAdsList, codes.privateUsersList, codes.filteredPaidAdsList] = result;
     })();
 
-    const [admin] = await Promise.all([checkAdminFirestore(), anonymous]);
+    const [admin, stripeApi] = await Promise.all([checkAdminFirestore(), checkStripeCheckoutApi(), anonymous]).then(([admin, stripeApi]) => [admin, stripeApi]);
     const rulesValidated = codes.publicPartsList === 200 &&
       codes.unrestrictedAdsList === 403 &&
       codes.privateUsersList === 403 &&
@@ -146,6 +178,8 @@ export async function GET() {
       adminFirestore: admin.readable,
       adminInitialized: admin.initialized,
       adminProbeResult: admin.result,
+      stripeApiReady: stripeApi.ready,
+      stripeApiProbeResult: stripeApi.result,
       rulesValidated,
       publicReadStatus: codes,
       checkoutEnabled: process.env.STRIPE_CHECKOUT_ENABLED === "true",
