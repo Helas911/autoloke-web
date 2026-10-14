@@ -49,8 +49,26 @@ async function checkAdminFirestore(): Promise<{ initialized: boolean; readable: 
         let adminDb: typeof import("@/lib/firebaseAdmin")["adminDb"];
         try {
           ({ adminDb } = await import("@/lib/firebaseAdmin"));
-        } catch {
-          return { initialized: false, readable: false, result: "module_import_failed" };
+        } catch (error: unknown) {
+          // Restrict public diagnostics to error categories; never disclose env values or stack traces.
+          const message = error instanceof Error ? error.message : "";
+          const errorCode = error && typeof error === "object" && "code" in error
+            ? String((error as {code?: unknown}).code ?? "") : "";
+          const result = /MODULE_NOT_FOUND|ERR_MODULE_NOT_FOUND/.test(errorCode)
+            || /cannot find module|cannot find package/i.test(message)
+              ? "missing_runtime_dependency"
+            : /dynamic require|require is not defined|esm/i.test(message)
+              ? "module_format_conflict"
+            : /server-only|edge runtime/i.test(message)
+              ? "runtime_mismatch"
+            : "module_evaluation_failed";
+          const relatedPackage = /firebase-admin|firestore|google-gax|grpc|google-auth-library/i.test(message)
+            ? (/firebase-admin/i.test(message) ? "firebase-admin"
+              : /google-gax/i.test(message) ? "google-gax"
+              : /grpc/i.test(message) ? "grpc"
+              : /google-auth-library/i.test(message) ? "google-auth-library" : "firestore")
+            : "unspecified";
+          return { initialized: false, readable: false, result: result + ":" + relatedPackage };
         }
         let db: ReturnType<typeof adminDb>;
         try {
