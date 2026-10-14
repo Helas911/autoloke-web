@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { addDays, LISTING_ACTIVE_DAYS, LISTING_DELETE_AFTER_DAYS } from "@/lib/billing";
 import { adminDb } from "@/lib/firebaseAdmin";
 import { stripeClient } from "@/lib/stripeServer";
-import { validPaidSession } from "@/lib/paymentPolicy";
+import { validPaidSession, validLegacyPaidSession } from "@/lib/paymentPolicy";
 import type Stripe from "stripe";
 export const runtime = "nodejs";
 
@@ -15,7 +15,9 @@ export async function POST(req: NextRequest) {
   } catch { return NextResponse.json({ error: "Invalid signature" }, { status: 400 }); }
   if (event.type !== "checkout.session.completed" && event.type !== "checkout.session.async_payment_succeeded") return NextResponse.json({ received: true });
   const session = event.data.object as Stripe.Checkout.Session;
-  if (!validPaidSession(session)) return NextResponse.json({ received: true });
+  const modernSession = validPaidSession(session);
+  const legacySession = validLegacyPaidSession(session);
+  if (!modernSession && !legacySession) return NextResponse.json({ received: true });
   const id = session.metadata!.listingId;
   if (!/^[a-zA-Z0-9_-]{1,150}$/.test(id)) return NextResponse.json({ error: "Invalid listing" }, { status: 400 });
   try {
@@ -25,7 +27,10 @@ export async function POST(req: NextRequest) {
       // A delayed notification must not recreate a deleted listing or extend its life.
       if (!snap.exists) return;
       const listing = snap.data()!;
-      if (listing.ownerUid !== session.metadata!.ownerUid || listing.paymentStatus === "paid" || listing.status === "deleting") return;
+      const sessionMatchesListing = modernSession
+        ? listing.ownerUid === session.metadata!.ownerUid
+        : listing.stripeSessionId === session.id; // pre-migration, paid Checkout sessions lack ownerUid metadata
+      if (!sessionMatchesListing || listing.paymentStatus === "paid" || listing.status === "deleting") return;
       const paidAt = new Date(event.created * 1000);
       tx.update(ref, {
         paymentStatus: "paid", status: "active", paidAt,
