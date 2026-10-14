@@ -168,7 +168,7 @@ export async function GET() {
       [codes.publicPartsList, codes.unrestrictedAdsList, codes.privateUsersList, codes.filteredPaidAdsList] = result;
     })();
 
-    const [admin, stripeApi] = await Promise.all([checkAdminFirestore(), checkStripeCheckoutApi(), anonymous]).then(([admin, stripeApi]) => [admin, stripeApi]);
+    const [admin, stripeApi] = await Promise.all([checkAdminFirestore(), checkStripeCheckoutApi(), anonymous]);
     const rulesValidated = codes.publicPartsList === 200 &&
       codes.unrestrictedAdsList === 403 &&
       codes.privateUsersList === 403 &&
