@@ -1,44 +1,72 @@
 import { NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebaseAdmin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Read-only production readiness probe. Returns statuses only, never data, IDs, or credentials.
-export async function GET() {
-  const publicProjectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
-  const publicApiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+// Read-only diagnostic. All probes are bounded so a slow external service
+// cannot take down the serverless function or block payment troubleshooting.
+type ReadStatuses = {
+  publicPartsList: number | null;
+  unrestrictedAdsList: number | null;
+  privateUsersList: number | null;
+  filteredPaidAdsList: number | null;
+};
+const NO_CACHE = { "Cache-Control": "no-store, max-age=0" };
 
-  let adminFirestore: boolean = false;
+async function fetchStatus(url: string, body?: unknown): Promise<number | null> {
   try {
-    const snap = await adminDb().collection("ads").limit(1).get();
-    adminFirestore = typeof snap.empty === "boolean";
+    const result = await fetch(url, {
+      method: body === undefined ? "GET" : "POST",
+      headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+      body: body === undefined ? undefined : JSON.stringify(body),
+      cache: "no-store",
+      signal: AbortSignal.timeout(3500),
+    });
+    return result.status;
   } catch {
-    adminFirestore = false;
+    return null;
   }
+}
 
-  const codes: Record<string, number | null> = {
-    publicPartsList: null,
-    unrestrictedAdsList: null,
-    privateUsersList: null,
-    filteredPaidAdsList: null,
-  };
+async function checkAdminFirestore(): Promise<{ initialized: boolean; readable: boolean; result: string }> {
+  // A Firebase SDK read can hang when Google credentials or outbound gRPC are unavailable.
+  // Enforce an independent limit rather than waiting for Vercel's function timeout.
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      (async () => {
+        const { adminDb } = await import("@/lib/firebaseAdmin");
+        const db = adminDb();
+        try {
+          const snap = await db.collection("ads").limit(1).get();
+          return { initialized: true, readable: typeof snap.empty === "boolean", result: "completed" };
+        } catch {
+          return { initialized: true, readable: false, result: "read_failed" };
+        }
+      })().catch(() => ({ initialized: false, readable: false, result: "configuration_or_import_error" })),
+      new Promise<{ initialized: boolean; readable: boolean; result: string }>((resolve) => {
+        timer = setTimeout(() => resolve({ initialized: false, readable: false, result: "timeout" }), 3500);
+      }),
+    ]);
+  } catch {
+    return { initialized: false, readable: false, result: "unexpected_error" };
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
 
-  if (publicProjectId && publicApiKey) {
-    const root = `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(publicProjectId)}/databases/(default)/documents`;
-    const queryKey = `key=${encodeURIComponent(publicApiKey)}`;
-    const options = { cache: "no-store" as const, signal: AbortSignal.timeout(8000) };
+export async function GET() {
+  try {
+    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+    const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+    const codes: ReadStatuses = {
+      publicPartsList: null,
+      unrestrictedAdsList: null,
+      privateUsersList: null,
+      filteredPaidAdsList: null,
+    };
 
-    async function statusOf(url: string, init?: RequestInit) {
-      try {
-        const res = await fetch(url, { ...options, ...init });
-        return res.status;
-      } catch {
-        return null;
-      }
-    }
-
-    const paidOnly = {
+    const paidQuery = {
       structuredQuery: {
         from: [{ collectionId: "ads" }],
         where: {
@@ -54,33 +82,42 @@ export async function GET() {
       },
     };
 
-    const [parts, ads, users, paidAds] = await Promise.all([
-      statusOf(`${root}/parts?pageSize=1&${queryKey}`),
-      statusOf(`${root}/ads?pageSize=1&${queryKey}`),
-      statusOf(`${root}/users?pageSize=1&${queryKey}`),
-      statusOf(`${root}:runQuery?${queryKey}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(paidOnly),
-      }),
-    ]);
-    codes.publicPartsList = parts;
-    codes.unrestrictedAdsList = ads;
-    codes.privateUsersList = users;
-    codes.filteredPaidAdsList = paidAds;
+    const anonymous = (async () => {
+      if (!projectId || !apiKey) return;
+      const root = `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/databases/(default)/documents`;
+      const key = `key=${encodeURIComponent(apiKey)}`;
+      const result = await Promise.all([
+        fetchStatus(`${root}/parts?pageSize=1&${key}`),
+        fetchStatus(`${root}/ads?pageSize=1&${key}`),
+        fetchStatus(`${root}/users?pageSize=1&${key}`),
+        fetchStatus(`${root}:runQuery?${key}`, paidQuery),
+      ]);
+      [codes.publicPartsList, codes.unrestrictedAdsList, codes.privateUsersList, codes.filteredPaidAdsList] = result;
+    })();
+
+    const [admin] = await Promise.all([checkAdminFirestore(), anonymous]);
+    const rulesValidated = codes.publicPartsList === 200 &&
+      codes.unrestrictedAdsList === 403 &&
+      codes.privateUsersList === 403 &&
+      codes.filteredPaidAdsList === 200;
+
+    return NextResponse.json({
+      adminFirestore: admin.readable,
+      adminInitialized: admin.initialized,
+      adminProbeResult: admin.result,
+      rulesValidated,
+      publicReadStatus: codes,
+      checkoutEnabled: process.env.STRIPE_CHECKOUT_ENABLED === "true",
+      stripeConfigured: !!process.env.STRIPE_SECRET_KEY && !!process.env.STRIPE_WEBHOOK_SECRET,
+      note: "Read-only diagnostic. Payment processing remains disabled until all checks pass.",
+    }, { headers: NO_CACHE });
+  } catch {
+    return NextResponse.json({
+      adminFirestore: false,
+      adminInitialized: false,
+      rulesValidated: false,
+      checkoutEnabled: false,
+      diagnosticError: "Readiness diagnostic failed. Do not enable payments.",
+    }, { status: 200, headers: NO_CACHE });
   }
-
-  const rulesValidated = codes.publicPartsList === 200
-    && codes.unrestrictedAdsList === 403
-    && codes.privateUsersList === 403
-    && codes.filteredPaidAdsList === 200;
-
-  return NextResponse.json({
-    adminFirestore,
-    rulesValidated,
-    publicReadStatus: codes,
-    checkoutEnabled: process.env.STRIPE_CHECKOUT_ENABLED === "true",
-    stripeConfigured: !!process.env.STRIPE_SECRET_KEY && !!process.env.STRIPE_WEBHOOK_SECRET,
-    note: "Read-only health check; no listing or payment data is exposed.",
-  }, { headers: { "Cache-Control": "no-store" } });
 }
