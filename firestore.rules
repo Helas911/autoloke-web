@@ -32,6 +32,10 @@ service cloud.firestore {
       allow update: if owns(resource.data) && resource.data.status != "deleting" && editableOnly();
       allow delete: if owns(resource.data);
     }
+    // Preserve the original Firebase profile access: users can only read/write their own profile.
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
     match /partRequests/{id} {
       allow read: if true;
       allow create: if owns(request.resource.data);
