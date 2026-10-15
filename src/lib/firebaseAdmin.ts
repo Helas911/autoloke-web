@@ -32,7 +32,19 @@ export async function authenticatedUser(request: Request): Promise<TokenVerifica
     // Dynamically import only when verifying a login; Firestore must not depend on Auth loading.
     ({ getAuth } = await import("firebase-admin/auth"));
   } catch {
-    return { uid: null, failure: "auth_sdk_unavailable" };
+    // Some Vercel runtime bundles cannot load firebase-admin/auth even while
+    // firebase-admin/firestore is healthy. Verify the token against Google's
+    // published rotating signing certificates instead of trusting client UID.
+    try {
+      const { verifyFirebaseIdTokenWithGoogleCerts } = await import("./firebaseTokenVerifier");
+      const projectId = process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+      if (!projectId) return { uid: null, failure: "server_configuration_error" };
+      const verified = await verifyFirebaseIdTokenWithGoogleCerts(header.slice(7), projectId);
+      if (verified.uid) return { uid: verified.uid };
+      return { uid: null, failure: verified.reason };
+    } catch {
+      return { uid: null, failure: "auth_sdk_unavailable" };
+    }
   }
   let app;
   try {
