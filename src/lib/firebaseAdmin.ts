@@ -40,7 +40,7 @@ export async function authenticatedUser(request: Request): Promise<TokenVerifica
       const projectId = process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
       if (!projectId) return { uid: null, failure: "server_configuration_error" };
       const verified = await verifyFirebaseIdTokenWithGoogleCerts(header.slice(7), projectId);
-      if (verified.uid) return { uid: verified.uid };
+      if (verified.uid !== null) return { uid: verified.uid };
       return { uid: null, failure: verified.reason };
     } catch {
       return { uid: null, failure: "auth_sdk_unavailable" };
