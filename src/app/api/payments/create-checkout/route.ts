@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { BILLING_CURRENCY, LISTING_PRICE_CENTS } from "@/lib/billing";
-import { adminDb, authenticatedUid } from "@/lib/firebaseAdmin";
+import { adminDb, authenticatedUser } from "@/lib/firebaseAdmin";
 import { stripeClient } from "@/lib/stripeServer";
 import { payableListing, safePaymentOrigin } from "@/lib/paymentPolicy";
 export const runtime = "nodejs";
@@ -10,8 +10,17 @@ export async function POST(req: NextRequest) {
   if (process.env.STRIPE_CHECKOUT_ENABLED !== "true") {
     return NextResponse.json({ error: "Mokėjimai ruošiami. Kol kas skelbimą išsaugokite, apmokėti galėsite vėliau." }, { status: 503 });
   }
-  const uid = await authenticatedUid(req);
-  if (!uid) return NextResponse.json({ error: "Prisijunkite iš naujo." }, { status: 401 });
+  const verification = await authenticatedUser(req);
+  if (!verification.uid) {
+    const userError = verification.failure === "expired_token" || verification.failure === "revoked_token"
+      || verification.failure === "invalid_token" || verification.failure === "missing_token";
+    return NextResponse.json({
+      error: userError ? "Prisijungimas nebegalioja. Prisijunkite dar kartą."
+        : "Laikina serverio prisijungimo patikros klaida. Jūsų skelbimas išsaugotas – bandykite apmokėti vėliau.",
+      authError: verification.failure,
+    }, { status: userError ? 401 : 503 });
+  }
+  const uid = verification.uid;
   let body;
   try { body = await req.json(); } catch { return NextResponse.json({ error: "Neteisingi duomenys." }, { status: 400 }); }
   const { collectionName, listingId } = body || {};
