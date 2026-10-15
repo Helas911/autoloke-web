@@ -77,6 +77,20 @@ async function checkStripeCheckoutApi(): Promise<StripeProbe> {
   }
 }
 
+// Check that token-verification dependencies can initialize; no user token is needed.
+async function checkAuthSdk(): Promise<{ ready: boolean; result: string }> {
+  try {
+    const [{ getAuth }, { adminApp }] = await Promise.all([
+      import("firebase-admin/auth"),
+      import("@/lib/firebaseAdmin"),
+    ]);
+    const auth = getAuth(adminApp());
+    return { ready: typeof auth.verifyIdToken === "function", result: "module_loaded" };
+  } catch {
+    return { ready: false, result: "auth_module_unavailable" };
+  }
+}
+
 async function checkAdminFirestore(): Promise<{ initialized: boolean; readable: boolean; result: string }> {
   // A Firebase SDK read can hang when Google credentials or outbound gRPC are unavailable.
   // Enforce an independent limit rather than waiting for Vercel's function timeout.
@@ -174,7 +188,7 @@ export async function GET() {
       [codes.publicPartsList, codes.unrestrictedAdsList, codes.privateUsersList, codes.filteredPaidAdsList] = result;
     })();
 
-    const [admin, stripeApi] = await Promise.all([checkAdminFirestore(), checkStripeCheckoutApi(), anonymous]);
+    const [admin, stripeApi, firebaseAuth] = await Promise.all([checkAdminFirestore(), checkStripeCheckoutApi(), checkAuthSdk(), anonymous]);
     const rulesValidated = codes.publicPartsList === 200 &&
       codes.unrestrictedAdsList === 403 &&
       codes.privateUsersList === 403 &&
@@ -184,6 +198,8 @@ export async function GET() {
       adminFirestore: admin.readable,
       adminInitialized: admin.initialized,
       adminProbeResult: admin.result,
+      firebaseAuthSdkReady: firebaseAuth.ready,
+      firebaseAuthSdkProbeResult: firebaseAuth.result,
       stripeApiReady: stripeApi.ready,
       stripeApiProbeResult: stripeApi.result,
       stripeRequiredPermission: stripeApi.requiredPermission,
