@@ -11,16 +11,17 @@ export async function startListingPayment({
 }) {
   const user = auth?.currentUser;
   if (!user) throw new Error("Prisijunkite, kad galėtumėte apmokėti.");
-  const token = await user.getIdToken();
+  // Request a freshly issued Firebase ID token to avoid stale sessions during checkout.
+  const token = await user.getIdToken(true);
   const res = await fetch("/api/payments/create-checkout", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
     body: JSON.stringify({ collectionName, listingId }),
   });
 
-  let data: { url?: string; error?: string } = {};
+  let data: { url?: string; error?: string; authError?: string } = {};
   try {
-    data = (await res.json()) as { url?: string; error?: string };
+    data = (await res.json()) as { url?: string; error?: string; authError?: string };
   } catch {
     data = {};
   }
