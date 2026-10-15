@@ -27,7 +27,11 @@ export async function startListingPayment({
   }
 
   if (!res.ok || !data.url) {
-    throw new Error(data.error || "Nepavyko pradėti apmokėjimo.");
+    // Safe error category lets the owner report a failed token check without
+    // ever sharing an ID token, password or service credential.
+    const detail = data.authError && /^[a-z_]+$/.test(data.authError)
+      ? ` [${data.authError}]` : "";
+    throw new Error((data.error || "Nepavyko pradėti apmokėjimo.") + detail);
   }
 
   window.location.href = data.url;
