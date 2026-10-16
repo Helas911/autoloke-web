@@ -76,6 +76,63 @@ function errorText(error: unknown, isDk: boolean) {
   return isDk ? "Annoncen kunne ikke oprettes. Prøv igen." : "Nepavyko įdėti skelbimo. Pabandyk dar kartą.";
 }
 
+function BoardListingCard({ item, isDk }: { item: Item; isDk: boolean }) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const description = item.description?.trim() || "";
+  const hasLongDescription = description.length > 70;
+
+  return (
+    <article className="rounded-2xl border border-white/10 bg-black/25 p-3 sm:p-4">
+      <div className="flex items-start gap-3">
+        {item.imageUrl && !imageFailed ? (
+          <img
+            src={item.imageUrl}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            onError={() => setImageFailed(true)}
+            className="h-20 w-20 shrink-0 rounded-xl bg-white/5 object-cover sm:h-24 sm:w-28"
+          />
+        ) : null}
+        <div className="min-w-0 flex-1">
+          <div className="inline-flex max-w-full rounded-full border border-yellow-400/25 bg-yellow-500/10 px-2 py-0.5 text-[11px] font-black text-yellow-100">
+            {badge(item.category, isDk)}
+          </div>
+          <h3 className="mt-1 text-sm font-black leading-5 sm:text-base">{title(item, isDk)}</h3>
+          <p className="mt-1 text-xs font-semibold text-white/55">
+            {item.city || (isDk ? "By ikke angivet" : "Miestas nenurodytas")}
+          </p>
+          {description ? (
+            <p className={`mt-1.5 break-words whitespace-pre-wrap text-xs leading-5 text-white/70 sm:text-sm ${hasLongDescription && !expanded ? "line-clamp-2" : ""}`}>
+              {description}
+            </p>
+          ) : null}
+          {(hasLongDescription || item.phone) && (
+            <div className="mt-2 flex flex-wrap items-center gap-3">
+              {hasLongDescription ? (
+                <button
+                  type="button"
+                  onClick={() => setExpanded((previous) => !previous)}
+                  aria-expanded={expanded}
+                  className="text-xs font-bold text-yellow-200 hover:text-yellow-100"
+                >
+                  {expanded ? (isDk ? "Vis mindre" : "Rodyti mažiau") : (isDk ? "Læs mere" : "Plačiau")}
+                </button>
+              ) : null}
+              {item.phone ? (
+                <a href={`tel:${item.phone}`} className="inline-flex rounded-full bg-white px-3 py-1.5 text-xs font-black text-black hover:bg-white/90">
+                  {isDk ? "Ring" : "Skambinti"}
+                </a>
+              ) : null}
+            </div>
+          )}
+        </div>
+      </div>
+    </article>
+  );
+}
+
 export default function Page() {
   const siteCountry = getSiteCountry();
   const isDk = siteCountry === "DK";
@@ -234,16 +291,7 @@ export default function Page() {
           </div>
           <div className="space-y-3">
             {filtered.map((item) => (
-              <article key={item.id} className="overflow-hidden rounded-3xl border border-white/10 bg-black/25">
-                {item.imageUrl ? <img src={item.imageUrl} alt="" className="h-44 w-full object-cover" /> : null}
-                <div className="p-4">
-                  <div className="mb-2 inline-flex rounded-full border border-yellow-400/25 bg-yellow-500/10 px-3 py-1 text-xs font-black text-yellow-100">{badge(item.category, isDk)}</div>
-                  <h3 className="text-lg font-black">{title(item, isDk)}</h3>
-                  <p className="mt-1 text-sm font-semibold text-white/55">{item.city || (isDk ? "By ikke angivet" : "Miestas nenurodytas")}</p>
-                  {item.description ? <p className="mt-3 text-sm leading-6 text-white/70">{item.description}</p> : null}
-                  {item.phone ? <a href={`tel:${item.phone}`} className="mt-3 inline-flex rounded-full bg-white px-4 py-2 text-sm font-black text-black">{isDk ? "Ring" : "Skambinti"}</a> : null}
-                </div>
-              </article>
+              <BoardListingCard key={item.id} item={item} isDk={isDk} />
             ))}
             {filtered.length === 0 ? <div className="rounded-3xl border border-white/10 bg-black/25 p-6 text-sm font-semibold text-white/60">{isDk ? "Der er endnu ingen annoncer, der matcher søgningen." : "Kol kas nėra skelbimų pagal šią paiešką."}</div> : null}
           </div>
