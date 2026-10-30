@@ -38,10 +38,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="lt" suppressHydrationWarning>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-[#0b0b0d] text-white`}>
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen autoloke-light bg-[#f0faf4] text-[#153d2b]`}>
         <HtmlLang />
         <div className="pointer-events-none fixed inset-0 -z-10">
-          <div className="absolute inset-0 bg-[radial-gradient(60%_50%_at_50%_0%,rgba(255,255,255,0.05),transparent_70%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(65%_50%_at_50%_0%,rgba(136,223,170,0.13),transparent_75%)]" />
         </div>
 
         <SiteHeader />

@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root{
-  --background:#0b0b0d;
-  --foreground:#ffffff;
+  --background:#f0faf4;
+  --foreground:#153d2b;
 }
 
 @theme inline{
@@ -19,27 +19,27 @@ body{
 }
 
 select, option{
-  background-color:#0b0b10;
-  color: rgba(255,255,255,0.95);
+  background-color:#ffffff;
+  color:#153d2b;
 }
 
 input::placeholder, textarea::placeholder{
-  color: rgba(255,255,255,0.45);
+  color:#789788;
 }
 
 .input-pay{
   width:100%;
   border-radius:1rem;
-  border:1px solid rgba(255,255,255,0.12);
-  background:rgba(255,255,255,0.05);
+  border:1px solid #cfe7d7;
+  background:#fff;
   padding:0.75rem 1rem;
   font-size:0.875rem;
-  color:white;
+  color:#153d2b;
   outline:none;
 }
 
 .input-pay:focus{
-  border-color:rgba(255,255,255,0.24);
+  border-color:#178653;
 }
 
 .input-pay:disabled{
@@ -47,13 +47,13 @@ input::placeholder, textarea::placeholder{
 }
 
 .priceLabel{
-  background:#2563eb;
+  background:#067847;
   color:#ffffff;
   padding:6px 10px;
   border-radius:999px;
   font-weight:900;
   font-size:12px;
-  box-shadow:0 10px 30px rgba(0,0,0,0.35);
+  box-shadow:0 6px 22px rgba(5,94,55,0.18);
   border:1px solid rgba(255,255,255,0.25);
   transform: translateY(-6px);
   white-space:nowrap;
@@ -80,3 +80,82 @@ main > a[href="/ikelti"]{
   font-size:14px !important;
   font-weight:800 !important;
 }
+
+
+/* AUTOLOKE — šviesi, žalsva, bendra abiejų domenų tema */
+html { scroll-behavior: smooth; }
+body.autoloke-light {
+  background: linear-gradient(180deg, #f0faf4 0%, #f9fdfa 42%, #eff9f1 100%);
+  color: #143b2b;
+}
+.autoloke-light :is([class~="bg-white/[0.03]"],[class~="bg-white/[0.04]"],[class~="bg-white/[0.05]"],[class~="bg-white/[0.06]"],[class~="bg-white/[0.08]"],[class~="bg-white/[0.10]"]) {
+  background-color:#fff;
+}
+.autoloke-light :is([class~="bg-white/5"],[class~="bg-white/10"],[class~="bg-white/12"],[class~="bg-white/15"]) {
+  background-color:#f4fbf6;
+}
+.autoloke-light :is([class~="bg-black/20"],[class~="bg-black/25"],[class~="bg-black/30"],[class~="bg-black/35"],[class~="bg-black/40"],[class~="bg-black/45"],[class~="bg-black/55"]) {
+  background-color:rgba(255,255,255,.95);
+}
+.autoloke-light [class~="bg-neutral-950"] { background-color:#f0faf4; }
+.autoloke-light :is([class~="border-white/10"],[class~="border-white/12"],[class~="border-white/15"],[class~="border-white/20"],[class~="border-white/25"]) {
+  border-color:#d5e9dc;
+}
+.autoloke-light :is([class~="text-white"],[class~="text-white/90"],[class~="text-white/85"],[class~="text-white/80"],[class~="text-white/75"]) { color:#153d2b; }
+.autoloke-light :is([class~="text-white/70"],[class~="text-white/65"],[class~="text-white/60"],[class~="text-white/55"]) { color:#527261; }
+.autoloke-light :is([class~="text-white/50"],[class~="text-white/45"],[class~="text-white/40"],[class~="text-white/35"]) { color:#708b7a; }
+.autoloke-light [class~="text-black"] { color:#113e2a; }
+.autoloke-light :is([class~="bg-blue-600"],[class~="bg-blue-600/90"],[class~="bg-blue-500"],[class~="bg-emerald-500"],[class~="bg-emerald-600"]) { background-color:#087e4c; color:#fff; }
+.autoloke-light :is([class~="border-blue-400/40"],[class~="border-blue-300/50"]) { border-color:#86d0a7; }
+.autoloke-light [class~="bg-red-600"] { color:#fff; }
+.autoloke-light :is([class~="bg-blue-600"],[class~="bg-blue-600/90"],[class~="bg-blue-500"],[class~="bg-emerald-500"],[class~="bg-emerald-600"],[class~="bg-red-600"]) [class~="text-white"],
+.autoloke-light :is([class~="bg-blue-600"],[class~="bg-blue-600/90"],[class~="bg-blue-500"],[class~="bg-emerald-500"],[class~="bg-emerald-600"],[class~="bg-red-600"])[class~="text-white"] { color:#fff; }
+.autoloke-light :is(a,button)[class~="bg-white"] { background-color:#087e4c; color:#fff; }
+.autoloke-light :is(a,button)[class~="bg-white"]:hover { background-color:#07663f; }
+.autoloke-light [class*="hover:bg-white/"]:hover { background-color:#e6f5eb; }
+.autoloke-light [class~="bg-black/60"],
+.autoloke-light [class~="bg-black/70"],
+.autoloke-light [class~="bg-black/80"],
+.autoloke-light [class~="bg-black"] { color:#fff; }
+.autoloke-light :is([class~="bg-black/60"],[class~="bg-black/70"],[class~="bg-black/80"],[class~="bg-black"]) [class~="text-white"],
+.autoloke-light :is([class~="bg-black/60"],[class~="bg-black/70"],[class~="bg-black/80"],[class~="bg-black"])[class~="text-white"],
+.autoloke-light :is([class~="bg-black/60"],[class~="bg-black/70"],[class~="bg-black/80"],[class~="bg-black"])[class~="text-white/90"] { color:#fff; }
+.autoloke-light :is(input,select,textarea) { color:#173f2e; accent-color:#07804a; }
+.autoloke-light :is(input,select,textarea):focus-visible { outline:2px solid #72c99b; outline-offset:1px; }
+.autoloke-light :is(input,textarea)::placeholder { color:#829b8c; }
+.autoloke-light :is(select,option) { background-color:#fff !important; color:#153d2b !important; }
+.autoloke-light [class~="text-yellow-100"] { color:#715508; }
+.autoloke-light [class~="text-orange-200"] { color:#ad6114; }
+.autoloke-light [class~="bg-gradient-to-br"][class~="from-[#0b1220]"] {
+  background-image:linear-gradient(125deg,#daf5e4 0%,#f4fbf7 60%,#caebd7 100%);
+}
+.autoloke-hero {
+  isolation:isolate;
+  min-height:340px;
+  background-color:#cfe9da;
+  background-image:linear-gradient(90deg,rgba(239,251,244,.99) 0%,rgba(239,251,244,.95) 35%,rgba(239,251,244,.54) 67%,rgba(239,251,244,.06) 100%),url("https://images.unsplash.com/photo-1577047040140-4c1324b60e08?auto=format&fit=crop&w=1600&q=85");
+  background-position:center,right center;
+  background-size:cover;
+  box-shadow:0 14px 38px rgba(18,97,54,.09);
+}
+.autoloke-hero-content { text-shadow:0 1px 18px rgba(245,255,249,.58); }
+.autoloke-pricing {
+  background:linear-gradient(145deg,#096d42,#058a53);
+  color:white;
+  box-shadow:0 16px 36px rgba(0,91,55,.24);
+}
+.autoloke-light .autoloke-pricing, .autoloke-light .autoloke-pricing * {color:white;}
+.autoloke-pricing-note {background:#fff7b2; color:#234531;}
+.autoloke-light .autoloke-pricing-note, .autoloke-light .autoloke-pricing-note * {color:#234531;}
+.autoloke-benefit {border:1px solid #d7eee0; background:#fff; box-shadow:0 4px 24px rgba(19,82,47,.04);}
+.autoloke-light .priceLabel { background:#087e4c; color:#fff; }
+@media(max-width:639px){
+  .autoloke-hero {min-height:300px;background-position:center,58% center;}
+  .autoloke-hero {background-image:linear-gradient(90deg,rgba(239,251,244,.98),rgba(239,251,244,.82)),url("https://images.unsplash.com/photo-1577047040140-4c1324b60e08?auto=format&fit=crop&w=1000&q=75");}
+}
+
+/* Ryškūs mygtukai ir žymekliai šviesioje temoje turi baltą tekstą. */
+.autoloke-light :is([class~="bg-emerald-700"],[class~="bg-emerald-800"],[class~="bg-emerald-900"])[class~="text-white"] {color:#fff;}
+.autoloke-light .autoloke-hero a[class~="bg-white"] {background:#fff;color:#125a38;}
+.autoloke-light .autoloke-hero a[class~="bg-white"]:hover {background:#e9f9ee;}
+.autoloke-light [class~="bg-emerald-700"][class~="text-lg"][class~="text-white"] {color:#fff;}
