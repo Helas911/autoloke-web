@@ -153,3 +153,9 @@ body.autoloke-light {
   .autoloke-hero {min-height:300px;background-position:center,58% center;}
   .autoloke-hero {background-image:linear-gradient(90deg,rgba(239,251,244,.98),rgba(239,251,244,.82)),url("https://images.unsplash.com/photo-1577047040140-4c1324b60e08?auto=format&fit=crop&w=1000&q=75");}
 }
+
+/* Ryškūs mygtukai ir žymekliai šviesioje temoje turi baltą tekstą. */
+.autoloke-light :is([class~="bg-emerald-700"],[class~="bg-emerald-800"],[class~="bg-emerald-900"])[class~="text-white"] {color:#fff;}
+.autoloke-light .autoloke-hero a[class~="bg-white"] {background:#fff;color:#125a38;}
+.autoloke-light .autoloke-hero a[class~="bg-white"]:hover {background:#e9f9ee;}
+.autoloke-light [class~="bg-emerald-700"][class~="text-lg"][class~="text-white"] {color:#fff;}

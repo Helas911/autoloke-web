@@ -11,7 +11,7 @@ export function bubbleIcon(text: string, kind: "price" | "count") {
   const t = String(text);
   const w = Math.max(38, t.length * 8 + pad);
   const h = 30;
-  const bg = kind === "count" ? "#0b1220" : "#0b3bff";
+  const bg = kind === "count" ? "#0a6541" : "#07844f";
   const stroke = "rgba(255,255,255,0.35)";
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
