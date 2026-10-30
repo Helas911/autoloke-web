@@ -46,7 +46,7 @@ type Item = {
 
 type Tab = "transportas" | "dalys";
 
-const optStyle: CSSProperties = { background: "#0b0b10", color: "rgba(255,255,255,0.95)" };
+const optStyle: CSSProperties = { background: "#ffffff", color: "#153d2b" };
 
 function toBrandCategory(cat: VehicleCategory): BrandCategory {
   switch (cat) {
@@ -279,7 +279,49 @@ export default function Home() {
     <>
       
 
-      <main className="mx-auto w-full max-w-6xl px-4 pb-24 pt-4">
+      <main className="mx-auto w-full max-w-7xl px-4 pb-24 pt-5">
+        <section className="autoloke-hero relative mb-5 overflow-hidden rounded-[30px] border border-emerald-100 px-5 py-8 sm:px-9 sm:py-10">
+          <div className="relative z-10 flex flex-col items-start justify-between gap-6 md:flex-row md:items-center">
+            <div className="autoloke-hero-content max-w-xl">
+              <p className="mb-2 text-sm font-black uppercase tracking-[0.14em] text-emerald-700">Autoloke</p>
+              <h1 className="text-3xl font-black leading-tight tracking-tight text-emerald-950 sm:text-5xl">
+                {siteCountry === "DK" ? "Find køretøjer og reservedele" : "Rask transportą ir dalis"}
+                <span className="block text-emerald-700">{siteCountry === "DK" ? "tæt på dig" : "aplink save"}</span>
+              </h1>
+              <p className="mt-4 max-w-lg text-sm font-semibold leading-6 text-emerald-950 sm:text-base">
+                {siteCountry === "DK" ? "Søg annoncer på kortet, filtrér efter dine behov, og find tilbud i nærheden." : "Ieškok skelbimų žemėlapyje, filtruok pagal savo poreikius ir rask pasiūlymus netoliese."}
+              </p>
+              <div className="mt-5 flex flex-wrap gap-3">
+                <a href="#autoloke-map" className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-5 py-3 text-sm font-black text-white shadow-md hover:bg-emerald-800">⌖ {siteCountry === "DK" ? "Søg på kortet" : "Ieškoti žemėlapyje"}</a>
+                <Link href="/ikelti" className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-white px-5 py-3 text-sm font-black text-emerald-900 hover:bg-emerald-50">＋ {siteCountry === "DK" ? "Opret annonce" : "Įkelti skelbimą"}</Link>
+              </div>
+            </div>
+            <div className="autoloke-pricing w-full shrink-0 rounded-[26px] px-5 py-5 text-center md:w-[225px]">
+              <div className="text-xs font-extrabold uppercase tracking-wider">{siteCountry === "DK" ? "Én annonce" : "Vienas skelbimas"}</div>
+              <div className="my-1 text-6xl font-black leading-none">1 €</div>
+              <div className="text-xs font-bold">{siteCountry === "DK" ? "Ingen prisstigninger" : "Jokių pabrangimų"}</div>
+              <div className="mt-1 text-xs font-bold">{siteCountry === "DK" ? "Ingen skjulte gebyrer" : "Jokių paslėptų mokesčių"}</div>
+              <div className="autoloke-pricing-note mt-3 rounded-full px-3 py-2 text-[11px] font-black">
+                {siteCountry === "DK" ? "Reservedele er gratis" : "Dalių skelbimai nemokami"}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div className="mb-5 grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
+          {[
+            { icon: "📍", lt: "Rask skelbimus šalia savęs", dk: "Find annoncer tæt på dig" },
+            { icon: "🚗", lt: "Transportas ir dalys", dk: "Køretøjer og dele" },
+            { icon: "🗺️", lt: "Paieška žemėlapyje", dk: "Søg på kortet" },
+            { icon: "✓", lt: "1 € be paslėptų mokesčių", dk: "1 € uden skjulte gebyrer" },
+          ].map((item) => (
+            <div key={item.lt} className="autoloke-benefit flex items-center gap-3 rounded-2xl px-3 py-3 sm:px-4">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-emerald-100 text-xl text-emerald-800">{item.icon}</span>
+              <span className="text-xs font-extrabold text-emerald-950 sm:text-sm">{siteCountry === "DK" ? item.dk : item.lt}</span>
+            </div>
+          ))}
+        </div>
+
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div className="text-sm font-extrabold text-white/80">
             {t(siteCountry, "siteTagline")}
@@ -329,7 +371,7 @@ export default function Home() {
           </div>
         ) : null}
 
-        <section className="grid items-start gap-3 md:grid-cols-[1fr_360px]">
+        <section id="autoloke-map" className="grid scroll-mt-32 items-start gap-3 md:grid-cols-[1fr_360px]">
           {/* MAP */}
           <div className="overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.03]">
             <div className="relative h-[62vh] min-h-[420px]">
@@ -731,6 +773,23 @@ export default function Home() {
             ) : null}
           </section>
         ) : null}
+
+        <section className="mt-8 rounded-[26px] border border-emerald-100 bg-white px-5 py-6 shadow-sm sm:p-7">
+          <h2 className="mb-5 text-xl font-black text-emerald-950">{siteCountry === "DK" ? "Hvordan fungerer det?" : "Kaip tai veikia?"}</h2>
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+            {[
+              {icon:"🔎",lt:"Ieškok",dk:"Søg",ltDesc:"Naudok filtrus ir žemėlapį",dkDesc:"Brug filtre og kortet"},
+              {icon:"📍",lt:"Rask arčiau",dk:"Find tæt på",ltDesc:"Pasiūlymai tavo vietovėje",dkDesc:"Annoncer i nærheden"},
+              {icon:"＋",lt:"Įkelk skelbimą",dk:"Opret annonce",ltDesc:"Transportui tik 1 €",dkDesc:"Kun 1 € for køretøjer"},
+              {icon:"✓",lt:"Parduok paprastai",dk:"Sælg nemt",ltDesc:"Be paslėptų mokesčių",dkDesc:"Ingen skjulte gebyrer"},
+            ].map((step) => (
+              <div key={step.lt} className="flex items-start gap-3">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-emerald-700 text-lg font-black text-white">{step.icon}</span>
+                <div><h3 className="text-sm font-black text-emerald-950">{siteCountry === "DK" ? step.dk : step.lt}</h3><p className="mt-1 text-xs text-emerald-800">{siteCountry === "DK" ? step.dkDesc : step.ltDesc}</p></div>
+              </div>
+            ))}
+          </div>
+        </section>
       </main>
 
     </>
